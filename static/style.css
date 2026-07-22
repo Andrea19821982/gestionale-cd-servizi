@@ -869,4 +869,16 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     .topnav { padding: 0 0.75rem; }
     .brand { padding: 0.7rem 0.75rem 0.7rem 0; font-size: 0.9rem; }
     h1 { font-size: 1.25rem; }
+
+    /* Le tabelle normali (non quelle del calendario/statistiche, che
+       hanno già il proprio scroll con colonna dipendente fissa) diventano
+       scorrevoli in orizzontale sul proprio riquadro: senza questa
+       regola, su schermi stretti è l'intera pagina a scorrere di lato
+       invece della sola tabella, portandosi via anche la barra di
+       navigazione dallo schermo. */
+    .tabella:not(.tabella-calendario):not(.tabella-statistiche) {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
 }

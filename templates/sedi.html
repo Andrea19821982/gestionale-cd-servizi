@@ -41,7 +41,7 @@
 <form method="post" action="/sedi/nuova" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <input type="text" name="nome" placeholder="Nome sede" required>
-    <input type="color" name="colore_hex" value="#2f6fed" required>
+    <input type="color" name="colore_hex" value="#2563eb" required>
     <label>Copertura minima ordinaria <input type="number" name="copertura_minima_ordinaria" value="0" min="0" required style="width:5em;"></label>
     <button type="submit">Aggiungi</button>
 </form>

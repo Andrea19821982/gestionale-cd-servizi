@@ -66,7 +66,7 @@ HTML_CONFIGURAZIONE = """
   .box { max-width: 360px; margin: 15vh auto; background: white; padding: 2rem; border-radius: 8px; border: 1px solid #dde1e6; }
   h1 { font-size: 1.2rem; margin-top: 0; }
   input { width: 100%; padding: 0.5rem; margin: 0.5rem 0 1rem; border: 1px solid #dde1e6; border-radius: 4px; box-sizing: border-box; font-size: 1rem; }
-  button { width: 100%; padding: 0.5rem; background: #2f6fed; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 1rem; }
+  button { width: 100%; padding: 0.5rem; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 1rem; }
   p { color: #6b7280; font-size: 0.85rem; }
 </style>
 </head>
