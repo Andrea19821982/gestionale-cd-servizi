@@ -10,7 +10,7 @@
     <tbody>
         {% for t in tipi %}
         <tr>
-            <td>{{ t.etichetta }}</td>
+            <td><span class="badge" style="background:{{ colore_avatar(t.etichetta) }}">{{ t.etichetta }}</span></td>
             <td>{{ t.ora_inizio.strftime("%H:%M") }}</td>
             <td>{{ t.ora_fine.strftime("%H:%M") }}</td>
             <td>

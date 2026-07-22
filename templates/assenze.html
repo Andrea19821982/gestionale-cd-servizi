@@ -38,8 +38,8 @@
     <tbody>
         {% for a in assenze %}
         <tr>
-            <td>{{ a.dipendente.cognome }} {{ a.dipendente.nome }}</td>
-            <td>{{ a.tipo_assenza }}</td>
+            <td><span class="avatar" style="background:{{ colore_avatar(a.dipendente.cognome + a.dipendente.nome) }}">{{ iniziali(a.dipendente.nome, a.dipendente.cognome) }}</span>{{ a.dipendente.cognome }} {{ a.dipendente.nome }}</td>
+            <td><span class="badge" style="background:{{ colore_avatar(a.tipo_assenza) }}">{{ a.tipo_assenza }}</span></td>
             <td>{{ a.data_inizio }}</td>
             <td>{{ a.data_fine }}</td>
             <td>

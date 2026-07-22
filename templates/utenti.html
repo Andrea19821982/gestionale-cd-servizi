@@ -11,8 +11,8 @@
     <tbody>
         {% for u in utenti %}
         <tr>
-            <td>{{ u.username }}</td>
-            <td>{{ u.ruolo }}</td>
+            <td><span class="avatar" style="background:{{ colore_avatar(u.username) }}">{{ u.username[:2]|upper }}</span>{{ u.username }}</td>
+            <td><span class="badge" style="background:{{ colore_avatar(u.ruolo) }}">{{ u.ruolo }}</span></td>
             <td>{{ u.dipendente_collegato.cognome ~ " " ~ u.dipendente_collegato.nome if u.dipendente_collegato else "—" }}</td>
             <td>{{ "Sì" if u.attivo else "No" }}</td>
             <td>
@@ -72,7 +72,7 @@
     <tbody>
         {% for delega in deleghe %}
         <tr>
-            <td>{{ delega.utente_delegato.username }}</td>
+            <td><span class="avatar" style="background:{{ colore_avatar(delega.utente_delegato.username) }}">{{ delega.utente_delegato.username[:2]|upper }}</span>{{ delega.utente_delegato.username }}</td>
             <td>{{ delega.data_inizio }}</td>
             <td>{{ delega.data_fine }}</td>
             <td>{{ delega.note or "" }}</td>

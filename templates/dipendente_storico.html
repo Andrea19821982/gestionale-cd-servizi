@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Storico {{ dipendente.cognome }} {{ dipendente.nome }}{% endblock %}
 {% block content %}
-<h1>{{ dipendente.cognome }} {{ dipendente.nome }}</h1>
+<h1 style="display:flex; align-items:center;"><span class="avatar avatar-lg" style="background:{{ colore_avatar(dipendente.cognome + dipendente.nome) }}">{{ iniziali(dipendente.nome, dipendente.cognome) }}</span>{{ dipendente.cognome }} {{ dipendente.nome }}</h1>
 <p><a href="/dipendenti">&larr; torna all'anagrafica</a></p>
 
 <h2>Anagrafica</h2>

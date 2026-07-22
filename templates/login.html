@@ -4,11 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Accesso — Calendario Turni</title>
+    <link rel="icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css?v={{ versione_statico('style.css') }}">
 </head>
 <body>
     <main class="container login-container">
         <div class="login-box">
+            <img class="login-logo" src="/static/logo.png" alt="" width="52" height="52">
             <h1>Calendario Turni</h1>
             {% if errore %}
             <div class="flash flash-errore">{{ errore }}</div>

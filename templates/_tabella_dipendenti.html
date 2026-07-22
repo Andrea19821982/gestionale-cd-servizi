@@ -5,7 +5,7 @@
     <tbody>
         {% for d in dipendenti %}
         <tr>
-            <td>{{ d.cognome }}</td>
+            <td><span class="avatar" style="background:{{ colore_avatar(d.cognome + d.nome) }}">{{ iniziali(d.nome, d.cognome) }}</span>{{ d.cognome }}</td>
             <td>{{ d.nome }}</td>
             <td>{{ d.sede_riferimento.nome if d.sede_riferimento else "—" }}</td>
             <td>{{ d.tipo_contratto or "—" }}</td>

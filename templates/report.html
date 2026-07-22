@@ -15,8 +15,33 @@
     <button type="submit">Aggiorna</button>
 </form>
 
+{% set totale_assenze_anno = andamento_assenteismo | sum(attribute="giorni_assenza") %}
+<div class="kpi-riga">
+    <div class="kpi-tile kpi-blu">
+        <div class="kpi-numero">{{ totale_assenze_anno }}</div>
+        <div class="kpi-etichetta">Giorni di assenza — {{ anno }}</div>
+    </div>
+    <div class="kpi-tile kpi-danger">
+        <div class="kpi-numero">{{ picco_assenteismo }}</div>
+        <div class="kpi-etichetta">Picco mensile</div>
+    </div>
+    <div class="kpi-tile kpi-ok">
+        <div class="kpi-numero">{{ "%.0f"|format(totale_costo_azienda) }} €</div>
+        <div class="kpi-etichetta">Costo del lavoro — {{ mese_nome }}</div>
+    </div>
+</div>
+
 <h2>Andamento assenteismo {{ anno }}</h2>
 <p class="muted">Giorni di ferie/permessi/malattia approvati, sommati su tutti i dipendenti attivi, mese per mese.</p>
+{% set massimo_assenteismo = (andamento_assenteismo | map(attribute="giorni_assenza") | list | max) or 1 %}
+<div class="mini-barchart">
+    {% for r in andamento_assenteismo %}
+    <div class="barra-colonna">
+        <div class="barra{% if picco_assenteismo > 0 and r.giorni_assenza == picco_assenteismo %} barra-picco{% endif %}" style="height: {{ (r.giorni_assenza / massimo_assenteismo * 100) if massimo_assenteismo else 0 }}%" title="{{ r.mese_nome }}: {{ r.giorni_assenza }}"></div>
+        <span class="barra-etichetta">{{ r.mese_nome[:3] }}</span>
+    </div>
+    {% endfor %}
+</div>
 <table class="tabella">
     <thead><tr><th>Mese</th><th>Giorni di assenza</th></tr></thead>
     <tbody>
@@ -36,7 +61,7 @@
     <tbody>
         {% for r in righe_costo %}
         <tr>
-            <td><a href="/dipendenti/{{ r.dipendente.id }}/storico">{{ r.dipendente.cognome }} {{ r.dipendente.nome }}</a></td>
+            <td><a href="/dipendenti/{{ r.dipendente.id }}/storico"><span class="avatar" style="background:{{ colore_avatar(r.dipendente.cognome + r.dipendente.nome) }}">{{ iniziali(r.dipendente.nome, r.dipendente.cognome) }}</span>{{ r.dipendente.cognome }} {{ r.dipendente.nome }}</a></td>
             <td>{{ r.ore_lavorate }}</td>
             <td>{% if r.costo_orario is not none %}{{ "%.2f"|format(r.costo_orario) }} €{% else %}—{% endif %}</td>
             <td>{% if r.costo_totale is not none %}{{ "%.2f"|format(r.costo_totale) }} €{% else %}—{% endif %}</td>

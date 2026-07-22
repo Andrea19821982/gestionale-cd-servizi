@@ -48,6 +48,50 @@ def _flash(request: Request) -> dict | None:
     return getattr(request.state, "flash", None)
 
 
+_PALETTE_AVATAR = ["#2563eb", "#7c3aed", "#db2777", "#d97706", "#0d9488", "#4338ca"]
+
+
+def _iniziali(nome: str, cognome: str) -> str:
+    """Iniziali cognome+nome per l'avatar (es. "Rossi Mario" -> "RM")."""
+    lettera_cognome = cognome.strip()[0].upper() if cognome and cognome.strip() else ""
+    lettera_nome = nome.strip()[0].upper() if nome and nome.strip() else ""
+    return (lettera_cognome + lettera_nome) or "?"
+
+
+def _colore_avatar(chiave: str) -> str:
+    """Colore dalla palette categorica, deterministico per non cambiare
+    a ogni ricarica della pagina (stessa persona -> stesso colore)."""
+    indice = sum(ord(c) for c in chiave) % len(_PALETTE_AVATAR)
+    return _PALETTE_AVATAR[indice]
+
+
+def _codice_turno(etichetta: str) -> str:
+    """Abbreviazione compatta per la cella del calendario, troppo stretta
+    per l'etichetta intera: M/P per i turni mattina/pomeriggio più comuni,
+    INT per un turno intermedio, altrimenti le prime lettere dell'etichetta
+    (i tipi turno sono liberi, configurabili in Tipi turno)."""
+    e = (etichetta or "").strip().lower()
+    if "mattin" in e:
+        return "M"
+    if "pomerig" in e:
+        return "P"
+    if "intermed" in e:
+        return "INT"
+    return (etichetta or "?")[:3].upper()
+
+
+def _orario_breve(ora) -> str:
+    """Ora senza i minuti se sono 00 (es. "7" invece di "7:00"), per stare
+    nello spazio ridotto della cella del calendario."""
+    return str(ora.hour) if ora.minute == 0 else f"{ora.hour}:{ora.minute:02d}"
+
+
+def _orario_turno(tipo_turno) -> str:
+    if tipo_turno is None:
+        return ""
+    return f"{_orario_breve(tipo_turno.ora_inizio)}-{_orario_breve(tipo_turno.ora_fine)}"
+
+
 def _classe_nav_attiva(request: Request, prefisso: str) -> str:
     """Evidenzia nella barra di navigazione (base.html) il link della
     sezione in cui ci si trova: confronta per prefisso, non per uguaglianza
@@ -65,3 +109,7 @@ templates.env.globals["bozze_email_pendenti"] = _bozze_email_pendenti
 templates.env.globals["csrf_token"] = _csrf_token
 templates.env.globals["flash"] = _flash
 templates.env.globals["classe_nav_attiva"] = _classe_nav_attiva
+templates.env.globals["iniziali"] = _iniziali
+templates.env.globals["colore_avatar"] = _colore_avatar
+templates.env.globals["codice_turno"] = _codice_turno
+templates.env.globals["orario_turno"] = _orario_turno

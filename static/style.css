@@ -9,12 +9,26 @@
     --accent: #2563eb;
     --accent-hover: #1e40af;
     --accent-soft: #eff6ff;
+    /* Stessi colori dell'icona dell'app (assets/icon.ico): la fascia scura
+       del calendario diventa lo sfondo della barra di navigazione, così la
+       finestra del browser e l'eseguibile desktop si riconoscono come
+       la stessa app. */
+    --brand-navy: #1f2430;
+    --brand-navy-light: #2c3241;
     --ok: #10b981;
     --ok-soft: #ecfdf5;
     --warn: #f59e0b;
     --warn-soft: #fffbeb;
     --danger: #ef4444;
     --danger-soft: #fef2f2;
+    /* Palette categorica, per gli avatar dei dipendenti e altri elementi
+       che beneficiano di più varietà cromatica del solo accent/ok/warn/danger. */
+    --cat-1: #2563eb;
+    --cat-2: #7c3aed;
+    --cat-3: #db2777;
+    --cat-4: #d97706;
+    --cat-5: #0d9488;
+    --cat-6: #4338ca;
     --radius: 10px;
     --radius-sm: 6px;
     --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 1px rgba(16, 24, 40, 0.04);
@@ -40,9 +54,8 @@ a { color: var(--accent); }
 /* --- Barra di navigazione --- */
 
 .topnav {
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
+    background: var(--brand-navy);
+    box-shadow: var(--shadow-md);
     padding: 0 1.25rem;
     display: flex;
     align-items: center;
@@ -54,19 +67,23 @@ a { color: var(--accent); }
     z-index: 20;
 }
 
-.topnav::before {
-    content: "📅 Calendario Turni";
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-weight: 800;
     font-size: 1rem;
-    color: var(--text);
+    color: #fff;
     padding: 0.85rem 1.25rem 0.85rem 0;
     margin-right: 0.25rem;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--brand-navy-light);
     white-space: nowrap;
 }
 
+.brand img { border-radius: 6px; display: block; }
+
 .topnav a {
-    color: var(--text-secondary);
+    color: #aab2c5;
     text-decoration: none;
     font-weight: 600;
     font-size: 0.88rem;
@@ -76,18 +93,18 @@ a { color: var(--accent); }
 }
 
 .topnav a:hover {
-    color: var(--accent);
-    background: var(--accent-soft);
+    color: #fff;
+    background: var(--brand-navy-light);
 }
 
 .topnav a.nav-link-attivo {
-    color: var(--accent);
-    background: var(--accent-soft);
+    color: #fff;
+    background: var(--accent);
 }
 
 .nav-utente {
     margin-left: auto;
-    color: var(--muted);
+    color: #8a92a8;
     font-size: 0.82rem;
     padding: 0.5rem 0.4rem;
     white-space: nowrap;
@@ -189,14 +206,20 @@ h3 {
     gap: 1rem;
 }
 
+/* Accento colorato solo sul lato sinistro invece del bordo tutt'intorno:
+   segnala lo stato senza far sembrare la card "in gabbia". */
 .blocco-copertura-vuoto {
-    border-color: var(--danger);
-    border-width: 2px;
+    border-left: 4px solid var(--danger);
+    border-top-color: var(--border);
+    border-right-color: var(--border);
+    border-bottom-color: var(--border);
 }
 
 .blocco-copertura-carente {
-    border-color: var(--warn);
-    border-width: 2px;
+    border-left: 4px solid var(--warn);
+    border-top-color: var(--border);
+    border-right-color: var(--border);
+    border-bottom-color: var(--border);
     background: var(--warn-soft);
 }
 
@@ -350,6 +373,113 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     text-overflow: ellipsis;
 }
 
+/* --- Avatar (iniziali dipendente) --- */
+
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-right: 0.55rem;
+    vertical-align: middle;
+    letter-spacing: 0;
+}
+
+.avatar-lg {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1rem;
+    margin-right: 0.75rem;
+}
+
+/* --- Tessere KPI (numero grande + etichetta) --- */
+
+.kpi-riga {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.kpi-tile {
+    flex: 1 1 180px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem 1.25rem;
+}
+
+.kpi-tile .kpi-numero {
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--text);
+}
+
+.kpi-tile .kpi-etichetta {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 0.4rem;
+}
+
+.kpi-tile.kpi-blu .kpi-numero { color: var(--accent); }
+.kpi-tile.kpi-danger .kpi-numero { color: var(--danger); }
+.kpi-tile.kpi-ok .kpi-numero { color: var(--ok); }
+
+/* --- Mini grafico a barre (andamento mensile) --- */
+
+.mini-barchart {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.4rem;
+    height: 130px;
+    padding: 0.75rem 0.75rem 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+}
+
+.mini-barchart .barra-colonna {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+    gap: 0.3rem;
+}
+
+.mini-barchart .barra {
+    width: 100%;
+    max-width: 28px;
+    background: var(--accent);
+    border-radius: 4px 4px 0 0;
+    min-height: 3px;
+    transition: height 0.2s ease;
+}
+
+.mini-barchart .barra.barra-picco { background: var(--danger); }
+
+.mini-barchart .barra-etichetta {
+    font-size: 0.62rem;
+    color: var(--muted);
+    font-weight: 600;
+    padding-bottom: 0.5rem;
+}
+
 .badge-sostituzione-oraria {
     display: inline-block;
     background: var(--accent);
@@ -410,14 +540,14 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 
 .nav-logout button {
     background: none;
-    color: var(--muted);
+    color: #8a92a8;
     font-weight: 600;
     box-shadow: none;
     border: none;
     padding: 0.5rem 0.4rem;
 }
 
-.nav-logout button:hover { color: var(--danger); background: none; }
+.nav-logout button:hover { color: #f87171; background: none; }
 
 /* --- Login --- */
 
@@ -442,17 +572,16 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     max-width: 340px;
 }
 
+.login-logo {
+    display: block;
+    margin: 0 auto 0.85rem;
+    border-radius: 12px;
+}
+
 .login-box h1 {
     font-size: 1.25rem;
     text-align: center;
     margin: 0 0 1.5rem;
-}
-
-.login-box h1::before {
-    content: "📅";
-    display: block;
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
 }
 
 .login-box form {
@@ -583,20 +712,67 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 
 .tabella-calendario tbody tr:hover .colonna-dipendente { background: #fafbfd; }
 
-.select-cella {
+/* Colonne dei giorni: larghezza fissa (invece di stringersi tutte per
+   stare nella larghezza dello schermo) così la cella del turno resta
+   leggibile su due righe; con 31 colonne la tabella diventa più larga
+   dello schermo, ma .scroll-calendario la fa scorrere in orizzontale. */
+.tabella-calendario th:not(.colonna-dipendente),
+.tabella-calendario td:not(.colonna-dipendente) {
+    width: 3.9rem;
+}
+
+/* Cella turno: un select invisibile sopra (cattura il click e apre il
+   menu nativo del browser, con hx-post al cambio) e sotto un riquadro
+   decorativo che mostra codice turno (M/P/INT) e orario su due righe,
+   cosa che il testo di un <select> chiuso non può fare da solo. */
+.cella-turno-wrap {
+    position: relative;
+    width: 3.6rem;
+    margin: 0 auto;
+}
+
+.select-cella-overlay {
+    position: absolute;
+    inset: 0;
     width: 100%;
-    max-width: 3.4rem;
+    height: 100%;
+    opacity: 0;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.cella-turno-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.15;
+    min-height: 1.9rem;
     padding: 0.15rem 0.05rem;
-    font-size: 0.62rem;
     border: 1px solid var(--border-strong);
     border-radius: 3px;
     background: var(--panel);
+    pointer-events: none;
+}
+
+.cella-turno-display .cella-turno-codice {
+    font-size: 0.64rem;
+    font-weight: 800;
     color: var(--text);
 }
 
-.select-cella.origine-manuale { border-color: var(--warn); }
-.select-cella.origine-sostituzione { border-color: var(--accent); }
-.select-cella.origine-assenza { border-color: var(--danger); }
+.cella-turno-display .cella-turno-orario {
+    font-size: 0.52rem;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.cella-turno-display.vuota .cella-turno-codice { color: var(--muted); font-weight: 600; }
+
+.cella-turno-display.origine-manuale { border-color: var(--warn); border-width: 2px; }
+.cella-turno-display.origine-sostituzione { border-color: var(--accent); border-width: 2px; }
+.cella-turno-display.origine-assenza { border-color: var(--danger); border-width: 2px; }
 
 .tabella-calendario th.weekend,
 .tabella-calendario td.weekend {
@@ -690,6 +866,6 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 @media (max-width: 720px) {
     .container { padding: 0 1rem; margin: 1.25rem auto; }
     .topnav { padding: 0 0.75rem; }
-    .topnav::before { padding: 0.7rem 0.75rem 0.7rem 0; font-size: 0.9rem; }
+    .brand { padding: 0.7rem 0.75rem 0.7rem 0; font-size: 0.9rem; }
     h1 { font-size: 1.25rem; }
 }

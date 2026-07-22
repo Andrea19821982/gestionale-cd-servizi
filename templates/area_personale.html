@@ -4,11 +4,23 @@
 <h1>{{ dipendente.cognome }} {{ dipendente.nome }}</h1>
 <p class="muted">Il tuo calendario e il tuo storico, in sola lettura. Per correggere un turno o registrare un'assenza rivolgiti a chi gestisce i turni.</p>
 
-<div class="riepilogo-personale">
-    <div class="riquadro"><strong>Ferie annuali</strong><br>{{ ferie_annuali_effettive }} giorni</div>
-    <div class="riquadro"><strong>Ferie usate ({{ anno }})</strong><br>{{ ferie_usate }} giorni</div>
-    <div class="riquadro"><strong>Ferie residue</strong><br>{{ ferie_residue }} giorni</div>
-    <div class="riquadro"><strong>Ore lavorate ({{ mese_nome }})</strong><br>{{ ore_lavorate_mese }} ore</div>
+<div class="kpi-riga">
+    <div class="kpi-tile kpi-blu">
+        <div class="kpi-numero">{{ ferie_annuali_effettive }}</div>
+        <div class="kpi-etichetta">Ferie annuali</div>
+    </div>
+    <div class="kpi-tile">
+        <div class="kpi-numero">{{ ferie_usate }}</div>
+        <div class="kpi-etichetta">Ferie usate — {{ anno }}</div>
+    </div>
+    <div class="kpi-tile kpi-ok">
+        <div class="kpi-numero">{{ ferie_residue }}</div>
+        <div class="kpi-etichetta">Ferie residue</div>
+    </div>
+    <div class="kpi-tile">
+        <div class="kpi-numero">{{ ore_lavorate_mese }}</div>
+        <div class="kpi-etichetta">Ore lavorate — {{ mese_nome }}</div>
+    </div>
 </div>
 
 <h2>Calendario di {{ mese_nome }} {{ anno }}</h2>
@@ -29,7 +41,7 @@
             <td>
                 {% if assegnazione is none %}—
                 {% elif assegnazione.origine == "assenza" %}<span class="badge badge-warn-testo">Assente</span>
-                {% elif assegnazione.tipo_turno %}{{ assegnazione.tipo_turno.etichetta }} ({{ assegnazione.tipo_turno.ora_inizio.strftime("%H:%M") }}-{{ assegnazione.tipo_turno.ora_fine.strftime("%H:%M") }})
+                {% elif assegnazione.tipo_turno %}<span class="badge" style="background:{{ colore_avatar(assegnazione.tipo_turno.etichetta) }}">{{ assegnazione.tipo_turno.etichetta }}</span> <span class="muted">{{ orario_turno(assegnazione.tipo_turno) }}</span>
                 {% else %}—{% endif %}
             </td>
         </tr>

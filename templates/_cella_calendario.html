@@ -11,21 +11,32 @@
 
 <td id="cella-{{ dipendente.id }}-{{ data_iso }}" class="{{ 'weekend' if weekend else '' }}">
     {% if utente.ruolo in ("amministratore", "gestore_turni") %}
-    <select
-        name="tipo_turno_id"
-        class="select-cella {{ 'origine-' + assegnazione.origine if assegnazione else '' }}"
-        title="{{ assegnazione.origine if assegnazione else 'nessun turno' }}"
-        hx-post="/calendario/cella"
-        hx-trigger="change"
-        hx-vals='{"dipendente_id": "{{ dipendente.id }}", "data": "{{ data_iso }}", "csrf_token": "{{ csrf_token(request) }}"}'
-        hx-target="closest td"
-        hx-swap="outerHTML"
-    >
-        <option value="">—</option>
-        {% for t in tipi_turno %}
-        <option value="{{ t.id }}" {% if assegnazione and assegnazione.tipo_turno_id == t.id %}selected{% endif %}>{{ t.etichetta }}</option>
-        {% endfor %}
-    </select>
+    {% set origine_classe = 'origine-' + assegnazione.origine if assegnazione else '' %}
+    <div class="cella-turno-wrap">
+        <select
+            name="tipo_turno_id"
+            class="select-cella-overlay"
+            title="{{ assegnazione.origine if assegnazione else 'nessun turno' }}"
+            hx-post="/calendario/cella"
+            hx-trigger="change"
+            hx-vals='{"dipendente_id": "{{ dipendente.id }}", "data": "{{ data_iso }}", "csrf_token": "{{ csrf_token(request) }}"}'
+            hx-target="closest td"
+            hx-swap="outerHTML"
+        >
+            <option value="">—</option>
+            {% for t in tipi_turno %}
+            <option value="{{ t.id }}" {% if assegnazione and assegnazione.tipo_turno_id == t.id %}selected{% endif %}>{{ t.etichetta }}</option>
+            {% endfor %}
+        </select>
+        <div class="cella-turno-display {{ origine_classe }}{% if not (assegnazione and assegnazione.tipo_turno) %} vuota{% endif %}">
+            {% if assegnazione and assegnazione.tipo_turno %}
+            <span class="cella-turno-codice">{{ codice_turno(assegnazione.tipo_turno.etichetta) }}</span>
+            <span class="cella-turno-orario">{{ orario_turno(assegnazione.tipo_turno) }}</span>
+            {% else %}
+            <span class="cella-turno-codice">—</span>
+            {% endif %}
+        </div>
+    </div>
     {% if ns.intera %}
     <div class="badge-sostituzione" style="background-color: {{ colore_sostituto }}"
          title="Sostituito da {{ ns.intera.dipendente_sostituto.cognome }} {{ ns.intera.dipendente_sostituto.nome }}">
@@ -45,8 +56,11 @@
     </div>
     {% elif assegnazione and assegnazione.origine == "assenza" %}
     <span class="badge badge-assenza">ASSENTE</span>
-    {% else %}
-        {{ assegnazione.tipo_turno.etichetta if assegnazione and assegnazione.tipo_turno else "" }}
+    {% elif assegnazione and assegnazione.tipo_turno %}
+    <div class="cella-turno-display" title="{{ assegnazione.tipo_turno.etichetta }}">
+        <span class="cella-turno-codice">{{ codice_turno(assegnazione.tipo_turno.etichetta) }}</span>
+        <span class="cella-turno-orario">{{ orario_turno(assegnazione.tipo_turno) }}</span>
+    </div>
     {% endif %}
     {% if parziali %}
     <span class="badge badge-sostituzione-oraria" title="{% for s in parziali %}{{ s.dipendente_sostituto.cognome }} {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}{% if not loop.last %}, {% endif %}{% endfor %}">S</span>
