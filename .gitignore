@@ -15,3 +15,11 @@ allegati/
 backup/
 indirizzo_server.txt
 log.txt
+
+# Script di aggiornamento da chiavetta USB: consegnati sempre come file
+# sciolti insieme al .bundle, mai gestiti da Git — altrimenti la prima
+# importazione su una cartella dove sono già stati copiati a mano va in
+# conflitto (git pull non può sovrascrivere un file non tracciato).
+aggiorna_programma.ps1
+Aggiorna_Programma.bat
+*.bundle
