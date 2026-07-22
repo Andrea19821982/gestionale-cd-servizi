@@ -1,7 +1,7 @@
 from datetime import date, time
 
 from app.auth import hash_password
-from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, Sede, TipoTurno, Utente
+from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, Sede, Sostituzione, TipoTurno, Utente
 from tests.conftest import login
 
 
@@ -151,6 +151,90 @@ def test_dipendente_non_puo_richiedere_assenza_per_un_collega(client, db):
     assert db.query(Assenza).filter(Assenza.dipendente_id == collega.id).count() == 0
     assenza = db.query(Assenza).filter(Assenza.dipendente_id == dip.id).one()
     assert assenza.tipo_assenza == "Ferie"
+
+
+def test_area_personale_mostra_sostituzione_fatta_dal_dipendente(client, db):
+    """Una sostituzione non tocca la riga di AssegnazioneGiornaliera di chi
+    sostituisce (vedi crea_sostituzione in sostituzioni.py): senza questa
+    vista il dipendente non saprebbe di dover andare in un'altra sede,
+    dato che non ha accesso al calendario generale."""
+    sede_partenza = _crea_sede(db, "Sede Partenza")
+    sede_arrivo = _crea_sede(db, "Sede Arrivo")
+    dip, _ = _crea_dipendente_con_login(db, sede_partenza)
+    collega = Dipendente(cognome="Collega", nome="DaSostituire", sede_riferimento_id=sede_partenza.id, attivo=True)
+    db.add(collega)
+    db.commit()
+    db.refresh(collega)
+
+    db.add(Sostituzione(
+        data=date(2026, 8, 15),
+        dipendente_partente_id=collega.id,
+        sede_partenza_id=sede_partenza.id,
+        dipendente_sostituto_id=dip.id,
+        sede_arrivo_id=sede_arrivo.id,
+    ))
+    db.commit()
+
+    login(client, "dip_test", "passwordsegreta")
+    r = client.get("/area-personale?anno=2026&mese=8")
+    assert r.status_code == 200
+    riga_15 = r.text.split(">15 (S)<")[1].split("</tr>")[0]
+    assert "Sede Arrivo" in riga_15
+    assert "Collega DaSostituire" in riga_15
+    assert "Sostituisci" in riga_15
+
+
+def test_area_personale_mostra_di_essere_sostituito(client, db):
+    sede = _crea_sede(db)
+    dip, _ = _crea_dipendente_con_login(db, sede)
+    sostituto = Dipendente(cognome="Collega", nome="Sostituto", sede_riferimento_id=sede.id, attivo=True)
+    db.add(sostituto)
+    db.commit()
+    db.refresh(sostituto)
+
+    db.add(Sostituzione(
+        data=date(2026, 8, 15),
+        dipendente_partente_id=dip.id,
+        sede_partenza_id=sede.id,
+        dipendente_sostituto_id=sostituto.id,
+        sede_arrivo_id=sede.id,
+    ))
+    db.commit()
+
+    login(client, "dip_test", "passwordsegreta")
+    r = client.get("/area-personale?anno=2026&mese=8")
+    assert r.status_code == 200
+    riga_15 = r.text.split(">15 (S)<")[1].split("</tr>")[0]
+    assert "Sostituito da" in riga_15
+    assert "Collega Sostituto" in riga_15
+
+
+def test_area_personale_non_mostra_sostituzioni_di_altri_giorni(client, db):
+    """La sostituzione di un collega, in un'altra data, non deve comparire
+    da nessuna parte nella pagina di chi non c'entra nulla."""
+    sede = _crea_sede(db)
+    dip, _ = _crea_dipendente_con_login(db, sede)
+    altro1 = Dipendente(cognome="Altro", nome="Uno", sede_riferimento_id=sede.id, attivo=True)
+    altro2 = Dipendente(cognome="Altro", nome="Due", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([altro1, altro2])
+    db.commit()
+    db.refresh(altro1)
+    db.refresh(altro2)
+
+    db.add(Sostituzione(
+        data=date(2026, 8, 15),
+        dipendente_partente_id=altro1.id,
+        sede_partenza_id=sede.id,
+        dipendente_sostituto_id=altro2.id,
+        sede_arrivo_id=sede.id,
+    ))
+    db.commit()
+
+    login(client, "dip_test", "passwordsegreta")
+    r = client.get("/area-personale?anno=2026&mese=8")
+    assert r.status_code == 200
+    assert "Sostituisci" not in r.text
+    assert "Sostituito da" not in r.text
 
 
 def test_richiedi_assenza_richiede_ruolo_dipendente(client, crea_utente):

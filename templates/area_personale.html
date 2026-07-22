@@ -30,19 +30,35 @@
 </p>
 <table class="tabella">
     <thead>
-        <tr><th>Giorno</th><th>Sede</th><th>Turno</th></tr>
+        <tr><th>Giorno</th><th>Sede</th><th>Turno</th><th>Sostituzione</th></tr>
     </thead>
     <tbody>
         {% for giorno in giorni %}
         {% set assegnazione = assegnazione_per_giorno.get(giorno.numero) %}
+        {% set sost_sostituto = sostituzioni_come_sostituto_per_giorno.get(giorno.numero) %}
+        {% set sost_partente = sostituzioni_come_partente_per_giorno.get(giorno.numero) %}
         <tr{% if giorno.weekend %} class="cella-weekend"{% endif %}>
             <td>{{ giorno.numero }} ({{ giorno.iniziale }})</td>
-            <td>{{ assegnazione.sede_effettiva.nome if assegnazione and assegnazione.sede_effettiva else "—" }}</td>
+            <td>
+                {% if sost_sostituto and not sost_sostituto.ora_inizio %}{{ sost_sostituto.sede_arrivo.nome }}
+                {% else %}{{ assegnazione.sede_effettiva.nome if assegnazione and assegnazione.sede_effettiva else "—" }}{% endif %}
+            </td>
             <td>
                 {% if assegnazione is none %}—
                 {% elif assegnazione.origine == "assenza" %}<span class="badge badge-warn-testo">Assente</span>
                 {% elif assegnazione.tipo_turno %}<span class="badge" style="background:{{ colore_avatar(assegnazione.tipo_turno.etichetta) }}">{{ assegnazione.tipo_turno.etichetta }}</span> <span class="muted">{{ orario_turno(assegnazione.tipo_turno) }}</span>
                 {% else %}—{% endif %}
+            </td>
+            <td>
+                {% if sost_sostituto %}
+                <span class="badge badge-ok-testo">Sostituisci</span>
+                {{ sost_sostituto.dipendente_partente.cognome }} {{ sost_sostituto.dipendente_partente.nome }}
+                {% if sost_sostituto.ora_inizio %}({{ sost_sostituto.ora_inizio.strftime("%H:%M") }}-{{ sost_sostituto.ora_fine.strftime("%H:%M") }}){% endif %}
+                {% endif %}
+                {% if sost_partente %}
+                <span class="muted">{% if sost_sostituto %}<br>{% endif %}Sostituito da {{ sost_partente.dipendente_sostituto.cognome }} {{ sost_partente.dipendente_sostituto.nome }}</span>
+                {% endif %}
+                {% if not sost_sostituto and not sost_partente %}—{% endif %}
             </td>
         </tr>
         {% endfor %}

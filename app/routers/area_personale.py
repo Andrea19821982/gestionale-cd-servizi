@@ -16,7 +16,7 @@ from app.database import get_db
 from app.email_service import invia_notifica_asincrona
 from app.flash import imposta_flash
 from app.logging_service import registra_modifica
-from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, Utente
+from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, Sostituzione, Utente
 from app.routers.assenze import _copri_giorni_con_assenza, _data_o_400, _si_sovrappone
 from app.routers.calendario import NOMI_MESE, _anno_mese_validi_o_oggi, _giorni_del_mese, _mese_precedente, _mese_successivo
 from app.routers.statistiche import _ferie_annuali_effettive, _giorni_ferie_usati_nell_anno, _ore_lavorate_nel_mese
@@ -66,6 +66,39 @@ def area_personale(
     )
     assegnazione_per_giorno = {r.data.day: r for r in righe}
 
+    data_inizio_mese = date(anno, mese, 1)
+    data_fine_mese = date(anno, mese, numero_giorni)
+
+    # Una sostituzione non tocca la riga di AssegnazioneGiornaliera di chi
+    # sostituisce (vedi crea_sostituzione in sostituzioni.py: crea solo un
+    # record a parte), quindi senza queste due query il dipendente non
+    # saprebbe dalla propria area, per esempio, che oggi deve andare in
+    # un'altra sede a coprire un collega: qui sotto non ha accesso al
+    # calendario generale (per privacy sui colleghi), quindi è l'unico
+    # posto dove può scoprirlo.
+    sostituzioni_come_sostituto_per_giorno = {
+        r.data.day: r
+        for r in db.query(Sostituzione)
+        .options(joinedload(Sostituzione.dipendente_partente), joinedload(Sostituzione.sede_arrivo))
+        .filter(
+            Sostituzione.dipendente_sostituto_id == dipendente.id,
+            Sostituzione.data >= data_inizio_mese,
+            Sostituzione.data <= data_fine_mese,
+        )
+        .all()
+    }
+    sostituzioni_come_partente_per_giorno = {
+        r.data.day: r
+        for r in db.query(Sostituzione)
+        .options(joinedload(Sostituzione.dipendente_sostituto))
+        .filter(
+            Sostituzione.dipendente_partente_id == dipendente.id,
+            Sostituzione.data >= data_inizio_mese,
+            Sostituzione.data <= data_fine_mese,
+        )
+        .all()
+    }
+
     assenze = (
         db.query(Assenza)
         .filter(Assenza.dipendente_id == dipendente.id)
@@ -90,6 +123,8 @@ def area_personale(
             "mese_nome": NOMI_MESE[mese],
             "giorni": giorni,
             "assegnazione_per_giorno": assegnazione_per_giorno,
+            "sostituzioni_come_sostituto_per_giorno": sostituzioni_come_sostituto_per_giorno,
+            "sostituzioni_come_partente_per_giorno": sostituzioni_come_partente_per_giorno,
             "assenze": assenze,
             "ferie_annuali_effettive": ferie_annuali_effettive,
             "ferie_usate": ferie_usate,
