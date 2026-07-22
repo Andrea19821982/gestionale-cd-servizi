@@ -33,7 +33,7 @@
     <p class="muted">Eventi in corso: {% for e in blocco.eventi_oggi %}{{ e.sala.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
     {% endif %}
     {% if blocco.dipendenti_suggeriti %}
-    <p><strong>Possibili sostituti disponibili:</strong> {% for d in blocco.dipendenti_suggeriti %}{{ d.cognome }} {{ d.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    <p><strong>Possibili sostituti disponibili:</strong> {% for d in blocco.dipendenti_suggeriti %}<span class="avatar" style="background:{{ colore_avatar(d.cognome + d.nome) }}">{{ iniziali(d.nome, d.cognome) }}</span>{{ d.cognome }} {{ d.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
     {% else %}
     <p class="muted">Nessun dipendente libero altrove risulta disponibile in automatico.</p>
     {% endif %}

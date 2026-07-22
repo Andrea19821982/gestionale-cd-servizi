@@ -80,7 +80,7 @@
                 {% if delega.data_inizio <= oggi <= delega.data_fine %}
                 <span class="badge badge-ok-testo">Attiva</span>
                 {% elif delega.data_fine < oggi %}
-                <span class="badge">Scaduta</span>
+                <span class="badge badge-muted">Scaduta</span>
                 {% else %}
                 <span class="badge badge-warn-testo">Futura</span>
                 {% endif %}

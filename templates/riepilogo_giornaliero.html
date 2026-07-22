@@ -37,7 +37,7 @@
     {% if blocco.righe %}
     <ul>
         {% for riga in blocco.righe %}
-        <li>{{ riga.dipendente.cognome }} {{ riga.dipendente.nome }} —
+        <li><span class="avatar" style="background:{{ colore_avatar(riga.dipendente.cognome + riga.dipendente.nome) }}">{{ iniziali(riga.dipendente.nome, riga.dipendente.cognome) }}</span>{{ riga.dipendente.cognome }} {{ riga.dipendente.nome }} —
             {% if riga.stato == "presente" %}Presente{% elif riga.stato == "assente" %}<span class="badge badge-warn-testo">Assente</span>{% else %}<span class="badge badge-danger-testo">Non pianificato</span>{% endif %}
         </li>
         {% endfor %}

@@ -64,7 +64,7 @@
         {% for s in sostituzioni_come_sostituto %}
         <tr>
             <td>{{ s.data }}</td>
-            <td>{{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }}</td>
+            <td><span class="avatar" style="background:{{ colore_avatar(s.dipendente_partente.cognome + s.dipendente_partente.nome) }}">{{ iniziali(s.dipendente_partente.nome, s.dipendente_partente.cognome) }}</span>{{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }}</td>
             <td>{{ s.sede_partenza.nome }}</td>
             <td>{% if s.ora_inizio %}{{ s.ora_inizio.strftime("%H:%M") }}-{{ s.ora_fine.strftime("%H:%M") }}{% else %}intera giornata{% endif %}</td>
         </tr>
@@ -85,7 +85,7 @@
         {% for s in sostituzioni_come_partente %}
         <tr>
             <td>{{ s.data }}</td>
-            <td>{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }}</td>
+            <td><span class="avatar" style="background:{{ colore_avatar(s.dipendente_sostituto.cognome + s.dipendente_sostituto.nome) }}">{{ iniziali(s.dipendente_sostituto.nome, s.dipendente_sostituto.cognome) }}</span>{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }}</td>
             <td>{{ s.sede_arrivo.nome }}</td>
             <td>{% if s.ora_inizio %}{{ s.ora_inizio.strftime("%H:%M") }}-{{ s.ora_fine.strftime("%H:%M") }}{% else %}intera giornata{% endif %}</td>
         </tr>

@@ -34,7 +34,7 @@
             <tbody>
                 {% for riga in blocco.righe %}
                 <tr>
-                    <td>{{ riga.dipendente.cognome }} {{ riga.dipendente.nome }}</td>
+                    <td><span class="avatar" style="background:{{ colore_avatar(riga.dipendente.cognome + riga.dipendente.nome) }}">{{ iniziali(riga.dipendente.nome, riga.dipendente.cognome) }}</span>{{ riga.dipendente.cognome }} {{ riga.dipendente.nome }}</td>
                     <td>
                         {% if riga.stato == "presente" %}<span class="badge badge-ok-testo">Presente</span>
                         {% elif riga.stato == "assente" %}<span class="badge badge-warn-testo">Assente</span>
@@ -50,7 +50,7 @@
         <p><strong>Sostituti in arrivo oggi:</strong></p>
         <ul>
             {% for s in blocco.sostituti_in_arrivo %}
-            <li>{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }} (al posto di {{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }})</li>
+            <li><span class="avatar" style="background:{{ colore_avatar(s.dipendente_sostituto.cognome + s.dipendente_sostituto.nome) }}">{{ iniziali(s.dipendente_sostituto.nome, s.dipendente_sostituto.cognome) }}</span>{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }} (al posto di {{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }})</li>
             {% endfor %}
         </ul>
         {% endif %}
@@ -59,7 +59,7 @@
         {% if blocco.dipendenti_suggeriti %}
         <ul>
             {% for dip in blocco.dipendenti_suggeriti %}
-            <li>{{ dip.cognome }} {{ dip.nome }}{% if dip.sede_riferimento %} ({{ dip.sede_riferimento.nome }}){% endif %}</li>
+            <li><span class="avatar" style="background:{{ colore_avatar(dip.cognome + dip.nome) }}">{{ iniziali(dip.nome, dip.cognome) }}</span>{{ dip.cognome }} {{ dip.nome }}{% if dip.sede_riferimento %} ({{ dip.sede_riferimento.nome }}){% endif %}</li>
             {% endfor %}
         </ul>
         {% else %}

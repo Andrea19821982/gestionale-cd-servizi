@@ -38,7 +38,7 @@
         — da {{ b.mittente }}, ricevuta il {{ b.ricevuta_il.strftime("%d/%m/%Y %H:%M") }}
         — oggetto: <em>{{ b.oggetto }}</em>
         {% if b.stato == "confermata" %}<span class="badge badge-ok-testo">Confermata</span>
-        {% elif b.stato == "scartata" %}<span class="badge">Scartata</span>
+        {% elif b.stato == "scartata" %}<span class="badge badge-muted">Scartata</span>
         {% else %}<span class="badge badge-warn-testo">Da confermare</span>{% endif %}
     </p>
     {% if b.errore_parsing %}

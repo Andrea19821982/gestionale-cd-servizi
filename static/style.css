@@ -357,6 +357,7 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 
 .badge-ok-testo { background: var(--ok); }
 .badge-warn-testo { background: var(--warn); }
+.badge-muted { background: var(--muted); }
 .badge-danger-testo { background: var(--danger); }
 
 .badge-sostituzione {
