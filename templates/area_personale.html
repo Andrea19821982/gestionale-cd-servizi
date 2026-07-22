@@ -2,7 +2,7 @@
 {% block title %}Area personale{% endblock %}
 {% block content %}
 <h1>{{ dipendente.cognome }} {{ dipendente.nome }}</h1>
-<p class="muted">Il tuo calendario e il tuo storico, in sola lettura. Per correggere un turno o registrare un'assenza rivolgiti a chi gestisce i turni.</p>
+<p class="muted">Il tuo calendario e il tuo storico. Puoi richiedere tu stesso ferie/permessi/malattia qui sotto; per correggere un turno rivolgiti invece a chi gestisce i turni.</p>
 
 <div class="kpi-riga">
     <div class="kpi-tile kpi-blu">
@@ -74,4 +74,20 @@
 {% else %}
 <p class="muted">Nessuna assenza registrata.</p>
 {% endif %}
+
+<h2>Richiedi ferie, permesso o malattia</h2>
+<p class="muted">La richiesta copre subito il calendario e resta in attesa di approvazione: chi gestisce i turni la vedrà nell'elenco Assenze.</p>
+<form method="post" action="/area-personale/richiedi-assenza" class="form-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <input type="text" name="tipo_assenza" list="suggerimenti-tipo-assenza" placeholder="Tipo (es. Ferie)" required>
+    <datalist id="suggerimenti-tipo-assenza">
+        <option value="Ferie">
+        <option value="Malattia">
+        <option value="Permesso">
+    </datalist>
+    <label>Dal <input type="date" name="data_inizio" required></label>
+    <label>Al <input type="date" name="data_fine" required></label>
+    <input type="text" name="note" placeholder="Note (facoltativo)">
+    <button type="submit">Invia richiesta</button>
+</form>
 {% endblock %}

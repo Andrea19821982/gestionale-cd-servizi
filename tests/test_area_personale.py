@@ -95,3 +95,71 @@ def test_area_personale_richiede_login(client):
     r = client.get("/area-personale", follow_redirects=False)
     assert r.status_code == 303
     assert r.headers["location"].startswith("/login")
+
+
+def test_dipendente_puo_richiedere_assenza_per_se_stesso(client, db):
+    sede = _crea_sede(db)
+    dip, _ = _crea_dipendente_con_login(db, sede)
+    login(client, "dip_test", "passwordsegreta")
+
+    r = client.post(
+        "/area-personale/richiedi-assenza",
+        data={"tipo_assenza": "Ferie", "data_inizio": "2026-08-10", "data_fine": "2026-08-12", "note": "Test"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/area-personale"
+
+    assenza = db.query(Assenza).filter(Assenza.dipendente_id == dip.id).one()
+    assert assenza.stato == "richiesta"
+    assert assenza.tipo_assenza == "Ferie"
+
+    # La richiesta deve coprire subito il calendario, come quella
+    # inserita dall'amministrativo con /assenze/nuova.
+    celle = (
+        db.query(AssegnazioneGiornaliera)
+        .filter(AssegnazioneGiornaliera.dipendente_id == dip.id, AssegnazioneGiornaliera.data == date(2026, 8, 10))
+        .one()
+    )
+    assert celle.origine == "assenza"
+
+
+def test_dipendente_non_puo_richiedere_assenza_per_un_collega(client, db):
+    """Anche forzando un dipendente_id diverso nel corpo della richiesta,
+    la route non lo legge affatto: usa sempre e solo il dipendente
+    collegato all'account autenticato (vedi _dipendente_del_richiedente)."""
+    sede = _crea_sede(db)
+    dip, _ = _crea_dipendente_con_login(db, sede)
+    collega = Dipendente(cognome="Collega", nome="Bersaglio", sede_riferimento_id=sede.id, attivo=True)
+    db.add(collega)
+    db.commit()
+    db.refresh(collega)
+
+    login(client, "dip_test", "passwordsegreta")
+    r = client.post(
+        "/area-personale/richiedi-assenza",
+        data={
+            "dipendente_id": collega.id,  # ignorato: non è un parametro della route
+            "tipo_assenza": "Ferie",
+            "data_inizio": "2026-08-10",
+            "data_fine": "2026-08-12",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    assert db.query(Assenza).filter(Assenza.dipendente_id == collega.id).count() == 0
+    assenza = db.query(Assenza).filter(Assenza.dipendente_id == dip.id).one()
+    assert assenza.tipo_assenza == "Ferie"
+
+
+def test_richiedi_assenza_richiede_ruolo_dipendente(client, crea_utente):
+    crea_utente("gestore_areapersonale_test", "passwordsegreta", "gestore_turni")
+    login(client, "gestore_areapersonale_test", "passwordsegreta")
+
+    r = client.post(
+        "/area-personale/richiedi-assenza",
+        data={"tipo_assenza": "Ferie", "data_inizio": "2026-08-10", "data_fine": "2026-08-12"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 403

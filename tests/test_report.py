@@ -89,8 +89,12 @@ def test_andamento_assenteismo_conta_solo_assenze_approvate(client, crea_utente,
     db.commit()
 
     r = client.get("/report?anno=2026")
-    testo = r.text
-    riga_marzo = testo.split("Marzo")[1].split("</tr>")[0]
+    # Isola la tabella "Andamento assenteismo": il mini grafico a barre
+    # sopra la tabella ripete il nome del mese anche nel tooltip di ogni
+    # barra, quindi cercare "Marzo" nella pagina intera troverebbe prima
+    # quello e non la riga della tabella che questo test vuole verificare.
+    tabella = r.text.split("<thead><tr><th>Mese</th>")[1]
+    riga_marzo = tabella.split("Marzo")[1].split("</tr>")[0]
     assert ">3<" in riga_marzo  # solo i 3 giorni approvati, non i 3 in attesa
 
 

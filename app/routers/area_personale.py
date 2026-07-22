@@ -6,17 +6,38 @@ nessun pulsante di modifica."""
 from calendar import monthrange
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth import richiedi_ruolo
+from app.csrf import richiedi_csrf_valido
 from app.database import get_db
+from app.email_service import invia_notifica_asincrona
+from app.flash import imposta_flash
+from app.logging_service import registra_modifica
 from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, Utente
+from app.routers.assenze import _copri_giorni_con_assenza, _data_o_400, _si_sovrappone
 from app.routers.calendario import NOMI_MESE, _anno_mese_validi_o_oggi, _giorni_del_mese, _mese_precedente, _mese_successivo
 from app.routers.statistiche import _ferie_annuali_effettive, _giorni_ferie_usati_nell_anno, _ore_lavorate_nel_mese
 from app.templates import templates
 
 router = APIRouter()
+
+
+def _dipendente_del_richiedente(db: Session, utente: Utente) -> Dipendente:
+    """Il dipendente collegato all'account "dipendente" autenticato: usato
+    per garantire che una richiesta di assenza self-service riguardi
+    sempre e solo chi la fa, mai un dipendente_id arrivato dal form."""
+    if utente.dipendente_collegato_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Il tuo account non è collegato a nessuna scheda dipendente: chiedi a un amministratore di collegarlo da /utenti.",
+        )
+    dipendente = db.get(Dipendente, utente.dipendente_collegato_id)
+    if dipendente is None:
+        raise HTTPException(status_code=404, detail="La scheda dipendente collegata non esiste più.")
+    return dipendente
 
 
 @router.get("/area-personale")
@@ -27,14 +48,7 @@ def area_personale(
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo("dipendente")),
 ):
-    if utente.dipendente_collegato_id is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Il tuo account non è collegato a nessuna scheda dipendente: chiedi a un amministratore di collegarlo da /utenti.",
-        )
-    dipendente = db.get(Dipendente, utente.dipendente_collegato_id)
-    if dipendente is None:
-        raise HTTPException(status_code=404, detail="La scheda dipendente collegata non esiste più.")
+    dipendente = _dipendente_del_richiedente(db, utente)
 
     anno, mese = _anno_mese_validi_o_oggi(anno, mese)
     numero_giorni = monthrange(anno, mese)[1]
@@ -87,3 +101,71 @@ def area_personale(
             "mese_succ": mese_succ,
         },
     )
+
+
+@router.post("/area-personale/richiedi-assenza")
+def richiedi_assenza(
+    request: Request,
+    data_inizio: str = Form(...),
+    data_fine: str = Form(...),
+    tipo_assenza: str = Form(...),
+    note: str = Form(""),
+    db: Session = Depends(get_db),
+    utente: Utente = Depends(richiedi_ruolo("dipendente")),
+    _csrf: None = Depends(richiedi_csrf_valido),
+):
+    """Un dipendente può richiedere da sé un'assenza per il proprio account:
+    stesso flusso di /assenze/nuova gestito dall'amministrativo (stato
+    "richiesta", copre subito il calendario in attesa di una decisione),
+    ma qui il dipendente_id non arriva mai dal form — è sempre e solo
+    quello collegato all'utente autenticato (vedi _dipendente_del_richiedente),
+    così nessuno può richiedere un'assenza per conto di un collega."""
+    dipendente = _dipendente_del_richiedente(db, utente)
+
+    inizio = _data_o_400(data_inizio)
+    fine = _data_o_400(data_fine)
+    if fine < inizio:
+        raise HTTPException(status_code=400, detail="La data fine non può precedere la data inizio.")
+    tipo_assenza = tipo_assenza.strip()
+    if not tipo_assenza:
+        raise HTTPException(status_code=400, detail="Indica il tipo di assenza.")
+    if _si_sovrappone(db, dipendente.id, inizio, fine):
+        raise HTTPException(
+            status_code=400,
+            detail="Hai già un'assenza (in attesa o approvata) che si sovrappone a questo periodo.",
+        )
+
+    assenza = Assenza(
+        dipendente_id=dipendente.id,
+        data_inizio=inizio,
+        data_fine=fine,
+        tipo_assenza=tipo_assenza,
+        stato="richiesta",
+        note=note.strip() or None,
+        creato_da=utente.id,
+    )
+    db.add(assenza)
+    db.flush()
+    _copri_giorni_con_assenza(db, dipendente, inizio, fine)
+    registra_modifica(
+        db, utente.id, "assenze", assenza.id, "creazione",
+        f"dipendente_id={dipendente.id}, {inizio.isoformat()}..{fine.isoformat()}, tipo={tipo_assenza}, "
+        "stato=richiesta (richiesta dal dipendente in area personale)",
+    )
+    db.commit()
+
+    invia_notifica_asincrona(
+        f"Nuova richiesta di assenza: {dipendente.cognome} {dipendente.nome}",
+        "email_assenza.html",
+        {
+            "dipendente_nome": f"{dipendente.cognome} {dipendente.nome}",
+            "tipo_assenza": tipo_assenza,
+            "data_inizio": inizio.isoformat(),
+            "data_fine": fine.isoformat(),
+            "esito": "Richiesta dal dipendente, in attesa di approvazione",
+            "note": assenza.note,
+            "registrato_da": f"{dipendente.cognome} {dipendente.nome} (richiesta da sé in area personale)",
+        },
+    )
+    imposta_flash(request, "Richiesta di assenza inviata: resterà in attesa di approvazione.", tipo="ok")
+    return RedirectResponse("/area-personale", status_code=303)
