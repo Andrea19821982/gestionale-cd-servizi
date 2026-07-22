@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Calendario{% endblock %}
+{% block container_extra %}container-calendario{% endblock %}
+{% block content %}
+<h1>Calendario — {{ mese_nome }} {{ anno }}</h1>
+
+<form method="get" class="form-inline filtro">
+    <select name="sede_id" onchange="this.form.submit()">
+        {% for s in sedi %}
+        <option value="{{ s.id }}" {% if sede_corrente and sede_corrente.id == s.id %}selected{% endif %}>{{ s.nome }}</option>
+        {% endfor %}
+    </select>
+    <input type="hidden" name="anno" value="{{ anno }}">
+    <input type="hidden" name="mese" value="{{ mese }}">
+</form>
+
+<div class="nav-mese">
+    <a href="/calendario?sede_id={{ sede_corrente.id if sede_corrente else '' }}&anno={{ anno_prec }}&mese={{ mese_prec }}">&laquo; mese precedente</a>
+    {% if utente.ruolo in ("amministratore", "gestore_turni") and sede_corrente %}
+    <form method="post" action="/calendario/genera" class="form-inline" style="margin: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <input type="hidden" name="sede_id" value="{{ sede_corrente.id }}">
+        <input type="hidden" name="anno" value="{{ anno }}">
+        <input type="hidden" name="mese" value="{{ mese }}">
+        <button type="submit">Genera dal pattern</button>
+    </form>
+    {% endif %}
+    <a href="/calendario?sede_id={{ sede_corrente.id if sede_corrente else '' }}&anno={{ anno_succ }}&mese={{ mese_succ }}">mese successivo &raquo;</a>
+</div>
+
+{% if sede_corrente %}
+<div class="gruppo-esportazione">
+    <div class="gruppo-esportazione-riga">
+        <span class="gruppo-esportazione-etichetta">{{ sede_corrente.nome }}:</span>
+        <a class="pulsante-link" href="/calendario/stampa?sede_id={{ sede_corrente.id }}&anno={{ anno }}&mese={{ mese }}&auto=1" target="_blank">🖨️ Stampa</a>
+        <a class="pulsante-link" href="/calendario/stampa?sede_id={{ sede_corrente.id }}&anno={{ anno }}&mese={{ mese }}" target="_blank">📄 Esporta PDF</a>
+        <a class="pulsante-link" href="/calendario/excel?sede_id={{ sede_corrente.id }}&anno={{ anno }}&mese={{ mese }}">📊 Esporta Excel</a>
+    </div>
+    <div class="gruppo-esportazione-riga">
+        <span class="gruppo-esportazione-etichetta">Tutte le sedi:</span>
+        <a class="pulsante-link" href="/calendario/stampa?tutte=1&anno={{ anno }}&mese={{ mese }}&auto=1" target="_blank">🖨️ Stampa</a>
+        <a class="pulsante-link" href="/calendario/stampa?tutte=1&anno={{ anno }}&mese={{ mese }}" target="_blank">📄 Esporta PDF</a>
+        <a class="pulsante-link" href="/calendario/excel?tutte=1&anno={{ anno }}&mese={{ mese }}">📊 Esporta Excel</a>
+    </div>
+</div>
+{% endif %}
+
+{% if not sede_corrente %}
+<p class="muted">Nessuna sede attiva configurata.</p>
+{% elif not dipendenti %}
+<p class="muted">Nessun dipendente attivo assegnato a {{ sede_corrente.nome }}.</p>
+{% else %}
+<div class="scroll-calendario">
+<table class="tabella tabella-calendario">
+    <thead>
+        <tr>
+            <th class="colonna-dipendente">Dipendente</th>
+            {% for g in giorni %}
+            <th class="{{ 'weekend' if g.weekend else '' }}">{{ g.numero }}<br><span class="muted">{{ g.iniziale }}</span></th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in dipendenti %}
+        <tr>
+            <td class="colonna-dipendente" title="{{ d.cognome }} {{ d.nome }}">{{ d.cognome }} {{ d.nome }}</td>
+            {% for g in giorni %}
+            {% set assegnazione = assegnazioni_per_dipendente.get(d.id, {}).get(g.numero) %}
+            {% set sostituzioni_giorno = sostituzioni_per_dipendente.get(d.id, {}).get(g.numero, []) %}
+            {% set dipendente = d %}
+            {% set data_iso = "%04d-%02d-%02d" | format(anno, mese, g.numero) %}
+            {% set weekend = g.weekend %}
+            {% include "_cella_calendario.html" %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

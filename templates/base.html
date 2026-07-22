@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Calendario Turni{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css?v={{ versione_statico('style.css') }}">
+    <script src="/static/htmx.min.js?v={{ versione_statico('htmx.min.js') }}"></script>
+</head>
+<body>
+    <nav class="topnav">
+        {% if request.session.get("utente_ruolo") == "dipendente" %}
+        <a href="/area-personale" class="{{ classe_nav_attiva(request, '/area-personale') }}">🙋 La mia area</a>
+        {% else %}
+        <a href="/calendario" class="{{ classe_nav_attiva(request, '/calendario') }}">🗓️ Calendario</a>
+        <a href="/copertura" class="{{ classe_nav_attiva(request, '/copertura') }}">🧭 Copertura</a>
+        <a href="/sedi" class="{{ classe_nav_attiva(request, '/sedi') }}">🏢 Sedi</a>
+        <a href="/sale" class="{{ classe_nav_attiva(request, '/sale') }}">🏛️ Sale</a>
+        <a href="/dipendenti" class="{{ classe_nav_attiva(request, '/dipendenti') }}">👥 Dipendenti</a>
+        <a href="/tipi-turno" class="{{ classe_nav_attiva(request, '/tipi-turno') }}">⏱️ Tipi turno</a>
+        <a href="/assenze" class="{{ classe_nav_attiva(request, '/assenze') }}">🌴 Assenze</a>
+        <a href="/sostituzioni" class="{{ classe_nav_attiva(request, '/sostituzioni') }}">🔁 Sostituzioni</a>
+        <a href="/statistiche" class="{{ classe_nav_attiva(request, '/statistiche') }}">📈 Statistiche</a>
+        {% if request.session.get("utente_ruolo") in ("amministratore", "gestore_turni") %}
+        <a href="/report" class="{{ classe_nav_attiva(request, '/report') }}">📊 Report</a>
+        <a href="/bozze-email" class="{{ classe_nav_attiva(request, '/bozze-email') }}">📥 Bozze email</a>
+        <a href="/riepilogo-giornaliero" class="{{ classe_nav_attiva(request, '/riepilogo-giornaliero') }}">📧 Riepilogo giornaliero</a>
+        <a href="/allarme-copertura" class="{{ classe_nav_attiva(request, '/allarme-copertura') }}">🚨 Allarme copertura</a>
+        {% endif %}
+        {% if request.session.get("utente_ruolo") == "amministratore" %}
+        <a href="/utenti" class="{{ classe_nav_attiva(request, '/utenti') }}">🔑 Utenti</a>
+        {% endif %}
+        {% endif %}
+        <span class="nav-utente">{{ request.session.get("utente_username", "") }} ({{ request.session.get("utente_ruolo", "") }})</span>
+        <form method="post" action="/logout" class="nav-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+            <button type="submit">Esci</button>
+        </form>
+    </nav>
+    {% set messaggio_flash = flash(request) %}
+    {% if messaggio_flash %}
+    <div class="banner-notifica flash-{{ messaggio_flash.tipo }}">{{ messaggio_flash.testo }}</div>
+    {% endif %}
+    {% set pendenti = richieste_pendenti(request) %}
+    {% if pendenti %}
+    <div class="banner-notifica">
+        <a href="/assenze?stato=richiesta">🔔 {{ pendenti }} richiest{{ "a" if pendenti == 1 else "e" }} di assenza in attesa di approvazione</a>
+    </div>
+    {% endif %}
+    {% set bozze_pendenti = bozze_email_pendenti(request) %}
+    {% if bozze_pendenti %}
+    <div class="banner-notifica">
+        <a href="/bozze-email">📥 {{ bozze_pendenti }} bozz{{ "a" if bozze_pendenti == 1 else "e" }} da email in attesa di conferma</a>
+    </div>
+    {% endif %}
+    <main class="container {% block container_extra %}{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Storico {{ dipendente.cognome }} {{ dipendente.nome }}{% endblock %}
+{% block content %}
+<h1>{{ dipendente.cognome }} {{ dipendente.nome }}</h1>
+<p><a href="/dipendenti">&larr; torna all'anagrafica</a></p>
+
+<h2>Anagrafica</h2>
+<table class="tabella">
+    <tbody>
+        <tr><th>Sede di riferimento</th><td>{{ dipendente.sede_riferimento.nome if dipendente.sede_riferimento else "—" }}</td></tr>
+        <tr><th>Tipo di contratto</th><td>{{ dipendente.tipo_contratto or "—" }}</td></tr>
+        <tr><th>Ore settimanali contrattuali</th><td>{{ dipendente.ore_settimanali_contrattuali }} ore{% if dipendente.ore_settimanali_contrattuali < 40 %} (part-time){% endif %}</td></tr>
+        <tr><th>Ferie annuali</th><td>{{ ferie_annuali_effettive }} giorni{% if dipendente.ore_settimanali_contrattuali < 40 %} (prorate dal part-time, {{ dipendente.giorni_ferie_annuali }} a tempo pieno){% endif %}</td></tr>
+        <tr><th>Costo orario</th><td>{{ ("%.2f"|format(dipendente.costo_orario) ~ " €/ora") if dipendente.costo_orario is not none else "—" }}</td></tr>
+        <tr><th>Ordine visualizzazione</th><td>{{ dipendente.ordine_visualizzazione }}</td></tr>
+        <tr><th>Attivo</th><td>{{ "Sì" if dipendente.attivo else "No" }}</td></tr>
+        <tr>
+            <th>Pattern turno</th>
+            <td>
+                {% if pattern %}
+                Settimana dispari: {{ pattern.turno_settimana_dispari_id and "impostato" or "—" }},
+                settimana pari: {{ pattern.turno_settimana_pari_id and "impostato" or "—" }}
+                {% else %}—{% endif %}
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Storico ferie e permessi</h2>
+{% if assenze %}
+<table class="tabella">
+    <thead>
+        <tr><th>Tipo</th><th>Dal</th><th>Al</th><th>Stato</th><th>Note</th><th>Allegato</th><th>Registrata il</th></tr>
+    </thead>
+    <tbody>
+        {% for a in assenze %}
+        <tr>
+            <td>{{ a.tipo_assenza }}</td>
+            <td>{{ a.data_inizio }}</td>
+            <td>{{ a.data_fine }}</td>
+            <td>
+                {% if a.stato == "approvata" %}<span class="badge badge-ok-testo">Approvata</span>
+                {% elif a.stato == "rifiutata" %}<span class="badge badge-danger-testo">Rifiutata</span>
+                {% else %}<span class="badge badge-warn-testo">In attesa</span>{% endif %}
+            </td>
+            <td>{{ a.note or "" }}</td>
+            <td>{% if a.allegato_path %}<a href="/assenze/{{ a.id }}/allegato" target="_blank">📎</a>{% else %}—{% endif %}</td>
+            <td>{{ a.creato_il.strftime("%d/%m/%Y %H:%M") }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">Nessuna assenza registrata.</p>
+{% endif %}
+
+<h2>Sostituzioni fatte (come sostituto)</h2>
+{% if sostituzioni_come_sostituto %}
+<table class="tabella">
+    <thead>
+        <tr><th>Data</th><th>Ha sostituito</th><th>Sede</th><th>Orario</th></tr>
+    </thead>
+    <tbody>
+        {% for s in sostituzioni_come_sostituto %}
+        <tr>
+            <td>{{ s.data }}</td>
+            <td>{{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }}</td>
+            <td>{{ s.sede_partenza.nome }}</td>
+            <td>{% if s.ora_inizio %}{{ s.ora_inizio.strftime("%H:%M") }}-{{ s.ora_fine.strftime("%H:%M") }}{% else %}intera giornata{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">Nessuna sostituzione effettuata.</p>
+{% endif %}
+
+<h2>Sostituzioni ricevute (è stato sostituito)</h2>
+{% if sostituzioni_come_partente %}
+<table class="tabella">
+    <thead>
+        <tr><th>Data</th><th>Sostituito da</th><th>Sede arrivo</th><th>Orario</th></tr>
+    </thead>
+    <tbody>
+        {% for s in sostituzioni_come_partente %}
+        <tr>
+            <td>{{ s.data }}</td>
+            <td>{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }}</td>
+            <td>{{ s.sede_arrivo.nome }}</td>
+            <td>{% if s.ora_inizio %}{{ s.ora_inizio.strftime("%H:%M") }}-{{ s.ora_fine.strftime("%H:%M") }}{% else %}intera giornata{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">Nessuna sostituzione ricevuta.</p>
+{% endif %}
+{% endblock %}

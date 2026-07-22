@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Statistiche{% endblock %}
+{% block content %}
+<h1>Statistiche</h1>
+
+<form method="get" class="form-inline">
+    <label>Anno (ferie) <input type="number" name="anno" value="{{ anno }}" min="2000" max="2100"></label>
+    <label>Mese (ore lavorate)
+        <select name="mese">
+            {% for numero in range(1, 13) %}
+            <option value="{{ numero }}" {% if numero == mese %}selected{% endif %}>{{ nomi_mese[numero] }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <button type="submit">Aggiorna</button>
+</form>
+<p class="muted">Ferie residue, sostituzioni fatte e ferie/permessi concessi o rifiutati calcolati sull'anno solare {{ anno }}. Ore lavorate calcolate su {{ mese_nome }} {{ anno }}. Per un part-time (ore settimanali contrattuali sotto le 40) ferie annuali e ore contrattuali sono proporzionate automaticamente. Per lo storico completo di un dipendente, apri la sua scheda dalla colonna Dipendente.</p>
+
+<div class="scroll-statistiche">
+<table class="tabella tabella-statistiche">
+    <thead>
+        <tr>
+            <th rowspan="2" class="colonna-dipendente-header">Dipendente</th>
+            <th rowspan="2">Sede</th>
+            <th colspan="3" class="gruppo-inizio">Ferie {{ anno }}</th>
+            <th colspan="2" class="gruppo-inizio">Ore {{ mese_nome }}</th>
+            <th rowspan="2" class="gruppo-inizio">Sostituzioni fatte<br>({{ anno }})</th>
+            <th colspan="2" class="gruppo-inizio">Ferie/permessi ({{ anno }})</th>
+        </tr>
+        <tr>
+            <th class="gruppo-inizio">Annuali (prorate)</th>
+            <th>Usate</th>
+            <th>Residue</th>
+            <th class="gruppo-inizio">Lavorate</th>
+            <th>Contrattuali</th>
+            <th class="gruppo-inizio">Concesse</th>
+            <th>Rifiutate</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in righe %}
+        <tr>
+            <td class="colonna-dipendente"><a href="/dipendenti/{{ r.dipendente.id }}/storico">{{ r.dipendente.cognome }} {{ r.dipendente.nome }}</a></td>
+            <td>{{ r.dipendente.sede_riferimento.nome if r.dipendente.sede_riferimento else "—" }}</td>
+            <td class="gruppo-inizio">{{ r.ferie_annuali_effettive }}</td>
+            <td>{{ r.ferie_usate }}</td>
+            <td class="numero-forte">{% if r.ferie_residue < 0 %}<span class="badge badge-danger-testo">{{ r.ferie_residue }}</span>{% else %}{{ r.ferie_residue }}{% endif %}</td>
+            <td class="gruppo-inizio numero-forte">{% if r.ore_lavorate_mese < r.ore_contrattuali_mese %}<span class="badge badge-warn-testo">{{ r.ore_lavorate_mese }}</span>{% else %}{{ r.ore_lavorate_mese }}{% endif %}</td>
+            <td>{{ r.ore_contrattuali_mese }}</td>
+            <td class="gruppo-inizio">{{ r.sostituzioni_fatte }}</td>
+            <td class="gruppo-inizio">{{ r.assenze_concesse }}</td>
+            <td>{{ r.assenze_rifiutate }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="muted">Nessun dipendente attivo.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

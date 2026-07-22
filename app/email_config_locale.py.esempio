@@ -1,0 +1,57 @@
+"""Copia questo file in app/email_config_locale.py (senza ".esempio") e
+scrivi qui le tue vere credenziali SMTP (invio notifiche) e IMAP (lettura
+automatica delle email di assenza/sostituzione). Quel file NON viene mai
+tracciato da git (vedi .gitignore): resta solo su questo PC.
+
+Basta scrivere solo i valori che vuoi cambiare rispetto a
+app/email_config.py — non serve ripeterli tutti.
+"""
+
+# Esempio con Aruba:
+# SMTP_HOST = "smtp.aruba.it"
+# SMTP_PORTA = 465
+# SMTP_USA_SSL = True
+# SMTP_UTENTE = "turni@tuodominio.it"
+# SMTP_PASSWORD = "la-tua-password"
+# SMTP_MITTENTE = "turni@tuodominio.it"
+# DESTINATARI_NOTIFICHE = ["responsabile@tuodominio.it", "ufficio@tuodominio.it"]
+
+# Esempio con Gmail (serve una "password per le app", non quella normale):
+# SMTP_HOST = "smtp.gmail.com"
+# SMTP_PORTA = 587
+# SMTP_USA_SSL = False
+# SMTP_UTENTE = "tuoindirizzo@gmail.com"
+# SMTP_PASSWORD = "password-per-le-app-generata-da-google"
+# SMTP_MITTENTE = "tuoindirizzo@gmail.com"
+# DESTINATARI_NOTIFICHE = ["responsabile@tuodominio.it"]
+
+# --- Lettura automatica email assenze/sostituzioni (IMAP) ---
+# Può essere la STESSA casella usata sopra per SMTP, o un'altra: quella dove
+# i dipendenti scrivono seguendo il formato di
+# docs/06-formato-email-dipendenti.md.
+
+# Esempio con Aruba:
+# IMAP_HOST = "imaps.aruba.it"
+# IMAP_PORTA = 993
+# IMAP_UTENTE = "turni@tuodominio.it"
+# IMAP_PASSWORD = "la-tua-password"
+# IMAP_CARTELLA = "INBOX"
+# IMAP_INTERVALLO_MINUTI = 5
+
+# Esempio con Libero:
+# IMAP_HOST = "imapmail.libero.it"
+# IMAP_PORTA = 993
+# IMAP_UTENTE = "turni@libero.it"
+# IMAP_PASSWORD = "la-tua-password"
+
+# --- Riepilogo giornaliero automatico (chi è nei presidi domani) ---
+# Usa lo stesso SMTP configurato sopra: qui specifichi solo chi lo riceve.
+# RIEPILOGO_GIORNALIERO_ABILITATO = True
+# RIEPILOGO_GIORNALIERO_DESTINATARI = ["referente@camera.it"]
+# RIEPILOGO_GIORNALIERO_ORA = "19:00"
+
+# --- Allarme interno di carenza copertura (preavviso ai gestori, prima del
+# riepilogo che va al referente Camera) ---
+# ALLARME_COPERTURA_ABILITATO = True
+# ALLARME_COPERTURA_DESTINATARI = ["gestore1@tuodominio.it", "gestore2@tuodominio.it"]
+# ALLARME_COPERTURA_ORA = "17:00"

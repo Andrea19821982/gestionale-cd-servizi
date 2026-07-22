@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Copertura{% endblock %}
+{% block content %}
+<h1>Copertura per sede</h1>
+<p class="muted">Chi è presente, assente o non ancora pianificato in ogni palazzo per il giorno scelto: un colpo d'occhio per capire subito dove serve una sostituzione.</p>
+
+<form method="get" class="form-inline">
+    <label>Giorno <input type="date" name="data" value="{{ data.isoformat() }}"></label>
+    <button type="submit">Aggiorna</button>
+</form>
+
+<div class="griglia-copertura">
+    {% for blocco in blocchi %}
+    <div class="riquadro blocco-copertura{% if blocco.presenti == 0 and blocco.totale > 0 %} blocco-copertura-vuoto{% endif %}{% if blocco.sotto_minimo %} blocco-copertura-carente{% endif %}">
+        <h2 style="margin-top:0;">{{ blocco.sede.nome }}</h2>
+        <p class="muted">{{ blocco.presenti }} presenti su {{ blocco.totale }} dipendenti di riferimento</p>
+        {% if blocco.copertura_minima > 0 %}
+        <p>
+            {% if blocco.sotto_minimo %}<span class="badge badge-danger-testo">Sotto il minimo richiesto</span>{% else %}<span class="badge badge-ok-testo">Minimo rispettato</span>{% endif %}
+            — copertura minima richiesta oggi: <strong>{{ blocco.copertura_minima }}</strong>
+            ({{ blocco.sede.copertura_minima_ordinaria }} ordinaria{% if blocco.eventi_oggi %} + {{ blocco.copertura_minima - blocco.sede.copertura_minima_ordinaria }} per eventi in corso{% endif %})
+        </p>
+        {% endif %}
+        {% if blocco.eventi_oggi %}
+        <p><strong>Eventi in corso oggi:</strong>
+            {% for e in blocco.eventi_oggi %}{{ e.sala.nome }}{% if e.descrizione %} ({{ e.descrizione }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+        </p>
+        {% endif %}
+        {% if blocco.totale == 0 %}
+        <p class="muted">Nessun dipendente assegnato a questa sede.</p>
+        {% else %}
+        <table class="tabella">
+            <thead><tr><th>Dipendente</th><th>Stato</th><th>Turno</th></tr></thead>
+            <tbody>
+                {% for riga in blocco.righe %}
+                <tr>
+                    <td>{{ riga.dipendente.cognome }} {{ riga.dipendente.nome }}</td>
+                    <td>
+                        {% if riga.stato == "presente" %}<span class="badge badge-ok-testo">Presente</span>
+                        {% elif riga.stato == "assente" %}<span class="badge badge-warn-testo">Assente</span>
+                        {% else %}<span class="badge badge-danger-testo">Non pianificato</span>{% endif %}
+                    </td>
+                    <td>{% if riga.assegnazione and riga.assegnazione.tipo_turno %}{{ riga.assegnazione.tipo_turno.etichetta }}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+        {% if blocco.sostituti_in_arrivo %}
+        <p><strong>Sostituti in arrivo oggi:</strong></p>
+        <ul>
+            {% for s in blocco.sostituti_in_arrivo %}
+            <li>{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }} (al posto di {{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }})</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if blocco.sotto_minimo %}
+        <p><strong>Possibili sostituti disponibili</strong> <span class="muted">(non pianificati in altri palazzi oggi — solo un suggerimento, non un'assegnazione automatica)</span></p>
+        {% if blocco.dipendenti_suggeriti %}
+        <ul>
+            {% for dip in blocco.dipendenti_suggeriti %}
+            <li>{{ dip.cognome }} {{ dip.nome }}{% if dip.sede_riferimento %} ({{ dip.sede_riferimento.nome }}){% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">Nessun dipendente libero altrove risulta disponibile in automatico.</p>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

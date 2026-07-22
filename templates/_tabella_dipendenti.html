@@ -1,0 +1,75 @@
+<table class="tabella" id="tabella-dipendenti">
+    <thead>
+        <tr><th>Cognome</th><th>Nome</th><th>Sede riferimento</th><th>Contratto</th><th>Ore sett.</th><th>Ordine</th><th>Ferie annuali</th><th>Attivo</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for d in dipendenti %}
+        <tr>
+            <td>{{ d.cognome }}</td>
+            <td>{{ d.nome }}</td>
+            <td>{{ d.sede_riferimento.nome if d.sede_riferimento else "—" }}</td>
+            <td>{{ d.tipo_contratto or "—" }}</td>
+            <td>{{ d.ore_settimanali_contrattuali }}</td>
+            <td>{{ d.ordine_visualizzazione }}</td>
+            <td>{{ d.giorni_ferie_annuali }}</td>
+            <td>{{ "Sì" if d.attivo else "No" }}</td>
+            <td>
+                <a href="/dipendenti/{{ d.id }}/storico">Storico</a>
+                {% if utente.ruolo in ("amministratore", "gestore_turni") %}
+                <details>
+                    <summary>Modifica</summary>
+                    <div class="riquadro">
+                        <form method="post" action="/dipendenti/{{ d.id }}/modifica" class="form-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                            <input type="text" name="cognome" value="{{ d.cognome }}" required>
+                            <input type="text" name="nome" value="{{ d.nome }}" required>
+                            <select name="sede_riferimento_id">
+                                <option value="">— nessuna —</option>
+                                {% for s in sedi %}
+                                <option value="{{ s.id }}" {% if d.sede_riferimento_id == s.id %}selected{% endif %}>{{ s.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" name="tipo_contratto" value="{{ d.tipo_contratto or '' }}" list="suggerimenti-contratto" placeholder="Tipo contratto">
+                            <input type="number" name="ordine_visualizzazione" value="{{ d.ordine_visualizzazione }}">
+                            <label>Ferie annuali <input type="number" name="giorni_ferie_annuali" value="{{ d.giorni_ferie_annuali }}" min="0" style="width: 4rem;"></label>
+                            <label>Ore settimanali <input type="number" name="ore_settimanali_contrattuali" value="{{ d.ore_settimanali_contrattuali }}" min="1" max="48" step="0.5" style="width: 4rem;"></label>
+                            <label>Costo orario € <input type="number" name="costo_orario" value="{{ d.costo_orario or '' }}" min="0" step="0.01" placeholder="facoltativo" style="width: 5rem;"></label>
+                            <label><input type="checkbox" name="attivo" {% if d.attivo %}checked{% endif %}> attivo</label>
+                            <button type="submit">Salva</button>
+                        </form>
+                        {% set pattern = pattern_per_dipendente.get(d.id) %}
+                        <form method="post" action="/dipendenti/{{ d.id }}/pattern" class="form-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                            <label>Turno sett. dispari
+                                <select name="turno_settimana_dispari_id">
+                                    <option value="">— nessuno —</option>
+                                    {% for t in tipi_turno %}
+                                    <option value="{{ t.id }}" {% if pattern and pattern.turno_settimana_dispari_id == t.id %}selected{% endif %}>{{ t.etichetta }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label>Turno sett. pari
+                                <select name="turno_settimana_pari_id">
+                                    <option value="">— nessuno —</option>
+                                    {% for t in tipi_turno %}
+                                    <option value="{{ t.id }}" {% if pattern and pattern.turno_settimana_pari_id == t.id %}selected{% endif %}>{{ t.etichetta }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <button type="submit">Salva pattern</button>
+                        </form>
+                    </div>
+                </details>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<datalist id="suggerimenti-contratto">
+    <option value="Tempo indeterminato full-time">
+    <option value="Tempo determinato">
+    <option value="Part-time orizzontale">
+    <option value="Part-time verticale">
+    <option value="Apprendistato">
+</datalist>

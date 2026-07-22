@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Riepilogo giornaliero{% endblock %}
+{% block content %}
+<h1>Riepilogo giornaliero</h1>
+<p class="muted">Ogni giorno, entro le {{ ora_configurata }}, il programma invia automaticamente a chi segui la Camera dei Deputati l'elenco di chi sarà nei vari presidi il giorno dopo — sostituisce l'invio manuale che oggi fa a mano una delle persone che segnano turni e sostituzioni.</p>
+
+{% if not configurato %}
+<p class="badge badge-danger-testo" style="display:inline-block;">⚠️ Non configurato: mancano SMTP e/o i destinatari in app/email_config_locale.py.</p>
+{% elif not abilitato %}
+<p class="badge badge-warn-testo" style="display:inline-block;">⏸️ Invio automatico disattivato (RIEPILOGO_GIORNALIERO_ABILITATO = False): puoi comunque inviarlo a mano qui sotto.</p>
+{% else %}
+<p class="badge badge-ok-testo" style="display:inline-block;">✅ Invio automatico attivo, entro le {{ ora_configurata }}.</p>
+{% endif %}
+
+<table class="tabella">
+    <tbody>
+        <tr><th>Destinatari</th><td>{{ destinatari | join(", ") if destinatari else "— nessuno configurato —" }}</td></tr>
+        <tr><th>Riepilogo di domani ({{ domani }})</th><td>{{ "Già inviato" if gia_inviato_domani else "Non ancora inviato" }}</td></tr>
+    </tbody>
+</table>
+
+<form method="post" action="/riepilogo-giornaliero/invia-ora">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <button type="submit" {% if not configurato %}disabled{% endif %}>📧 Invia ora il riepilogo di domani</button>
+</form>
+
+<h2>Anteprima di domani ({{ domani }})</h2>
+{% for blocco in blocchi_anteprima %}
+<div class="riquadro" style="margin-bottom: 0.75rem;">
+    <strong>{{ blocco.sede.nome }}</strong> — {{ blocco.presenti }} presenti su {{ blocco.totale }}
+    {% if blocco.copertura_minima > 0 %}
+    <p style="margin:0.25rem 0;">
+        {% if blocco.sotto_minimo %}<span class="badge badge-danger-testo">Sotto il minimo</span>{% else %}<span class="badge badge-ok-testo">Minimo rispettato</span>{% endif %}
+        — richiesti {{ blocco.copertura_minima }} ({{ blocco.sede.copertura_minima_ordinaria }} ordinaria{% if blocco.eventi_oggi %} + {{ blocco.copertura_minima - blocco.sede.copertura_minima_ordinaria }} per eventi{% endif %})
+    </p>
+    {% endif %}
+    {% if blocco.righe %}
+    <ul>
+        {% for riga in blocco.righe %}
+        <li>{{ riga.dipendente.cognome }} {{ riga.dipendente.nome }} —
+            {% if riga.stato == "presente" %}Presente{% elif riga.stato == "assente" %}<span class="badge badge-warn-testo">Assente</span>{% else %}<span class="badge badge-danger-testo">Non pianificato</span>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endfor %}
+
+<h2>Storico invii</h2>
+{% if invii_recenti %}
+<table class="tabella">
+    <thead><tr><th>Data riepilogo</th><th>Inviato il</th><th>Tipo</th><th>Destinatari</th></tr></thead>
+    <tbody>
+        {% for invio in invii_recenti %}
+        <tr>
+            <td>{{ invio.data_riepilogo }}</td>
+            <td>{{ invio.inviato_il.strftime("%d/%m/%Y %H:%M") }}</td>
+            <td>{{ "Manuale" if invio.manuale else "Automatico" }}</td>
+            <td>{{ invio.destinatari }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">Nessun invio ancora registrato.</p>
+{% endif %}
+{% endblock %}

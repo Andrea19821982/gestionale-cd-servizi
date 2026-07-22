@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Assenze{% endblock %}
+{% block content %}
+<h1>Assenze</h1>
+
+<form method="get" class="form-inline">
+    <select name="dipendente_id">
+        <option value="">Tutti i dipendenti</option>
+        {% for d in dipendenti %}
+        <option value="{{ d.id }}" {% if filtri.dipendente_id == d.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
+        {% endfor %}
+    </select>
+    <select name="stato">
+        <option value="" {% if not filtri.stato %}selected{% endif %}>Tutti gli stati</option>
+        <option value="richiesta" {% if filtri.stato == "richiesta" %}selected{% endif %}>In attesa di approvazione</option>
+        <option value="approvata" {% if filtri.stato == "approvata" %}selected{% endif %}>Approvata</option>
+        <option value="rifiutata" {% if filtri.stato == "rifiutata" %}selected{% endif %}>Rifiutata</option>
+    </select>
+    <label>Dal <input type="date" name="data_da" value="{{ filtri.data_da }}"></label>
+    <label>Al <input type="date" name="data_a" value="{{ filtri.data_a }}"></label>
+    <button type="submit">Filtra</button>
+</form>
+
+<table class="tabella">
+    <thead>
+        <tr>
+            <th>Dipendente</th>
+            <th>Tipo</th>
+            <th>Dal</th>
+            <th>Al</th>
+            <th>Stato</th>
+            <th>Note</th>
+            <th>Allegato</th>
+            <th>Registrata il</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for a in assenze %}
+        <tr>
+            <td>{{ a.dipendente.cognome }} {{ a.dipendente.nome }}</td>
+            <td>{{ a.tipo_assenza }}</td>
+            <td>{{ a.data_inizio }}</td>
+            <td>{{ a.data_fine }}</td>
+            <td>
+                {% if a.stato == "approvata" %}<span class="badge badge-ok-testo">Approvata</span>
+                {% elif a.stato == "rifiutata" %}<span class="badge badge-danger-testo">Rifiutata</span>
+                {% else %}<span class="badge badge-warn-testo">In attesa di approvazione</span>{% endif %}
+            </td>
+            <td>{{ a.note or "" }}</td>
+            <td>{% if a.allegato_path %}<a href="/assenze/{{ a.id }}/allegato" target="_blank">📎 {{ a.allegato_nome }}</a>{% else %}—{% endif %}</td>
+            <td>{{ a.creato_il.strftime("%d/%m/%Y %H:%M") }}</td>
+            <td>
+                {% if a.stato == "richiesta" and puo_approvare %}
+                <form method="post" action="/assenze/{{ a.id }}/approva" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                    <button type="submit">Approva</button>
+                </form>
+                <form method="post" action="/assenze/{{ a.id }}/rifiuta" style="display:inline;" onsubmit="return confirm('Rifiutare questa richiesta?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                    <button type="submit">Rifiuta</button>
+                </form>
+                {% endif %}
+                {% if utente.ruolo in ("amministratore", "gestore_turni") %}
+                <form method="post" action="/assenze/{{ a.id }}/elimina" style="display:inline;" onsubmit="return confirm('Eliminare questa assenza? Le celle del calendario che copriva torneranno vuote e lo storico della richiesta andrà perso (usa Rifiuta se vuoi mantenerne traccia).')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                    <button type="submit">Elimina</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="muted">Nessuna assenza trovata con questi criteri.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if utente.ruolo in ("amministratore", "gestore_turni") %}
+<h2>Registra una nuova assenza</h2>
+<p class="muted">L'assenza copre subito il calendario, senza aspettare l'approvazione. Se un amministratore la rifiuterà, le celle coperte torneranno libere ma la richiesta resterà nello storico del dipendente.</p>
+<form method="post" action="/assenze/nuova" class="form-inline" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <select name="dipendente_id" required>
+        <option value="" disabled selected>Dipendente</option>
+        {% for d in dipendenti %}
+        <option value="{{ d.id }}">{{ d.cognome }} {{ d.nome }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="tipo_assenza" list="suggerimenti-tipo-assenza" placeholder="Tipo (es. Ferie)" required>
+    <datalist id="suggerimenti-tipo-assenza">
+        <option value="Ferie">
+        <option value="Malattia">
+        <option value="Permesso">
+    </datalist>
+    <label>Dal <input type="date" name="data_inizio" required></label>
+    <label>Al <input type="date" name="data_fine" required></label>
+    <input type="text" name="note" placeholder="Note (facoltativo)">
+    <label>Certificato (facoltativo) <input type="file" name="allegato" accept=".pdf,.jpg,.jpeg,.png"></label>
+    <button type="submit">Registra assenza</button>
+</form>
+{% endif %}
+{% endblock %}

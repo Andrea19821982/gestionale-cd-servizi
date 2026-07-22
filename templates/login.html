@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Accesso — Calendario Turni</title>
+    <link rel="stylesheet" href="/static/style.css?v={{ versione_statico('style.css') }}">
+</head>
+<body>
+    <main class="container login-container">
+        <div class="login-box">
+            <h1>Calendario Turni</h1>
+            {% if errore %}
+            <div class="flash flash-errore">{{ errore }}</div>
+            {% endif %}
+            <form method="post">
+                <input type="hidden" name="next" value="{{ next }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                <label>
+                    Username
+                    <input type="text" name="username" autofocus required>
+                </label>
+                <label>
+                    Password
+                    <input type="password" name="password" required>
+                </label>
+                <button type="submit">Accedi</button>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

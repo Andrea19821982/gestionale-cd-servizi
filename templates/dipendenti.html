@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Dipendenti{% endblock %}
+{% block content %}
+<h1>Dipendenti</h1>
+
+<form class="filtro">
+    <label>
+        <input type="checkbox" name="solo_attivi" value="1" {% if solo_attivi %}checked{% endif %}
+               hx-get="/dipendenti" hx-target="#tabella-dipendenti" hx-select="#tabella-dipendenti"
+               hx-swap="outerHTML" hx-include="this" hx-push-url="true">
+        Solo attivi
+    </label>
+</form>
+
+{% include "_tabella_dipendenti.html" %}
+
+{% if utente.ruolo in ("amministratore", "gestore_turni") %}
+<h2>Nuovo dipendente</h2>
+<form method="post" action="/dipendenti/nuovo" class="form-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <input type="text" name="cognome" placeholder="Cognome" required>
+    <input type="text" name="nome" placeholder="Nome" required>
+    <select name="sede_riferimento_id">
+        <option value="">— nessuna —</option>
+        {% for s in sedi %}
+        <option value="{{ s.id }}">{{ s.nome }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="tipo_contratto" list="suggerimenti-contratto" placeholder="Tipo contratto">
+    <input type="number" name="ordine_visualizzazione" placeholder="Ordine" value="0">
+    <label>Ferie annuali <input type="number" name="giorni_ferie_annuali" value="26" min="0" style="width: 4rem;"></label>
+    <label>Ore settimanali <input type="number" name="ore_settimanali_contrattuali" value="40" min="1" max="48" step="0.5" style="width: 4rem;"></label>
+    <label>Costo orario € <input type="number" name="costo_orario" min="0" step="0.01" placeholder="facoltativo" style="width: 5rem;"></label>
+    <button type="submit">Aggiungi</button>
+</form>
+{% endif %}
+{% endblock %}

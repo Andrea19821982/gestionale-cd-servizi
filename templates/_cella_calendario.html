@@ -1,0 +1,55 @@
+{% set ns = namespace(intera=None) %}
+{% set parziali = [] %}
+{% for s in sostituzioni_giorno %}
+    {% if s.ora_inizio is none %}
+        {% set ns.intera = s %}
+    {% else %}
+        {% set _ = parziali.append(s) %}
+    {% endif %}
+{% endfor %}
+{% set colore_sostituto = ns.intera.dipendente_sostituto.sede_riferimento.colore_hex if ns.intera and ns.intera.dipendente_sostituto.sede_riferimento else "#888888" %}
+
+<td id="cella-{{ dipendente.id }}-{{ data_iso }}" class="{{ 'weekend' if weekend else '' }}">
+    {% if utente.ruolo in ("amministratore", "gestore_turni") %}
+    <select
+        name="tipo_turno_id"
+        class="select-cella {{ 'origine-' + assegnazione.origine if assegnazione else '' }}"
+        title="{{ assegnazione.origine if assegnazione else 'nessun turno' }}"
+        hx-post="/calendario/cella"
+        hx-trigger="change"
+        hx-vals='{"dipendente_id": "{{ dipendente.id }}", "data": "{{ data_iso }}", "csrf_token": "{{ csrf_token(request) }}"}'
+        hx-target="closest td"
+        hx-swap="outerHTML"
+    >
+        <option value="">—</option>
+        {% for t in tipi_turno %}
+        <option value="{{ t.id }}" {% if assegnazione and assegnazione.tipo_turno_id == t.id %}selected{% endif %}>{{ t.etichetta }}</option>
+        {% endfor %}
+    </select>
+    {% if ns.intera %}
+    <div class="badge-sostituzione" style="background-color: {{ colore_sostituto }}"
+         title="Sostituito da {{ ns.intera.dipendente_sostituto.cognome }} {{ ns.intera.dipendente_sostituto.nome }}">
+        {{ ns.intera.dipendente_sostituto.cognome }}
+    </div>
+    {% elif assegnazione and assegnazione.origine == "assenza" %}
+    <span class="badge badge-assenza">ASS</span>
+    {% endif %}
+    {% if parziali %}
+    <span class="badge badge-sostituzione-oraria" title="{% for s in parziali %}{{ s.dipendente_sostituto.cognome }} {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}{% if not loop.last %}, {% endif %}{% endfor %}">S</span>
+    {% endif %}
+    {% else %}
+    {% if ns.intera %}
+    <div class="badge-sostituzione" style="background-color: {{ colore_sostituto }}"
+         title="Sostituito da {{ ns.intera.dipendente_sostituto.cognome }} {{ ns.intera.dipendente_sostituto.nome }}">
+        {{ ns.intera.dipendente_sostituto.cognome }}
+    </div>
+    {% elif assegnazione and assegnazione.origine == "assenza" %}
+    <span class="badge badge-assenza">ASSENTE</span>
+    {% else %}
+        {{ assegnazione.tipo_turno.etichetta if assegnazione and assegnazione.tipo_turno else "" }}
+    {% endif %}
+    {% if parziali %}
+    <span class="badge badge-sostituzione-oraria" title="{% for s in parziali %}{{ s.dipendente_sostituto.cognome }} {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}{% if not loop.last %}, {% endif %}{% endfor %}">S</span>
+    {% endif %}
+    {% endif %}
+</td>

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Sale{% endblock %}
+{% block content %}
+<h1>Sale</h1>
+<p class="muted">Le sale per eventi dentro ogni palazzo: quando una sala ha un evento in programma, la copertura minima richiesta per il suo palazzo aumenta della copertura aggiuntiva indicata qui (vedi la pagina Copertura).</p>
+
+<table class="tabella">
+    <thead>
+        <tr><th>Sala</th><th>Palazzo</th><th>Copertura aggiuntiva</th><th>Attiva</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for s in sale %}
+        <tr>
+            <td>{{ s.nome }}</td>
+            <td>{{ s.sede.nome }}</td>
+            <td>{{ s.copertura_minima_aggiuntiva }}</td>
+            <td>{{ "Sì" if s.attivo else "No" }}</td>
+            <td>
+                {% if utente.ruolo == "amministratore" %}
+                <details>
+                    <summary>Modifica</summary>
+                    <div class="riquadro">
+                        <form method="post" action="/sale/{{ s.id }}/modifica" class="form-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                            <input type="text" name="nome" value="{{ s.nome }}" required>
+                            <select name="sede_id" required>
+                                {% for sede in sedi %}
+                                <option value="{{ sede.id }}" {% if sede.id == s.sede_id %}selected{% endif %}>{{ sede.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            <label>Copertura aggiuntiva <input type="number" name="copertura_minima_aggiuntiva" value="{{ s.copertura_minima_aggiuntiva }}" min="0" required style="width:5em;"></label>
+                            <label><input type="checkbox" name="attivo" {% if s.attivo %}checked{% endif %}> attiva</label>
+                            <button type="submit">Salva</button>
+                        </form>
+                    </div>
+                </details>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if utente.ruolo == "amministratore" %}
+<h2>Nuova sala</h2>
+<form method="post" action="/sale/nuova" class="form-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <input type="text" name="nome" placeholder="Nome sala" required>
+    <select name="sede_id" required>
+        <option value="" disabled selected>Palazzo</option>
+        {% for sede in sedi %}
+        <option value="{{ sede.id }}">{{ sede.nome }}</option>
+        {% endfor %}
+    </select>
+    <label>Copertura aggiuntiva <input type="number" name="copertura_minima_aggiuntiva" value="1" min="0" required style="width:5em;"></label>
+    <button type="submit">Aggiungi</button>
+</form>
+{% endif %}
+
+<h2>Eventi in programma</h2>
+<p class="muted">Coprono da oggi in poi: un evento passato scompare da qui automaticamente, ma non intacca lo storico della copertura calcolata nei giorni passati.</p>
+<table class="tabella">
+    <thead>
+        <tr><th>Sala</th><th>Palazzo</th><th>Dal</th><th>Al</th><th>Descrizione</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for e in eventi %}
+        <tr>
+            <td>{{ e.sala.nome }}</td>
+            <td>{{ e.sala.sede.nome }}</td>
+            <td>{{ e.data_inizio }}</td>
+            <td>{{ e.data_fine }}</td>
+            <td>{{ e.descrizione or "" }}</td>
+            <td>
+                {% if utente.ruolo in ("amministratore", "gestore_turni") %}
+                <form method="post" action="/sale/eventi/{{ e.id }}/elimina" style="display:inline;" onsubmit="return confirm('Eliminare questo evento? La copertura aggiuntiva richiesta per il palazzo tornerà quella ordinaria nei giorni che copriva.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                    <button type="submit">Elimina</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted">Nessun evento in programma.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if utente.ruolo in ("amministratore", "gestore_turni") %}
+<h2>Nuovo evento</h2>
+<form method="post" action="/sale/eventi/nuovo" class="form-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <select name="sala_id" required>
+        <option value="" disabled selected>Sala</option>
+        {% for s in sale %}
+        <option value="{{ s.id }}">{{ s.nome }} ({{ s.sede.nome }})</option>
+        {% endfor %}
+    </select>
+    <label>Dal <input type="date" name="data_inizio" required></label>
+    <label>Al <input type="date" name="data_fine" required></label>
+    <input type="text" name="descrizione" placeholder="Descrizione (facoltativo)">
+    <label>Ripeti ogni settimana fino al (facoltativo) <input type="date" name="ripeti_fino_al"></label>
+    <button type="submit">Registra evento</button>
+</form>
+{% endif %}
+{% endblock %}

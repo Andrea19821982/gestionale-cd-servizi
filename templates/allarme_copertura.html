@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Allarme copertura{% endblock %}
+{% block content %}
+<h1>Allarme copertura</h1>
+<p class="muted">Ogni giorno, dalle {{ ora_configurata }}, il programma controlla se domani un palazzo risulterà sotto la copertura minima configurata (vedi Sedi e Sale) e avvisa i gestori — un preavviso interno, diverso dal riepilogo che va al referente della Camera dei Deputati, pensato per lasciare ancora tempo di organizzare una sostituzione.</p>
+
+{% if not configurato %}
+<p class="badge badge-danger-testo" style="display:inline-block;">⚠️ Non configurato: mancano SMTP e/o i destinatari in app/email_config_locale.py.</p>
+{% elif not abilitato %}
+<p class="badge badge-warn-testo" style="display:inline-block;">⏸️ Controllo automatico disattivato (ALLARME_COPERTURA_ABILITATO = False): puoi comunque controllare a mano qui sotto.</p>
+{% else %}
+<p class="badge badge-ok-testo" style="display:inline-block;">✅ Controllo automatico attivo, dalle {{ ora_configurata }}.</p>
+{% endif %}
+
+<table class="tabella">
+    <tbody>
+        <tr><th>Destinatari</th><td>{{ destinatari | join(", ") if destinatari else "— nessuno configurato —" }}</td></tr>
+        <tr><th>Domani ({{ domani }})</th><td>{{ "Già segnalato" if gia_inviato_domani else "Non ancora segnalato" }}</td></tr>
+    </tbody>
+</table>
+
+<form method="post" action="/allarme-copertura/invia-ora">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <button type="submit" {% if not configurato %}disabled{% endif %}>🚨 Controlla e invia ora</button>
+</form>
+
+<h2>Palazzi sotto il minimo per domani ({{ domani }})</h2>
+{% if blocchi_anteprima %}
+{% for blocco in blocchi_anteprima %}
+<div class="riquadro" style="margin-bottom: 0.75rem;">
+    <strong>{{ blocco.sede.nome }}</strong> — {{ blocco.presenti }} presenti su {{ blocco.copertura_minima }} richiesti
+    {% if blocco.eventi_oggi %}
+    <p class="muted">Eventi in corso: {% for e in blocco.eventi_oggi %}{{ e.sala.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if blocco.dipendenti_suggeriti %}
+    <p><strong>Possibili sostituti disponibili:</strong> {% for d in blocco.dipendenti_suggeriti %}{{ d.cognome }} {{ d.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    {% else %}
+    <p class="muted">Nessun dipendente libero altrove risulta disponibile in automatico.</p>
+    {% endif %}
+</div>
+{% endfor %}
+{% else %}
+<p class="muted">Nessun palazzo risulta sotto il minimo per domani.</p>
+{% endif %}
+
+<h2>Storico segnalazioni</h2>
+{% if invii_recenti %}
+<table class="tabella">
+    <thead><tr><th>Data riferimento</th><th>Inviato il</th><th>Tipo</th><th>Palazzi</th><th>Destinatari</th></tr></thead>
+    <tbody>
+        {% for invio in invii_recenti %}
+        <tr>
+            <td>{{ invio.data_riferimento }}</td>
+            <td>{{ invio.inviato_il.strftime("%d/%m/%Y %H:%M") }}</td>
+            <td>{{ "Manuale" if invio.manuale else "Automatico" }}</td>
+            <td>{{ invio.palazzi_carenti }}</td>
+            <td>{{ invio.destinatari }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">Nessuna segnalazione ancora registrata.</p>
+{% endif %}
+{% endblock %}

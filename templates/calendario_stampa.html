@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stampa calendario — {{ mese_nome }} {{ anno }}</title>
+    <link rel="stylesheet" href="/static/style.css?v={{ versione_statico('style.css') }}">
+</head>
+<body>
+    <div class="barra-stampa no-stampa">
+        <button onclick="window.print()">Stampa / Salva come PDF</button>
+        <a href="/calendario">&larr; torna al calendario</a>
+    </div>
+
+    {% if not blocchi %}
+    <p class="muted">Nessuna sede da stampare.</p>
+    {% endif %}
+
+    {% for blocco in blocchi %}
+    <section class="pagina-stampa">
+        <h1>{{ blocco.sede.nome }} — {{ mese_nome }} {{ anno }}</h1>
+        {% if not blocco.dipendenti %}
+        <p class="muted">Nessun dipendente attivo assegnato a {{ blocco.sede.nome }}.</p>
+        {% else %}
+        <table class="tabella tabella-calendario tabella-stampa">
+            <thead>
+                <tr>
+                    <th class="colonna-dipendente">Dipendente</th>
+                    {% for g in giorni %}
+                    <th class="{{ 'weekend' if g.weekend else '' }}">{{ g.numero }}<br>{{ g.iniziale }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in blocco.dipendenti %}
+                <tr>
+                    <td class="colonna-dipendente" title="{{ d.cognome }} {{ d.nome }}">{{ d.cognome }} {{ d.nome }}</td>
+                    {% for g in giorni %}
+                    {% set assegnazione = blocco.assegnazioni_per_dipendente.get(d.id, {}).get(g.numero) %}
+                    {% set sostituzioni_giorno = blocco.sostituzioni_per_dipendente.get(d.id, {}).get(g.numero, []) %}
+                    {% set dipendente = d %}
+                    {% set data_iso = "%04d-%02d-%02d" | format(anno, mese, g.numero) %}
+                    {% set weekend = g.weekend %}
+                    {% include "_cella_calendario.html" %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </section>
+    {% endfor %}
+    {% if auto %}
+    <script>window.addEventListener("load", () => window.print());</script>
+    {% endif %}
+</body>
+</html>

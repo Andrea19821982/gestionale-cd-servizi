@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Bozze da email{% endblock %}
+{% block content %}
+<h1>Bozze da email</h1>
+<p class="muted">Assenze e sostituzioni interpretate automaticamente dalle email dei dipendenti (vedi <code>docs/06-formato-email-dipendenti.md</code>). Non toccano il calendario finché non le confermi qui sotto: controlla i dati prima di confermare, soprattutto se c'è un avviso.</p>
+
+<details style="margin-bottom: 1.5rem;">
+    <summary><strong>📋 Testo da inoltrare ai dipendenti</strong> <span class="muted">— spiega come segnalare ferie, permessi, malattie e sostituzioni via email</span></summary>
+    <div class="riquadro">
+        {% if not indirizzo_email %}
+        <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato (IMAP_UTENTE in app/email_config_locale.py): nel testo qui sotto resta un segnaposto da completare a mano prima di inoltrarlo.</p>
+        {% endif %}
+        <p class="muted">Copia oggetto e corpo qui sotto e inoltrali per email ai dipendenti che devono segnalare ferie, permessi, malattie e sostituzioni. Rispettando questo formato, il programma legge da solo l'email e prepara la richiesta pronta da confermare qui sopra.</p>
+        <textarea id="testo-email-dipendenti" readonly rows="30" style="width:100%; font-family: ui-monospace, monospace; font-size: 0.85rem;">{{ testo_email_dipendenti }}</textarea>
+        <button type="button" onclick="const t=document.getElementById('testo-email-dipendenti'); t.select(); navigator.clipboard.writeText(t.value); this.textContent='✅ Copiato!'; setTimeout(() => { this.textContent='📋 Copia testo'; }, 2000);">📋 Copia testo</button>
+    </div>
+</details>
+
+<form method="get" class="form-inline">
+    <select name="stato">
+        <option value="da_confermare" {% if stato_filtro == "da_confermare" %}selected{% endif %}>Da confermare</option>
+        <option value="confermata" {% if stato_filtro == "confermata" %}selected{% endif %}>Confermate</option>
+        <option value="scartata" {% if stato_filtro == "scartata" %}selected{% endif %}>Scartate</option>
+        <option value="" {% if not stato_filtro %}selected{% endif %}>Tutte</option>
+    </select>
+    <button type="submit">Filtra</button>
+</form>
+
+<form method="post" action="/bozze-email/controlla-ora" style="margin-bottom: 1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <button type="submit">📥 Controlla posta ora</button>
+</form>
+
+{% for b in bozze %}
+<div class="riquadro" style="margin-bottom: 1rem;">
+    <p>
+        <strong>{{ "Assenza" if b.tipo == "assenza" else "Sostituzione" }}</strong>
+        — da {{ b.mittente }}, ricevuta il {{ b.ricevuta_il.strftime("%d/%m/%Y %H:%M") }}
+        — oggetto: <em>{{ b.oggetto }}</em>
+        {% if b.stato == "confermata" %}<span class="badge badge-ok-testo">Confermata</span>
+        {% elif b.stato == "scartata" %}<span class="badge">Scartata</span>
+        {% else %}<span class="badge badge-warn-testo">Da confermare</span>{% endif %}
+    </p>
+    {% if b.errore_parsing %}
+    <p class="badge badge-danger-testo" style="display:inline-block;">⚠️ Da controllare: {{ b.errore_parsing }}</p>
+    {% endif %}
+
+    {% if b.stato == "da_confermare" %}
+    <form method="post" action="/bozze-email/{{ b.id }}/conferma" class="form-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <label>Dipendente {{ "assente" if b.tipo == "sostituzione" else "" }}
+            <select name="dipendente_id" required>
+                <option value="" disabled {% if not b.dipendente_id %}selected{% endif %}>— seleziona —</option>
+                {% for d in dipendenti %}
+                <option value="{{ d.id }}" {% if b.dipendente_id == d.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        {% if b.tipo == "assenza" %}
+        <input type="text" name="tipo_assenza" value="{{ b.tipo_assenza or '' }}" list="suggerimenti-tipo-assenza" placeholder="Tipo (es. Ferie)" required>
+        <datalist id="suggerimenti-tipo-assenza">
+            <option value="Ferie">
+            <option value="Malattia">
+            <option value="Permesso">
+        </datalist>
+        <label>Dal <input type="date" name="data_inizio" value="{{ b.data_inizio.isoformat() if b.data_inizio else '' }}" required></label>
+        <label>Al <input type="date" name="data_fine" value="{{ b.data_fine.isoformat() if b.data_fine else '' }}" required></label>
+        {% else %}
+        <label>Sostituto
+            <select name="dipendente_sostituto_id" required>
+                <option value="" disabled {% if not b.dipendente_sostituto_id %}selected{% endif %}>— seleziona —</option>
+                {% for d in dipendenti %}
+                <option value="{{ d.id }}" {% if b.dipendente_sostituto_id == d.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Data <input type="date" name="data_inizio" value="{{ b.data_inizio.isoformat() if b.data_inizio else '' }}" required></label>
+        <label>Dalle ore <input type="time" name="ora_inizio" value="{{ b.ora_inizio.strftime('%H:%M') if b.ora_inizio else '' }}"></label>
+        <label>Alle ore <input type="time" name="ora_fine" value="{{ b.ora_fine.strftime('%H:%M') if b.ora_fine else '' }}"></label>
+        <span class="muted">(orari vuoti = intera giornata)</span>
+        {% endif %}
+        <input type="text" name="note" value="{{ b.note or '' }}" placeholder="Note (facoltativo)">
+        <button type="submit">✅ Conferma</button>
+    </form>
+    <form method="post" action="/bozze-email/{{ b.id }}/scarta" style="display:inline;" onsubmit="return confirm('Scartare questa bozza? Non verrà creata nessuna assenza/sostituzione.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <button type="submit">🗑️ Scarta</button>
+    </form>
+    {% elif b.stato == "confermata" %}
+    <p class="muted">Confermata da un amministratore il {{ b.confermata_il.strftime("%d/%m/%Y %H:%M") }}.</p>
+    {% endif %}
+
+    <details>
+        <summary class="muted">Testo originale dell'email</summary>
+        <pre style="white-space: pre-wrap;">{{ b.corpo }}</pre>
+    </details>
+</div>
+{% else %}
+<p class="muted">Nessuna bozza in questo stato.</p>
+{% endfor %}
+{% endblock %}

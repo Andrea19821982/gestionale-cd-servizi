@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Utenti{% endblock %}
+{% block content %}
+<h1>Utenti</h1>
+<p class="muted">Account di accesso: amministratore/gestore_turni/consultazione gestiscono l'app, il ruolo "dipendente" è un accesso minimo di sola lettura sui propri dati (collegalo al dipendente giusto qui sotto).</p>
+
+<table class="tabella">
+    <thead>
+        <tr><th>Username</th><th>Ruolo</th><th>Dipendente collegato</th><th>Attivo</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for u in utenti %}
+        <tr>
+            <td>{{ u.username }}</td>
+            <td>{{ u.ruolo }}</td>
+            <td>{{ u.dipendente_collegato.cognome ~ " " ~ u.dipendente_collegato.nome if u.dipendente_collegato else "—" }}</td>
+            <td>{{ "Sì" if u.attivo else "No" }}</td>
+            <td>
+                <details>
+                    <summary>Modifica</summary>
+                    <div class="riquadro">
+                        <form method="post" action="/utenti/{{ u.id }}/modifica" class="form-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                            <select name="ruolo" required>
+                                {% for r in ruoli_validi %}
+                                <option value="{{ r }}" {% if u.ruolo == r %}selected{% endif %}>{{ r }}</option>
+                                {% endfor %}
+                            </select>
+                            <select name="dipendente_collegato_id">
+                                <option value="">— nessuno —</option>
+                                {% for d in dipendenti %}
+                                <option value="{{ d.id }}" {% if u.dipendente_collegato_id == d.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            <label><input type="checkbox" name="attivo" {% if u.attivo %}checked{% endif %}> attivo</label>
+                            <input type="password" name="nuova_password" placeholder="Nuova password (facoltativo)" minlength="8">
+                            <button type="submit">Salva</button>
+                        </form>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Nuovo utente</h2>
+<form method="post" action="/utenti/nuovo" class="form-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <input type="text" name="username" placeholder="Username" required>
+    <input type="password" name="password" placeholder="Password (min. 8 caratteri)" minlength="8" required>
+    <select name="ruolo" required>
+        {% for r in ruoli_validi %}
+        <option value="{{ r }}">{{ r }}</option>
+        {% endfor %}
+    </select>
+    <select name="dipendente_collegato_id">
+        <option value="">Nessun dipendente collegato</option>
+        {% for d in dipendenti %}
+        <option value="{{ d.id }}">{{ d.cognome }} {{ d.nome }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Crea utente</button>
+</form>
+
+<h2>Deleghe di approvazione assenze</h2>
+<p class="muted">Un utente delegato può approvare o rifiutare le richieste di assenza solo nel periodo indicato (utile se l'amministratore è assente). {% if tutte_le_deleghe %}Mostrate tutte, comprese le scadute — <a href="/utenti">mostra solo attive/future</a>.{% else %}Le deleghe scadute sono nascoste — <a href="/utenti?tutte_le_deleghe=1">mostra tutte</a>.{% endif %}</p>
+<table class="tabella">
+    <thead>
+        <tr><th>Delegato</th><th>Dal</th><th>Al</th><th>Note</th><th>Stato</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for delega in deleghe %}
+        <tr>
+            <td>{{ delega.utente_delegato.username }}</td>
+            <td>{{ delega.data_inizio }}</td>
+            <td>{{ delega.data_fine }}</td>
+            <td>{{ delega.note or "" }}</td>
+            <td>
+                {% if delega.data_inizio <= oggi <= delega.data_fine %}
+                <span class="badge badge-ok-testo">Attiva</span>
+                {% elif delega.data_fine < oggi %}
+                <span class="badge">Scaduta</span>
+                {% else %}
+                <span class="badge badge-warn-testo">Futura</span>
+                {% endif %}
+            </td>
+            <td>
+                <form method="post" action="/deleghe/{{ delega.id }}/elimina" style="display:inline;" onsubmit="return confirm('Revocare questa delega?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                    <button type="submit">Revoca</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted">Nessuna delega registrata.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Nuova delega</h3>
+<form method="post" action="/deleghe/nuova" class="form-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <select name="utente_delegato_id" required>
+        <option value="" disabled selected>Utente da delegare</option>
+        {% for u in utenti %}
+        {% if u.ruolo != "dipendente" and u.attivo %}
+        <option value="{{ u.id }}">{{ u.username }} ({{ u.ruolo }})</option>
+        {% endif %}
+        {% endfor %}
+    </select>
+    <label>Dal <input type="date" name="data_inizio" required></label>
+    <label>Al <input type="date" name="data_fine" required></label>
+    <input type="text" name="note" placeholder="Note (facoltativo)">
+    <button type="submit">Crea delega</button>
+</form>
+{% endblock %}

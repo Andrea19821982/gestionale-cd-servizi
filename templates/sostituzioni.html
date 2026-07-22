@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Sostituzioni{% endblock %}
+{% block content %}
+<h1>Sostituzioni</h1>
+
+<form method="get" class="form-inline">
+    <select name="dipendente_id">
+        <option value="">Tutti i dipendenti</option>
+        {% for d in dipendenti %}
+        <option value="{{ d.id }}" {% if filtri.dipendente_id == d.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
+        {% endfor %}
+    </select>
+    <label>Dal <input type="date" name="data_da" value="{{ filtri.data_da }}"></label>
+    <label>Al <input type="date" name="data_a" value="{{ filtri.data_a }}"></label>
+    <button type="submit">Filtra</button>
+</form>
+
+<table class="tabella">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Chi parte</th>
+            <th>Sede partenza</th>
+            <th>Chi sostituisce</th>
+            <th>Sede arrivo</th>
+            <th>Orario</th>
+            <th>Note</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in sostituzioni %}
+        <tr>
+            <td>{{ s.data }}</td>
+            <td>{{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }}</td>
+            <td>{{ s.sede_partenza.nome }}</td>
+            <td>{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }}</td>
+            <td>{{ s.sede_arrivo.nome }}</td>
+            <td>{% if s.ora_inizio %}{{ s.ora_inizio.strftime("%H:%M") }}-{{ s.ora_fine.strftime("%H:%M") }}{% else %}intera giornata{% endif %}</td>
+            <td>{{ s.note or "" }}</td>
+            <td>
+                {% if utente.ruolo in ("amministratore", "gestore_turni") %}
+                <form method="post" action="/sostituzioni/{{ s.id }}/elimina" onsubmit="return confirm('Eliminare questa sostituzione?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                    <button type="submit">Elimina</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="muted">Nessuna sostituzione trovata con questi criteri.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if utente.ruolo in ("amministratore", "gestore_turni") %}
+<h2>Nuova sostituzione</h2>
+<form method="post" action="/sostituzioni/nuova" class="form-inline" id="form-sostituzione">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <label>Chi parte
+        <select name="dipendente_partente_id" id="dipendente-partente" required>
+            <option value="" disabled selected>Dipendente</option>
+            {% for d in dipendenti %}
+            <option value="{{ d.id }}" data-sede="{{ d.sede_riferimento_id or '' }}">{{ d.cognome }} {{ d.nome }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Sede partenza
+        <select name="sede_partenza_id" id="sede-partenza" required>
+            <option value="" disabled selected>Sede</option>
+            {% for s in sedi %}
+            <option value="{{ s.id }}">{{ s.nome }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Chi sostituisce
+        <select name="dipendente_sostituto_id" required>
+            <option value="" disabled selected>Dipendente</option>
+            {% for d in dipendenti %}
+            <option value="{{ d.id }}">{{ d.cognome }} {{ d.nome }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Sede arrivo
+        <select name="sede_arrivo_id" id="sede-arrivo" required>
+            <option value="" disabled selected>Sede</option>
+            {% for s in sedi %}
+            <option value="{{ s.id }}">{{ s.nome }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Data <input type="date" name="data" required></label>
+    <label>Dalle ore <input type="time" name="ora_inizio"></label>
+    <label>Alle ore <input type="time" name="ora_fine"></label>
+    <input type="text" name="note" placeholder="Note (facoltativo)">
+    <button type="submit">Registra sostituzione</button>
+</form>
+<p class="muted">Lascia vuoti gli orari per una sostituzione dell'intera giornata. Compilali entrambi per una sostituzione di poche ore.</p>
+
+<script>
+const selDipendentePartente = document.getElementById('dipendente-partente');
+const selSedePartenza = document.getElementById('sede-partenza');
+const selSedeArrivo = document.getElementById('sede-arrivo');
+
+selDipendentePartente.addEventListener('change', () => {
+    const sedeId = selDipendentePartente.selectedOptions[0].dataset.sede;
+    if (!sedeId) return;
+    selSedePartenza.value = sedeId;
+    if (!selSedeArrivo.value) {
+        selSedeArrivo.value = sedeId;
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

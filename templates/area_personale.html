@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Area personale{% endblock %}
+{% block content %}
+<h1>{{ dipendente.cognome }} {{ dipendente.nome }}</h1>
+<p class="muted">Il tuo calendario e il tuo storico, in sola lettura. Per correggere un turno o registrare un'assenza rivolgiti a chi gestisce i turni.</p>
+
+<div class="riepilogo-personale">
+    <div class="riquadro"><strong>Ferie annuali</strong><br>{{ ferie_annuali_effettive }} giorni</div>
+    <div class="riquadro"><strong>Ferie usate ({{ anno }})</strong><br>{{ ferie_usate }} giorni</div>
+    <div class="riquadro"><strong>Ferie residue</strong><br>{{ ferie_residue }} giorni</div>
+    <div class="riquadro"><strong>Ore lavorate ({{ mese_nome }})</strong><br>{{ ore_lavorate_mese }} ore</div>
+</div>
+
+<h2>Calendario di {{ mese_nome }} {{ anno }}</h2>
+<p class="form-inline">
+    <a href="/area-personale?anno={{ anno_prec }}&mese={{ mese_prec }}">&larr; mese precedente</a>
+    <a href="/area-personale?anno={{ anno_succ }}&mese={{ mese_succ }}">mese successivo &rarr;</a>
+</p>
+<table class="tabella">
+    <thead>
+        <tr><th>Giorno</th><th>Sede</th><th>Turno</th></tr>
+    </thead>
+    <tbody>
+        {% for giorno in giorni %}
+        {% set assegnazione = assegnazione_per_giorno.get(giorno.numero) %}
+        <tr{% if giorno.weekend %} class="cella-weekend"{% endif %}>
+            <td>{{ giorno.numero }} ({{ giorno.iniziale }})</td>
+            <td>{{ assegnazione.sede_effettiva.nome if assegnazione and assegnazione.sede_effettiva else "—" }}</td>
+            <td>
+                {% if assegnazione is none %}—
+                {% elif assegnazione.origine == "assenza" %}<span class="badge badge-warn-testo">Assente</span>
+                {% elif assegnazione.tipo_turno %}{{ assegnazione.tipo_turno.etichetta }} ({{ assegnazione.tipo_turno.ora_inizio.strftime("%H:%M") }}-{{ assegnazione.tipo_turno.ora_fine.strftime("%H:%M") }})
+                {% else %}—{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Storico ferie e permessi</h2>
+{% if assenze %}
+<table class="tabella">
+    <thead>
+        <tr><th>Tipo</th><th>Dal</th><th>Al</th><th>Stato</th><th>Note</th></tr>
+    </thead>
+    <tbody>
+        {% for a in assenze %}
+        <tr>
+            <td>{{ a.tipo_assenza }}</td>
+            <td>{{ a.data_inizio }}</td>
+            <td>{{ a.data_fine }}</td>
+            <td>
+                {% if a.stato == "approvata" %}<span class="badge badge-ok-testo">Approvata</span>
+                {% elif a.stato == "rifiutata" %}<span class="badge badge-danger-testo">Rifiutata</span>
+                {% else %}<span class="badge badge-warn-testo">In attesa</span>{% endif %}
+            </td>
+            <td>{{ a.note or "" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">Nessuna assenza registrata.</p>
+{% endif %}
+{% endblock %}

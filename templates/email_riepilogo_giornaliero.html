@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="it">
+<body style="margin:0; padding:0; background:#f5f6f8; font-family: Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8; padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden; border:1px solid #dde1e6;">
+          <tr>
+            <td style="background:#2f6fed; padding:16px 24px;">
+              <span style="color:#ffffff; font-size:18px; font-weight:700;">Calendario Turni — CD Servizi</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <h1 style="margin:0 0 16px; font-size:16px; color:#1f2430;">Presidi del {{ data_riepilogo.strftime("%d/%m/%Y") }}</h1>
+              {% for blocco in blocchi %}
+              <h2 style="margin:20px 0 8px; font-size:14px; color:#1f2430;">{{ blocco.sede.nome }} ({{ blocco.presenti }} presenti su {{ blocco.totale }})</h2>
+              {% if blocco.copertura_minima > 0 %}
+              <p style="font-size:13px; margin:0 0 8px; {% if blocco.sotto_minimo %}color:#d64545; font-weight:700;{% else %}color:#1f8a3d;{% endif %}">
+                {% if blocco.sotto_minimo %}⚠️ Sotto il minimo richiesto{% else %}✅ Minimo rispettato{% endif %}
+                — copertura minima richiesta: {{ blocco.copertura_minima }}
+                ({{ blocco.sede.copertura_minima_ordinaria }} ordinaria{% if blocco.eventi_oggi %} + {{ blocco.copertura_minima - blocco.sede.copertura_minima_ordinaria }} per eventi{% endif %})
+                {% if blocco.eventi_oggi %} — {% for e in blocco.eventi_oggi %}{{ e.sala.nome }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+              </p>
+              {% endif %}
+              {% if blocco.totale == 0 %}
+              <p style="font-size:13px; color:#6b7280; margin:0 0 8px;">Nessun dipendente assegnato a questa sede.</p>
+              {% else %}
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%; font-size:13px; color:#1f2430; border-collapse:collapse;">
+                <tr style="background:#eef1f5;">
+                  <td style="padding:4px 8px; font-weight:600;">Dipendente</td>
+                  <td style="padding:4px 8px; font-weight:600;">Stato</td>
+                  <td style="padding:4px 8px; font-weight:600;">Turno</td>
+                </tr>
+                {% for riga in blocco.righe %}
+                <tr style="border-bottom:1px solid #eef1f5;">
+                  <td style="padding:4px 8px;">{{ riga.dipendente.cognome }} {{ riga.dipendente.nome }}</td>
+                  <td style="padding:4px 8px;">
+                    {% if riga.stato == "presente" %}Presente
+                    {% elif riga.stato == "assente" %}<span style="color:#d97706;">Assente</span>
+                    {% else %}<span style="color:#d64545;">Non pianificato</span>{% endif %}
+                  </td>
+                  <td style="padding:4px 8px;">{% if riga.assegnazione and riga.assegnazione.tipo_turno %}{{ riga.assegnazione.tipo_turno.etichetta }}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </table>
+              {% endif %}
+              {% if blocco.sostituti_in_arrivo %}
+              <p style="font-size:13px; margin:8px 0 0;"><strong>Sostituti in arrivo:</strong>
+                {% for s in blocco.sostituti_in_arrivo %}{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }} (al posto di {{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }}){% if not loop.last %}, {% endif %}{% endfor %}
+              </p>
+              {% endif %}
+              {% endfor %}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 24px; background:#eef1f5; font-size:12px; color:#6b7280;">
+              Riepilogo automatico da Calendario Turni. Non rispondere a questa email.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

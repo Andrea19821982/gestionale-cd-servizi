@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Tipi turno{% endblock %}
+{% block content %}
+<h1>Tipi turno</h1>
+
+<table class="tabella">
+    <thead>
+        <tr><th>Etichetta</th><th>Dalle</th><th>Alle</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for t in tipi %}
+        <tr>
+            <td>{{ t.etichetta }}</td>
+            <td>{{ t.ora_inizio.strftime("%H:%M") }}</td>
+            <td>{{ t.ora_fine.strftime("%H:%M") }}</td>
+            <td>
+                {% if utente.ruolo == "amministratore" %}
+                <details>
+                    <summary>Modifica</summary>
+                    <div class="riquadro">
+                        <form method="post" action="/tipi-turno/{{ t.id }}/modifica" class="form-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                            <input type="text" name="etichetta" value="{{ t.etichetta }}" required>
+                            <input type="time" name="ora_inizio" value="{{ t.ora_inizio.strftime('%H:%M') }}" required>
+                            <input type="time" name="ora_fine" value="{{ t.ora_fine.strftime('%H:%M') }}" required>
+                            <button type="submit">Salva</button>
+                        </form>
+                    </div>
+                </details>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if utente.ruolo == "amministratore" %}
+<h2>Nuovo tipo turno</h2>
+<form method="post" action="/tipi-turno/nuovo" class="form-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <input type="text" name="etichetta" placeholder="Etichetta (es. Mattina)" required>
+    <label>Dalle <input type="time" name="ora_inizio" required></label>
+    <label>Alle <input type="time" name="ora_fine" required></label>
+    <button type="submit">Aggiungi</button>
+</form>
+{% endif %}
+{% endblock %}
