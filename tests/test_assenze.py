@@ -67,6 +67,96 @@ def test_creazione_assenza_copre_celle_esistenti_e_nuove(client, crea_utente, db
         assert riga.tipo_turno_id is None
 
 
+def test_assenza_malattia_nasce_gia_approvata(client, crea_utente, db):
+    """La malattia non richiede approvazione: nasce già "approvata", con
+    deciso_il valorizzato ma deciso_da nullo (nessuna persona ha deciso,
+    è stata approvata automaticamente) e copre subito il calendario."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = Dipendente(cognome="Test", nome="Malattia", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.post(
+        "/assenze/nuova",
+        data={"dipendente_id": dip.id, "data_inizio": "2026-08-10", "data_fine": "2026-08-11", "tipo_assenza": "Malattia"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    assenza = db.query(Assenza).filter_by(dipendente_id=dip.id).first()
+    assert assenza.stato == "approvata"
+    assert assenza.deciso_da is None
+    assert assenza.deciso_il is not None
+
+    righe = (
+        db.query(AssegnazioneGiornaliera)
+        .filter(
+            AssegnazioneGiornaliera.dipendente_id == dip.id,
+            AssegnazioneGiornaliera.data >= date(2026, 8, 10),
+            AssegnazioneGiornaliera.data <= date(2026, 8, 11),
+        )
+        .all()
+    )
+    assert len(righe) == 2
+    assert all(riga.origine == "assenza" for riga in righe)
+
+
+def test_assenza_ferie_resta_richiesta(client, crea_utente, db):
+    """Nessuna regressione: un tipo diverso da "Malattia" continua a
+    restare "richiesta" in attesa di approvazione."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = Dipendente(cognome="Test", nome="Ferie", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    client.post(
+        "/assenze/nuova",
+        data={"dipendente_id": dip.id, "data_inizio": "2026-08-10", "data_fine": "2026-08-11", "tipo_assenza": "Ferie"},
+    )
+    assenza = db.query(Assenza).filter_by(dipendente_id=dip.id).first()
+    assert assenza.stato == "richiesta"
+    assert assenza.deciso_da is None
+    assert assenza.deciso_il is None
+
+
+def test_assenza_malattia_case_insensitive_e_non_sottostringa(client, crea_utente, db):
+    """Il confronto è tollerante a maiuscole/spazi ma esatto sull'intera
+    stringa: "MALATTIA " approva automaticamente, mentre un tipo che
+    contiene "malattia" come sottostringa (es. "Malattia lunga") o un
+    tipo diverso (es. "Permesso") resta "richiesta"."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+
+    dip1 = Dipendente(cognome="Test", nome="MalattiaMaiuscola", sede_riferimento_id=sede.id, attivo=True)
+    dip2 = Dipendente(cognome="Test", nome="MalattiaLunga", sede_riferimento_id=sede.id, attivo=True)
+    dip3 = Dipendente(cognome="Test", nome="Permesso", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([dip1, dip2, dip3])
+    db.commit()
+    for d in (dip1, dip2, dip3):
+        db.refresh(d)
+
+    client.post(
+        "/assenze/nuova",
+        data={"dipendente_id": dip1.id, "data_inizio": "2026-08-10", "data_fine": "2026-08-11", "tipo_assenza": "MALATTIA "},
+    )
+    client.post(
+        "/assenze/nuova",
+        data={"dipendente_id": dip2.id, "data_inizio": "2026-08-10", "data_fine": "2026-08-11", "tipo_assenza": "Malattia lunga"},
+    )
+    client.post(
+        "/assenze/nuova",
+        data={"dipendente_id": dip3.id, "data_inizio": "2026-08-10", "data_fine": "2026-08-11", "tipo_assenza": "Permesso"},
+    )
+
+    assert db.query(Assenza).filter_by(dipendente_id=dip1.id).first().stato == "approvata"
+    assert db.query(Assenza).filter_by(dipendente_id=dip2.id).first().stato == "richiesta"
+    assert db.query(Assenza).filter_by(dipendente_id=dip3.id).first().stato == "richiesta"
+
+
 def test_assenza_sovrapposta_rifiutata(client, crea_utente, db):
     _login_admin(client, crea_utente)
     sede = _crea_sede(db)

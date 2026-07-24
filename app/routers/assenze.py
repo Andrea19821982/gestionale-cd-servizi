@@ -41,6 +41,14 @@ def _salva_allegato(assenza_id: int, allegato: UploadFile, contenuto: bytes) -> 
     return nome_salvato
 
 
+def _malattia(tipo_assenza: str) -> bool:
+    """"Malattia" (case-insensitive, spazi tolleranti) non richiede
+    approvazione: nasce già approvata. Confronto esatto sulla stringa
+    intera, non una sottostringa, per non approvare automaticamente per
+    errore un tipo scritto diversamente ma solo simile."""
+    return tipo_assenza.strip().lower() == "malattia"
+
+
 def _si_sovrappone(db: Session, dipendente_id: int, inizio: date, fine: date, escludi_id: int | None = None) -> bool:
     """Controlla la sovrapposizione con qualunque assenza non rifiutata: una
     richiesta appena registrata occupa già il calendario (l'amministrativo la
@@ -184,15 +192,18 @@ def crea_assenza(
         if len(contenuto_allegato) > DIMENSIONE_MASSIMA_ALLEGATO:
             raise HTTPException(status_code=400, detail="Allegato troppo grande: massimo 5 MB.")
 
+    approvazione_automatica = _malattia(tipo_assenza)
     assenza = Assenza(
         dipendente_id=dipendente_id,
         data_inizio=inizio,
         data_fine=fine,
         tipo_assenza=tipo_assenza,
-        stato="richiesta",
+        stato="approvata" if approvazione_automatica else "richiesta",
         note=note.strip() or None,
         creato_da=utente.id,
     )
+    if approvazione_automatica:
+        assenza.deciso_il = datetime.now()
     db.add(assenza)
     db.flush()
     if contenuto_allegato is not None:
@@ -201,7 +212,8 @@ def crea_assenza(
     _copri_giorni_con_assenza(db, dipendente, inizio, fine)
     registra_modifica(
         db, utente.id, "assenze", assenza.id, "creazione",
-        f"dipendente_id={dipendente_id}, {inizio.isoformat()}..{fine.isoformat()}, tipo={tipo_assenza}, stato=richiesta",
+        f"dipendente_id={dipendente_id}, {inizio.isoformat()}..{fine.isoformat()}, tipo={tipo_assenza}, "
+        f"stato={'approvata' if approvazione_automatica else 'richiesta'}",
     )
     db.commit()
 
@@ -213,7 +225,7 @@ def crea_assenza(
             "tipo_assenza": tipo_assenza,
             "data_inizio": inizio.isoformat(),
             "data_fine": fine.isoformat(),
-            "esito": "Registrata, in attesa di approvazione",
+            "esito": "Approvata automaticamente (malattia)" if approvazione_automatica else "Registrata, in attesa di approvazione",
             "note": assenza.note,
             "registrato_da": utente.username,
         },

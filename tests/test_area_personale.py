@@ -124,6 +124,34 @@ def test_dipendente_puo_richiedere_assenza_per_se_stesso(client, db):
     assert celle.origine == "assenza"
 
 
+def test_dipendente_richiede_assenza_malattia_nasce_gia_approvata(client, db):
+    """Anche nel self-service, "Malattia" salta l'approvazione: nasce già
+    "approvata" (deciso_da nullo, deciso_il valorizzato) e copre subito
+    il calendario esattamente come una richiesta normale."""
+    sede = _crea_sede(db)
+    dip, _ = _crea_dipendente_con_login(db, sede)
+    login(client, "dip_test", "passwordsegreta")
+
+    r = client.post(
+        "/area-personale/richiedi-assenza",
+        data={"tipo_assenza": "Malattia", "data_inizio": "2026-08-10", "data_fine": "2026-08-12", "note": "Test"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    assenza = db.query(Assenza).filter(Assenza.dipendente_id == dip.id).one()
+    assert assenza.stato == "approvata"
+    assert assenza.deciso_da is None
+    assert assenza.deciso_il is not None
+
+    celle = (
+        db.query(AssegnazioneGiornaliera)
+        .filter(AssegnazioneGiornaliera.dipendente_id == dip.id, AssegnazioneGiornaliera.data == date(2026, 8, 10))
+        .one()
+    )
+    assert celle.origine == "assenza"
+
+
 def test_dipendente_non_puo_richiedere_assenza_per_un_collega(client, db):
     """Anche forzando un dipendente_id diverso nel corpo della richiesta,
     la route non lo legge affatto: usa sempre e solo il dipendente

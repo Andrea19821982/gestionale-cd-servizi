@@ -110,6 +110,43 @@ def test_conferma_bozza_assenza_crea_assenza_e_copre_calendario(client, crea_ute
     assert all(r.origine == "assenza" for r in righe)
 
 
+def test_conferma_bozza_assenza_malattia_nasce_gia_approvata(client, crea_utente, db):
+    """Confermare una bozza con tipo "Malattia" deve avere lo stesso
+    effetto di un amministrativo che la digita a mano in /assenze/nuova:
+    nasce già "approvata" (deciso_da nullo, deciso_il valorizzato)."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = _crea_dipendente(db, "Bianchi", "Luca", sede)
+    bozza = _crea_bozza_assenza(db, dip)
+
+    r = client.post(
+        f"/bozze-email/{bozza.id}/conferma",
+        data={
+            "dipendente_id": dip.id,
+            "tipo_assenza": "Malattia",
+            "data_inizio": "2026-08-10",
+            "data_fine": "2026-08-11",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    db.refresh(bozza)
+    assenza = db.query(Assenza).filter_by(id=bozza.record_creato_id).first()
+    assert assenza is not None
+    assert assenza.stato == "approvata"
+    assert assenza.deciso_da is None
+    assert assenza.deciso_il is not None
+
+    righe = db.query(AssegnazioneGiornaliera).filter(
+        AssegnazioneGiornaliera.dipendente_id == dip.id,
+        AssegnazioneGiornaliera.data >= date(2026, 8, 10),
+        AssegnazioneGiornaliera.data <= date(2026, 8, 11),
+    ).all()
+    assert len(righe) == 2
+    assert all(riga.origine == "assenza" for riga in righe)
+
+
 def test_conferma_bozza_sostituzione_crea_sostituzione(client, crea_utente, db):
     _login_admin(client, crea_utente)
     sede = _crea_sede(db)
