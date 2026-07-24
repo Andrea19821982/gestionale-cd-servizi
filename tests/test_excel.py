@@ -1,8 +1,10 @@
+from datetime import date, time
+
 from io import BytesIO
 
 from openpyxl import load_workbook
 
-from app.models import Dipendente, Sede
+from app.models import AssegnazioneGiornaliera, Dipendente, Sede, Sostituzione, TipoTurno
 from tests.conftest import login
 
 
@@ -70,3 +72,53 @@ def test_excel_accessibile_a_consultazione(client, crea_utente, db):
 
     r = client.get(f"/calendario/excel?sede_id={sede.id}&anno=2026&mese=8")
     assert r.status_code == 200
+
+
+def test_excel_mostra_la_sostituzione_oraria_come_nel_calendario(client, crea_utente, db):
+    """Nel calendario a schermo (vedi templates/_cella_calendario.html) una
+    sostituzione oraria (solo una fascia della giornata, Sostituzione con
+    ora_inizio/ora_fine valorizzati) resta visibile come badge accanto al
+    turno del titolare: non sparisce. L'export Excel invece, prima del fix,
+    ignorava del tutto le sostituzioni orarie in _testo_cella (controllava
+    solo quella a giornata intera, ora_inizio is None) e mostrava la cella
+    come se il titolare avesse lavorato il suo turno normale senza alcuna
+    sostituzione: un disallineamento silenzioso tra schermo ed export."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Excel Oraria")
+    tipo = TipoTurno(etichetta="Mattina Excel Oraria", ora_inizio=time(7, 0), ora_fine=time(13, 30))
+    db.add(tipo)
+    db.commit()
+    db.refresh(tipo)
+
+    titolare = Dipendente(cognome="Titolare", nome="Excel", sede_riferimento_id=sede.id, attivo=True)
+    sostituto = Dipendente(cognome="Sostituto", nome="Excel", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([titolare, sostituto])
+    db.commit()
+    for d in (titolare, sostituto):
+        db.refresh(d)
+
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=titolare.id, data=date(2026, 8, 10), sede_effettiva_id=sede.id,
+        tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.add(Sostituzione(
+        data=date(2026, 8, 10), dipendente_partente_id=titolare.id, sede_partenza_id=sede.id,
+        dipendente_sostituto_id=sostituto.id, sede_arrivo_id=sede.id,
+        ora_inizio=time(9, 0), ora_fine=time(11, 0),
+    ))
+    db.commit()
+
+    r = client.get(f"/calendario/excel?sede_id={sede.id}&anno=2026&mese=8")
+    assert r.status_code == 200
+    cartella = load_workbook(BytesIO(r.content))
+    foglio = cartella["Sede Excel Oraria"]
+
+    riga_titolare = None
+    for riga in range(2, foglio.max_row + 1):
+        if foglio.cell(row=riga, column=1).value == "Titolare Excel":
+            riga_titolare = riga
+            break
+    assert riga_titolare is not None
+
+    testo_10_agosto = foglio.cell(row=riga_titolare, column=1 + 10).value
+    assert "Sostituto" in testo_10_agosto or "09:00" in testo_10_agosto

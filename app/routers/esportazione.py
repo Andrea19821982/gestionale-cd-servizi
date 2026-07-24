@@ -33,11 +33,28 @@ def _testo_cella(assegnazione, sostituzioni_giorno) -> str:
     if sostituzione_intera:
         sostituto = sostituzione_intera.dipendente_sostituto
         return f"SOST: {sostituto.cognome} {sostituto.nome}"
+
     if assegnazione and assegnazione.origine == "assenza":
-        return "ASSENTE"
-    if assegnazione and assegnazione.tipo_turno:
-        return assegnazione.tipo_turno.etichetta
-    return ""
+        base = "ASSENTE"
+    elif assegnazione and assegnazione.tipo_turno:
+        base = assegnazione.tipo_turno.etichetta
+    else:
+        base = ""
+
+    # Sostituzioni orarie (solo una fascia della giornata, vedi
+    # Sostituzione.ora_inizio/ora_fine): a schermo restano visibili come
+    # badge accanto al turno del titolare (_cella_calendario.html), quindi
+    # anche qui vanno aggiunte invece di sparire silenziosamente.
+    sostituzioni_orarie = [s for s in sostituzioni_giorno if s.ora_inizio is not None]
+    if sostituzioni_orarie:
+        dettagli = "; ".join(
+            f"SOST {s.ora_inizio.strftime('%H:%M')}-{s.ora_fine.strftime('%H:%M')}: "
+            f"{s.dipendente_sostituto.cognome} {s.dipendente_sostituto.nome}"
+            for s in sostituzioni_orarie
+        )
+        return f"{base} ({dettagli})" if base else dettagli
+
+    return base
 
 
 @router.get("/calendario/excel")
