@@ -14,13 +14,17 @@ router = APIRouter()
 
 
 def _intero_non_negativo_o_400(valore: str) -> int:
-    try:
-        numero = int(valore)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Valore non valido: {valore!r}")
+    numero = _intero_o_400(valore)
     if numero < 0:
         raise HTTPException(status_code=400, detail="Il valore non può essere negativo.")
     return numero
+
+
+def _intero_o_400(valore: str) -> int:
+    try:
+        return int(valore)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Valore non valido: {valore!r}")
 
 
 @router.get("/sedi")
@@ -29,7 +33,7 @@ def elenco_sedi(
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_LETTURA)),
 ):
-    sedi = db.query(Sede).order_by(Sede.nome).all()
+    sedi = db.query(Sede).order_by(Sede.ordine_visualizzazione, Sede.nome).all()
     return templates.TemplateResponse(
         request, "sedi.html", {"sedi": sedi, "utente": utente}
     )
@@ -41,6 +45,7 @@ def crea_sede(
     nome: str = Form(...),
     colore_hex: str = Form(...),
     copertura_minima_ordinaria: str = Form("0"),
+    ordine_visualizzazione: str = Form("0"),
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_ANAGRAFICA)),
     _csrf: None = Depends(richiedi_csrf_valido),
@@ -50,6 +55,7 @@ def crea_sede(
         colore_hex=colore_hex.strip(),
         attivo=True,
         copertura_minima_ordinaria=_intero_non_negativo_o_400(copertura_minima_ordinaria),
+        ordine_visualizzazione=_intero_o_400(ordine_visualizzazione),
     )
     db.add(sede)
     db.flush()
@@ -65,6 +71,7 @@ def modifica_sede(
     nome: str = Form(...),
     colore_hex: str = Form(...),
     copertura_minima_ordinaria: str = Form("0"),
+    ordine_visualizzazione: str = Form("0"),
     attivo: str = Form(None),
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_ANAGRAFICA)),
@@ -74,10 +81,12 @@ def modifica_sede(
     sede.nome = nome.strip()
     sede.colore_hex = colore_hex.strip()
     sede.copertura_minima_ordinaria = _intero_non_negativo_o_400(copertura_minima_ordinaria)
+    sede.ordine_visualizzazione = _intero_o_400(ordine_visualizzazione)
     sede.attivo = checkbox_a_bool(attivo)
     registra_modifica(
         db, utente.id, "sedi", sede.id, "modifica",
-        f"nome={sede.nome}, colore_hex={sede.colore_hex}, copertura_minima_ordinaria={sede.copertura_minima_ordinaria}, attivo={sede.attivo}",
+        f"nome={sede.nome}, colore_hex={sede.colore_hex}, copertura_minima_ordinaria={sede.copertura_minima_ordinaria}, "
+        f"ordine_visualizzazione={sede.ordine_visualizzazione}, attivo={sede.attivo}",
     )
     db.commit()
     return RedirectResponse("/sedi", status_code=303)

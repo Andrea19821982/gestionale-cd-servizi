@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import DB_PATH
@@ -31,7 +31,22 @@ def get_db():
         db.close()
 
 
+def _migra_schema():
+    """create_all crea solo le tabelle che non esistono ancora: non
+    aggiunge colonne a una tabella già presente con dati (qui: sedi, che
+    esisteva prima di ordine_visualizzazione). Senza un vero sistema di
+    migrazioni, il modo più semplice è un ALTER TABLE fatto a mano, reso
+    sicuro da rilanciare a ogni avvio controllando prima se la colonna
+    c'è già."""
+    with engine.connect() as conn:
+        colonne = {r[1] for r in conn.execute(text("PRAGMA table_info(sedi)"))}
+        if "ordine_visualizzazione" not in colonne:
+            conn.execute(text("ALTER TABLE sedi ADD COLUMN ordine_visualizzazione INTEGER NOT NULL DEFAULT 0"))
+            conn.commit()
+
+
 def init_db():
     from app import models  # noqa: F401  (registra i modelli su Base)
 
     Base.metadata.create_all(bind=engine)
+    _migra_schema()

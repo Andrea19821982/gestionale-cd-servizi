@@ -202,7 +202,10 @@ h3 {
 
 .griglia-copertura {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    /* Pensata per starci in 5 sulla stessa riga su uno schermo da ufficio
+       tipico (~1280px), restringendosi in automatico su schermi più
+       piccoli invece di forzarle sempre in 5 anche quando non ci stanno. */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
 }
 
@@ -862,6 +865,21 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     }
 }
 
+/* Le tabelle normali (non quelle del calendario/statistiche, che hanno
+   già il proprio scroll con colonna dipendente fissa) scorrono in
+   orizzontale dentro il proprio riquadro invece di sforare fuori: serve
+   sia sugli schermi stretti (altrimenti è l'intera pagina a scorrere di
+   lato, portandosi via anche la barra di navigazione) sia nelle card di
+   Copertura, strette apposta per starci in più di una per riga — senza
+   questa regola la tabella dei dipendenti, più larga della card, sfora
+   visivamente in quella accanto. Su una tabella che già entra nella sua
+   colonna non cambia nulla (nessuna barra di scorrimento appare). */
+.tabella:not(.tabella-calendario):not(.tabella-statistiche) {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 /* --- Responsive --- */
 
 @media (max-width: 720px) {
@@ -869,16 +887,4 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     .topnav { padding: 0 0.75rem; }
     .brand { padding: 0.7rem 0.75rem 0.7rem 0; font-size: 0.9rem; }
     h1 { font-size: 1.25rem; }
-
-    /* Le tabelle normali (non quelle del calendario/statistiche, che
-       hanno già il proprio scroll con colonna dipendente fissa) diventano
-       scorrevoli in orizzontale sul proprio riquadro: senza questa
-       regola, su schermi stretti è l'intera pagina a scorrere di lato
-       invece della sola tabella, portandosi via anche la barra di
-       navigazione dallo schermo. */
-    .tabella:not(.tabella-calendario):not(.tabella-statistiche) {
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
 }

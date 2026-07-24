@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Copertura{% endblock %}
+{% block container_extra %}container-calendario{% endblock %}
 {% block content %}
 <h1>Copertura per sede</h1>
 <p class="muted">Chi è presente, assente o non ancora pianificato in ogni palazzo per il giorno scelto: un colpo d'occhio per capire subito dove serve una sostituzione.</p>
 
 <form method="get" class="form-inline">
-    <label>Giorno <input type="date" name="data" value="{{ data.isoformat() }}"></label>
-    <button type="submit">Aggiorna</button>
+    <label>Giorno <input type="date" name="data" value="{{ data.isoformat() }}" onchange="this.form.submit()"></label>
+    <noscript><button type="submit">Aggiorna</button></noscript>
 </form>
 
 <div class="griglia-copertura">

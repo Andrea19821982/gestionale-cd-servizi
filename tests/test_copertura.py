@@ -190,3 +190,18 @@ def test_suggerisce_dipendenti_non_pianificati_in_altre_sedi(db):
     assert libero_qui.id not in suggeriti_id
     # Un blocco che rispetta il minimo non propone suggerimenti.
     assert blocco_altro["dipendenti_suggeriti"] == []
+
+
+def test_calcola_copertura_rispetta_ordine_visualizzazione(db):
+    """Le sedi compaiono nell'ordine impostato in Sedi (ordine_visualizzazione),
+    non semplicemente in ordine alfabetico: a parità di numero, alfabetico
+    come prima (vedi Zeta con ordine 0, in fondo nonostante il nome)."""
+    zeta = Sede(nome="Zeta", colore_hex="#111111", attivo=True, ordine_visualizzazione=0)
+    alfa = Sede(nome="Alfa", colore_hex="#222222", attivo=True, ordine_visualizzazione=5)
+    beta = Sede(nome="Beta", colore_hex="#333333", attivo=True, ordine_visualizzazione=-1)
+    db.add_all([zeta, alfa, beta])
+    db.commit()
+
+    blocchi = calcola_copertura(db, date.today())
+    nomi_in_ordine = [b["sede"].nome for b in blocchi]
+    assert nomi_in_ordine == ["Beta", "Zeta", "Alfa"]

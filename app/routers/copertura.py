@@ -28,7 +28,12 @@ def calcola_copertura(db: Session, data_obj: date) -> list[dict]:
     arrivo. Usata sia dal cruscotto interattivo qui sotto sia dal riepilogo
     giornaliero via email (vedi app/riepilogo_giornaliero.py): stessa
     identica logica in entrambi i posti, non una copia parallela."""
-    sedi = db.query(Sede).filter(Sede.attivo == True).order_by(Sede.nome).all()  # noqa: E712
+    sedi = (
+        db.query(Sede)
+        .filter(Sede.attivo == True)  # noqa: E712
+        .order_by(Sede.ordine_visualizzazione, Sede.nome)
+        .all()
+    )
     dipendenti = (
         db.query(Dipendente)
         .filter(Dipendente.attivo == True)  # noqa: E712

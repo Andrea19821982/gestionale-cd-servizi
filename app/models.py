@@ -34,6 +34,10 @@ class Sede(Base):
     # del palazzo, a prescindere da eventi nelle sale (vedi Sala sotto). 0 =
     # non ancora configurato dall'amministratore.
     copertura_minima_ordinaria: Mapped[int] = mapped_column(default=0, nullable=False)
+    # Ordine con cui il palazzo compare nel cruscotto Copertura (e nel
+    # riepilogo giornaliero via email, che usa la stessa query): a parità di
+    # valore si ordina per nome. Impostabile da Sedi.
+    ordine_visualizzazione: Mapped[int] = mapped_column(default=0, nullable=False)
 
 
 class Sala(Base):
