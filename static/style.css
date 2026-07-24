@@ -851,6 +851,71 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 
 .tabella-stampa th, .tabella-stampa td {
     font-size: 0.68rem;
+    padding: 0.15rem 0.1rem;
+}
+
+/* .tabella-calendario dà a ogni colonna giorno una larghezza fissa in rem,
+   pensata per lo schermo (dove .scroll-calendario scorre in orizzontale se
+   serve): in stampa non c'è scorrimento, quindi con 28-31 colonne quella
+   larghezza fissa supera abbondantemente quella di un foglio A4 orizzontale
+   (la tabella risultava larga il doppio della pagina, tagliata a metà invece
+   di andare a capo). Qui si passa a percentuali sempre relative alla
+   larghezza reale della pagina: la colonna dipendente ha una quota fissa, le
+   colonne dei giorni si dividono equamente il resto, qualunque sia il numero
+   di giorni del mese. */
+.tabella-stampa.tabella-calendario {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.tabella-stampa .colonna-dipendente {
+    width: 12%;
+}
+
+.tabella-stampa th:not(.colonna-dipendente),
+.tabella-stampa td:not(.colonna-dipendente) {
+    width: auto;
+}
+
+/* Il contenuto della cella (pensato per una colonna di 3.9rem a schermo)
+   deve restringersi con la colonna, non restare fisso e sforare nella
+   cella accanto. */
+.tabella-stampa .cella-turno-wrap {
+    width: 100%;
+    max-width: 100%;
+}
+
+.tabella-stampa .cella-turno-display {
+    min-height: 0;
+    padding: 0.1rem 0.05rem;
+}
+
+.tabella-stampa .cella-turno-display .cella-turno-codice {
+    font-size: 0.62rem;
+}
+
+.tabella-stampa .cella-turno-display .cella-turno-orario {
+    font-size: 0.46rem;
+}
+
+.tabella-stampa .badge-sostituzione,
+.tabella-stampa .badge-sostituzione-oraria {
+    max-width: 100%;
+    font-size: 0.46rem;
+}
+
+/* Una sede con molti dipendenti supera l'altezza di un foglio A4
+   orizzontale: il browser va comunque a capo su una nuova pagina da solo,
+   ma senza queste due regole lo fa a metà della riga di un dipendente
+   (taglio brutto) e senza ripetere l'intestazione con i numeri dei giorni,
+   rendendo illeggibile la pagina successiva. */
+.tabella-stampa thead {
+    display: table-header-group;
+}
+
+.tabella-stampa tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 
 @media print {
