@@ -104,9 +104,15 @@ def richiedi_ruolo(*ruoli_ammessi: str):
 def puo_approvare_assenze(db: Session, utente: Utente) -> bool:
     """Un amministratore può sempre approvare/rifiutare; chiunque altro solo
     se ha una delega attiva oggi (es. il capo è in ferie e ha delegato un
-    gestore_turni per quel periodo)."""
+    gestore_turni per quel periodo). Un ruolo "dipendente" non può mai
+    approvare, nemmeno con una delega: la creazione della delega lo impedisce
+    già (vedi /deleghe/nuova), ma un utente delegato può essere degradato a
+    "dipendente" *dopo* aver ricevuto la delega, che altrimenti resterebbe
+    valida fino alla sua scadenza nonostante il ruolo ormai troppo basso."""
     if utente.ruolo == "amministratore":
         return True
+    if utente.ruolo == "dipendente":
+        return False
     oggi = date.today()
     delega = (
         db.query(DelegaApprovazione)
