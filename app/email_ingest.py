@@ -20,7 +20,7 @@ from email.header import decode_header
 
 from sqlalchemy.orm import Session
 
-from app import email_config
+from app import impostazioni_email
 from app.database import SessionLocal
 from app.models import BozzaEmail, Dipendente
 
@@ -238,20 +238,22 @@ def _elabora_messaggio(db: Session, imap: imaplib.IMAP4_SSL, numero: bytes) -> b
 
 
 def controlla_posta() -> int:
-    """Si collega alla casella IMAP configurata, legge le email non lette e
-    crea una BozzaEmail per ciascuna email pertinente. Non fa nulla se
-    l'IMAP non è configurato (vedi app/email_config.py). Non solleva mai
-    eccezioni verso il chiamante: un problema di connessione o su una
-    singola email viene solo registrato nei log, il resto continua."""
-    if not email_config.imap_configurato():
-        return 0
-
+    """Si collega alla casella IMAP configurata (da /bozze-email o, in
+    mancanza, da app/email_config.py — vedi app/impostazioni_email.py),
+    legge le email non lette e crea una BozzaEmail per ciascuna email
+    pertinente. Non fa nulla se l'IMAP non è configurato da nessuna delle
+    due parti. Non solleva mai eccezioni verso il chiamante: un problema di
+    connessione o su una singola email viene solo registrato nei log, il
+    resto continua."""
     db = SessionLocal()
     create = 0
     try:
-        with imaplib.IMAP4_SSL(email_config.IMAP_HOST, email_config.IMAP_PORTA) as imap:
-            imap.login(email_config.IMAP_UTENTE, email_config.IMAP_PASSWORD)
-            imap.select(email_config.IMAP_CARTELLA)
+        cfg = impostazioni_email.imap_effettivo(db)
+        if not (cfg.host and cfg.utente and cfg.password):
+            return 0
+        with imaplib.IMAP4_SSL(cfg.host, cfg.porta) as imap:
+            imap.login(cfg.utente, cfg.password)
+            imap.select(cfg.cartella)
             stato, dati = imap.search(None, "UNSEEN")
             if stato != "OK" or not dati or not dati[0]:
                 return 0

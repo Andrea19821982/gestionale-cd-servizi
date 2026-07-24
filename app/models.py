@@ -318,6 +318,25 @@ class AllarmeCoperturaInviato(Base):
     inviato_da: Mapped[int | None] = mapped_column(ForeignKey("utenti.id"), nullable=True)
 
 
+class ImpostazioneImap(Base):
+    """Configurazione della casella IMAP da cui leggere le email dei
+    dipendenti (assenze/sostituzioni, vedi app/email_ingest.py),
+    modificabile dall'amministratore dalla pagina /bozze-email senza dover
+    editare app/email_config_locale.py a mano sul PC server. Una sola riga
+    (id=1, vedi app/impostazioni_email.py): se manca o i campi sono vuoti,
+    si ricade sui valori statici di app/email_config.py come prima."""
+    __tablename__ = "impostazioni_imap"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    host: Mapped[str] = mapped_column(String, default="", nullable=False)
+    porta: Mapped[int] = mapped_column(default=993, nullable=False)
+    utente: Mapped[str] = mapped_column(String, default="", nullable=False)
+    password: Mapped[str] = mapped_column(String, default="", nullable=False)
+    cartella: Mapped[str] = mapped_column(String, default="INBOX", nullable=False)
+    aggiornato_il: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
+    aggiornato_da: Mapped[int | None] = mapped_column(ForeignKey("utenti.id"), nullable=True)
+
+
 class LogModifica(Base):
     __tablename__ = "log_modifiche"
     __table_args__ = (

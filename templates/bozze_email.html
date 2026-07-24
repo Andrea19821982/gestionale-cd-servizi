@@ -1,20 +1,46 @@
 {% extends "base.html" %}
-{% block title %}Bozze da email{% endblock %}
+{% block title %}Email dipendenti{% endblock %}
 {% block content %}
-<h1>Bozze da email</h1>
+<h1>Email dipendenti</h1>
 <p class="muted">Assenze e sostituzioni interpretate automaticamente dalle email dei dipendenti (vedi <code>docs/06-formato-email-dipendenti.md</code>). Non toccano il calendario finché non le confermi qui sotto: controlla i dati prima di confermare, soprattutto se c'è un avviso.</p>
 
 <details style="margin-bottom: 1.5rem;">
     <summary><strong>📋 Testo da inoltrare ai dipendenti</strong> <span class="muted">— spiega come segnalare ferie, permessi, malattie e sostituzioni via email</span></summary>
     <div class="riquadro">
         {% if not indirizzo_email %}
-        <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato (IMAP_UTENTE in app/email_config_locale.py): nel testo qui sotto resta un segnaposto da completare a mano prima di inoltrarlo.</p>
+        <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato: compilalo qui sotto in "Casella email per le richieste dei dipendenti", nel testo qui sotto resta un segnaposto da completare a mano prima di inoltrarlo.</p>
         {% endif %}
         <p class="muted">Copia oggetto e corpo qui sotto e inoltrali per email ai dipendenti che devono segnalare ferie, permessi, malattie e sostituzioni. Rispettando questo formato, il programma legge da solo l'email e prepara la richiesta pronta da confermare qui sopra.</p>
         <textarea id="testo-email-dipendenti" readonly rows="30" style="width:100%; font-family: ui-monospace, monospace; font-size: 0.85rem;">{{ testo_email_dipendenti }}</textarea>
         <button type="button" onclick="const t=document.getElementById('testo-email-dipendenti'); t.select(); navigator.clipboard.writeText(t.value); this.textContent='✅ Copiato!'; setTimeout(() => { this.textContent='📋 Copia testo'; }, 2000);">📋 Copia testo</button>
+        <a href="/bozze-email/guida-stampa" target="_blank">📄 Scarica/stampa PDF con bozza email e guida</a>
     </div>
 </details>
+
+{% if utente.ruolo == "amministratore" %}
+<details style="margin-bottom: 1.5rem;">
+    <summary><strong>⚙️ Casella email per le richieste dei dipendenti</strong> <span class="muted">— da quale indirizzo il programma legge automaticamente le email</span></summary>
+    <div class="riquadro">
+        <p class="muted">Questi dati sostituiscono, se compilati, quelli statici di <code>app/email_config.py</code>/<code>email_config_locale.py</code>: si possono cambiare da qui in qualsiasi momento, senza toccare file sul PC server né riavviare il programma.</p>
+        <form method="post" action="/bozze-email/imposta-imap" class="form-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+            <label>Server IMAP <input type="text" name="host" value="{{ imap_host }}" placeholder="es. imap.aruba.it"></label>
+            <label>Porta <input type="number" name="porta" value="{{ imap_porta }}" style="width:5em;"></label>
+            <label>Indirizzo email <input type="email" name="imap_utente" value="{{ imap_utente }}" placeholder="turni@esempio.it"></label>
+            <label>Password
+                <input type="password" name="password" placeholder="{{ '(lasciare vuoto per non cambiarla)' if imap_password_impostata else 'password' }}">
+            </label>
+            <label>Cartella <input type="text" name="cartella" value="{{ imap_cartella }}" style="width:8em;"></label>
+            <button type="submit">Salva</button>
+        </form>
+        {% if imap_password_impostata %}
+        <p class="muted">✅ Password già configurata (per motivi di sicurezza non viene mostrata qui).</p>
+        {% else %}
+        <p class="muted">⚠️ Password non ancora configurata: la lettura automatica della posta resta disattivata finché non la compili.</p>
+        {% endif %}
+    </div>
+</details>
+{% endif %}
 
 <form method="get" class="form-inline">
     <select name="stato">

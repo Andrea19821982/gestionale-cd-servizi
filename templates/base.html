@@ -25,7 +25,7 @@
         <a href="/statistiche" class="{{ classe_nav_attiva(request, '/statistiche') }}">📈 Statistiche</a>
         {% if request.session.get("utente_ruolo") in ("amministratore", "gestore_turni") %}
         <a href="/report" class="{{ classe_nav_attiva(request, '/report') }}">📊 Report</a>
-        <a href="/bozze-email" class="{{ classe_nav_attiva(request, '/bozze-email') }}">📥 Bozze email</a>
+        <a href="/bozze-email" class="{{ classe_nav_attiva(request, '/bozze-email') }}">📥 Email dipendenti</a>
         <a href="/riepilogo-giornaliero" class="{{ classe_nav_attiva(request, '/riepilogo-giornaliero') }}">📧 Riepilogo giornaliero</a>
         <a href="/allarme-copertura" class="{{ classe_nav_attiva(request, '/allarme-copertura') }}">🚨 Allarme copertura</a>
         {% endif %}

@@ -83,8 +83,10 @@ def _ciclo_backup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    if email_config.imap_configurato():
-        threading.Thread(target=_ciclo_polling_posta, daemon=True).start()
+    # Sempre avviato (come gli altri cicli periodici sotto): la
+    # configurazione IMAP può arrivare anche da /bozze-email dopo l'avvio
+    # (vedi app/impostazioni_email.py), senza riavviare il programma.
+    threading.Thread(target=_ciclo_polling_posta, daemon=True).start()
     threading.Thread(target=_ciclo_invio_riepilogo_giornaliero, daemon=True).start()
     threading.Thread(target=_ciclo_allarme_copertura, daemon=True).start()
     threading.Thread(target=_ciclo_backup, daemon=True).start()

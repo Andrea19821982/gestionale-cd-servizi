@@ -13,11 +13,12 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 
-from app import email_config
-from app.auth import RUOLI_SCRITTURA_OPERATIVO, richiedi_ruolo
+from app import impostazioni_email
+from app.auth import RUOLI_SCRITTURA_ANAGRAFICA, RUOLI_SCRITTURA_OPERATIVO, richiedi_ruolo
 from app.csrf import richiedi_csrf_valido
 from app.database import get_db
 from app.email_ingest import controlla_posta
+from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import Assenza, BozzaEmail, Dipendente, Sostituzione, Utente
 from app.routers.assenze import _copri_giorni_con_assenza, _si_sovrappone
@@ -133,6 +134,7 @@ def elenco_bozze_email(
         .all()
     )
 
+    cfg = impostazioni_email.imap_effettivo(db)
     return templates.TemplateResponse(
         request,
         "bozze_email.html",
@@ -141,8 +143,13 @@ def elenco_bozze_email(
             "dipendenti": dipendenti,
             "stato_filtro": stato,
             "utente": utente,
-            "indirizzo_email": email_config.IMAP_UTENTE,
-            "testo_email_dipendenti": genera_testo_email_dipendenti(email_config.IMAP_UTENTE),
+            "indirizzo_email": cfg.utente,
+            "testo_email_dipendenti": genera_testo_email_dipendenti(cfg.utente),
+            "imap_host": cfg.host,
+            "imap_porta": cfg.porta,
+            "imap_utente": cfg.utente,
+            "imap_cartella": cfg.cartella,
+            "imap_password_impostata": bool(cfg.password),
         },
     )
 
@@ -153,6 +160,48 @@ def controlla_posta_ora(
     _csrf: None = Depends(richiedi_csrf_valido),
 ):
     controlla_posta()
+    return RedirectResponse("/bozze-email", status_code=303)
+
+
+@router.get("/bozze-email/guida-stampa")
+def guida_email_stampa(
+    request: Request,
+    db: Session = Depends(get_db),
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
+):
+    """Vista pensata per la stampa/esportazione PDF dal browser (Ctrl+P /
+    'Salva come PDF'), stesso schema di /calendario/stampa: contiene la
+    bozza dell'email che i dipendenti devono mandare e la guida su come
+    farlo, pronta da stampare o allegare in PDF a una comunicazione interna."""
+    cfg = impostazioni_email.imap_effettivo(db)
+    return templates.TemplateResponse(
+        request,
+        "guida_email_stampa.html",
+        {"testo_email_dipendenti": genera_testo_email_dipendenti(cfg.utente)},
+    )
+
+
+@router.post("/bozze-email/imposta-imap")
+def imposta_imap(
+    request: Request,
+    host: str = Form(""),
+    porta: int = Form(993),
+    imap_utente: str = Form(""),
+    password: str = Form(""),
+    cartella: str = Form("INBOX"),
+    db: Session = Depends(get_db),
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_ANAGRAFICA)),
+    _csrf: None = Depends(richiedi_csrf_valido),
+):
+    """Solo amministratore: qui sta l'indirizzo/password della casella
+    email da cui si leggono le richieste dei dipendenti, informazione più
+    sensibile della semplice gestione operativa del calendario."""
+    impostazioni_email.salva_impostazioni(db, utente.id, host, porta, imap_utente, password, cartella)
+    registra_modifica(
+        db, utente.id, "impostazioni_imap", 1, "modifica",
+        f"host={host.strip()}, utente={imap_utente.strip()}, cartella={cartella.strip()}",
+    )
+    imposta_flash(request, "Configurazione della casella email aggiornata.", tipo="ok")
     return RedirectResponse("/bozze-email", status_code=303)
 
 

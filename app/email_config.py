@@ -57,6 +57,13 @@ def notifiche_configurate() -> bool:
 # trasformate in bozze da confermare a mano (mai inserite da sole sul
 # calendario): vedi /bozze-email nell'app.
 #
+# Questi valori si possono anche compilare/cambiare direttamente dalla
+# pagina /bozze-email (sezione "Casella email per le richieste dei
+# dipendenti", solo amministratore): se compilati da lì hanno la precedenza
+# su quelli scritti qui sotto (vedi app/impostazioni_email.py). I valori
+# qui restano utili come impostazione iniziale o come alternativa per chi
+# preferisce editare un file invece di usare l'interfaccia.
+#
 # Come trovare questi dati: di solito sono indicati nelle impostazioni email
 # del tuo provider alla voce "server IMAP in entrata" / "incoming mail server".
 # Esempi tipici:

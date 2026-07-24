@@ -159,6 +159,14 @@ def _configura_imap_finto(monkeypatch):
 
 
 def test_controlla_posta_disattivato_senza_configurazione(db, monkeypatch):
+    import app.email_ingest as email_ingest
+
+    # Isola dal database reale del progetto: senza configurazione (né su file
+    # né in tabella impostazioni_imap) controlla_posta deve limitarsi a
+    # verificarlo e uscire, senza toccare nessuna casella di posta.
+    monkeypatch.setattr(email_ingest, "SessionLocal", lambda: db)
+    db.close = lambda: None
+
     assert controlla_posta() == 0
 
 

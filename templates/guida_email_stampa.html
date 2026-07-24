@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Guida email dipendenti — Calendario Turni</title>
+    <link rel="stylesheet" href="/static/style.css?v={{ versione_statico('style.css') }}">
+</head>
+<body>
+    <div class="barra-stampa no-stampa">
+        <button onclick="window.print()">🖨️ Stampa / Salva come PDF</button>
+        <a href="/bozze-email">&larr; torna a Email dipendenti</a>
+    </div>
+
+    <section class="pagina-stampa">
+        <h1>Come segnalare ferie, permessi, malattie e sostituzioni via email</h1>
+        <pre style="white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.85rem;">{{ testo_email_dipendenti }}</pre>
+    </section>
+</body>
+</html>
