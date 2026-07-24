@@ -100,3 +100,51 @@ def test_elimina_tipo_turno_richiede_amministratore(client, crea_utente):
 
     r = client.post("/tipi-turno/1/elimina", follow_redirects=False)
     assert r.status_code == 403
+
+
+def test_crea_tipo_turno_con_fascia(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    r = client.post(
+        "/tipi-turno/nuovo",
+        data={"etichetta": "Mattina Fascia Test", "ora_inizio": "07:00", "ora_fine": "13:30", "fascia": "mattina"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    tipo = db.query(TipoTurno).filter_by(etichetta="Mattina Fascia Test").first()
+    assert tipo.fascia == "mattina"
+
+
+def test_crea_tipo_turno_senza_fascia_resta_non_classificato(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    r = client.post(
+        "/tipi-turno/nuovo",
+        data={"etichetta": "Non Classificato Test", "ora_inizio": "09:00", "ora_fine": "13:00"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    tipo = db.query(TipoTurno).filter_by(etichetta="Non Classificato Test").first()
+    assert tipo.fascia is None
+
+
+def test_crea_tipo_turno_con_fascia_non_valida_da_400(client, crea_utente):
+    _login_admin(client, crea_utente)
+    r = client.post(
+        "/tipi-turno/nuovo",
+        data={"etichetta": "Fascia Invalida", "ora_inizio": "09:00", "ora_fine": "13:00", "fascia": "sera"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+
+
+def test_modifica_tipo_turno_cambia_fascia(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    tipo = _crea_tipo_turno(db, etichetta="Da Riclassificare")
+
+    r = client.post(
+        f"/tipi-turno/{tipo.id}/modifica",
+        data={"etichetta": tipo.etichetta, "ora_inizio": "07:00", "ora_fine": "13:30", "fascia": "pomeriggio"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    db.refresh(tipo)
+    assert tipo.fascia == "pomeriggio"

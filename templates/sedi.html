@@ -5,7 +5,7 @@
 
 <table class="tabella">
     <thead>
-        <tr><th>Ordine</th><th>Nome</th><th>Colore</th><th>Copertura minima ordinaria</th><th>Attiva</th><th></th></tr>
+        <tr><th>Ordine</th><th>Nome</th><th>Colore</th><th>Minimo mattina</th><th>Minimo pomeriggio</th><th>Attiva</th><th></th></tr>
     </thead>
     <tbody>
         {% for s in sedi %}
@@ -13,7 +13,8 @@
             <td class="muted">{{ s.ordine_visualizzazione }}</td>
             <td><span class="colore-sede" style="background: {{ s.colore_hex }}"></span>{{ s.nome }}</td>
             <td>{{ s.colore_hex }}</td>
-            <td>{{ s.copertura_minima_ordinaria }}</td>
+            <td>{{ s.copertura_minima_mattina }}</td>
+            <td>{{ s.copertura_minima_pomeriggio }}</td>
             <td>{{ "Sì" if s.attivo else "No" }}</td>
             <td>
                 {% if utente.ruolo == "amministratore" %}
@@ -24,7 +25,8 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
                             <input type="text" name="nome" value="{{ s.nome }}" required>
                             <input type="color" name="colore_hex" value="{{ s.colore_hex }}" required>
-                            <label>Copertura minima ordinaria <input type="number" name="copertura_minima_ordinaria" value="{{ s.copertura_minima_ordinaria }}" min="0" required style="width:5em;"></label>
+                            <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="{{ s.copertura_minima_mattina }}" min="0" required style="width:5em;"></label>
+                            <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="{{ s.copertura_minima_pomeriggio }}" min="0" required style="width:5em;"></label>
                             <label>Ordine visualizzazione <input type="number" name="ordine_visualizzazione" value="{{ s.ordine_visualizzazione }}" required style="width:4em;"></label>
                             <label><input type="checkbox" name="attivo" {% if s.attivo %}checked{% endif %}> attiva</label>
                             <button type="submit">Salva</button>
@@ -37,7 +39,7 @@
         {% endfor %}
     </tbody>
 </table>
-<p class="muted">"Ordine visualizzazione" decide in che posizione compare ogni palazzo nel cruscotto Copertura (e nel riepilogo giornaliero via email): il numero più basso viene per primo (anche negativo, per portarne uno in cima senza dover rinumerare gli altri). A parità di numero, in ordine alfabetico.</p>
+<p class="muted">"Ordine visualizzazione" decide in che posizione compare ogni palazzo nel cruscotto Copertura (e nel riepilogo giornaliero via email): il numero più basso viene per primo (anche negativo, per portarne uno in cima senza dover rinumerare gli altri). A parità di numero, in ordine alfabetico. I minimi di copertura sono separati per mattina e pomeriggio: un turno concorre al conteggio della sua fascia solo se classificato in Tipi turno.</p>
 
 {% if utente.ruolo == "amministratore" %}
 <h2>Nuova sede</h2>
@@ -45,8 +47,63 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <input type="text" name="nome" placeholder="Nome sede" required>
     <input type="color" name="colore_hex" value="#2563eb" required>
-    <label>Copertura minima ordinaria <input type="number" name="copertura_minima_ordinaria" value="0" min="0" required style="width:5em;"></label>
+    <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="0" min="0" required style="width:5em;"></label>
+    <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="0" min="0" required style="width:5em;"></label>
     <label>Ordine visualizzazione <input type="number" name="ordine_visualizzazione" value="0" required style="width:4em;"></label>
+    <button type="submit">Aggiungi</button>
+</form>
+{% endif %}
+
+{% if utente.ruolo == "amministratore" %}
+<h2>Comparti con copertura propria</h2>
+<p class="muted">Un gruppo di dipendenti dentro una sede (es. "Parcheggio" dentro Valdina) con un proprio minimo di copertura, monitorato separatamente dal resto del palazzo. Il nome deve corrispondere ESATTAMENTE al valore scritto in Dipendenti → Sottosezione per essere collegato correttamente.</p>
+<table class="tabella">
+    <thead>
+        <tr><th>Sede</th><th>Nome comparto</th><th>Minimo mattina</th><th>Minimo pomeriggio</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for c in comparti %}
+        <tr>
+            <td>{{ c.sede.nome }}</td>
+            <td>{{ c.nome }}</td>
+            <td>{{ c.copertura_minima_mattina }}</td>
+            <td>{{ c.copertura_minima_pomeriggio }}</td>
+            <td>
+                <details>
+                    <summary>Modifica</summary>
+                    <div class="riquadro">
+                        <form method="post" action="/sedi/comparti/{{ c.id }}/modifica" class="form-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                            <select name="sede_id" required>
+                                {% for s in sedi %}
+                                <option value="{{ s.id }}" {% if c.sede_id == s.id %}selected{% endif %}>{{ s.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" name="nome" value="{{ c.nome }}" required>
+                            <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="{{ c.copertura_minima_mattina }}" min="0" required style="width:5em;"></label>
+                            <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="{{ c.copertura_minima_pomeriggio }}" min="0" required style="width:5em;"></label>
+                            <button type="submit">Salva</button>
+                        </form>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="muted">Nessun comparto configurato.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+<h3>Nuovo comparto</h3>
+<form method="post" action="/sedi/comparti/nuovo" class="form-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <select name="sede_id" required>
+        {% for s in sedi %}
+        <option value="{{ s.id }}">{{ s.nome }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="nome" placeholder="Nome comparto (es. Parcheggio)" required>
+    <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="0" min="0" required style="width:5em;"></label>
+    <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="0" min="0" required style="width:5em;"></label>
     <button type="submit">Aggiungi</button>
 </form>
 {% endif %}
