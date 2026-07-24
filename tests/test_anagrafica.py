@@ -138,6 +138,28 @@ def test_storico_dipendente_mostra_costo_orario_zero_non_trattino(client, crea_u
     assert "—" not in riga
 
 
+def test_form_modifica_precompila_costo_orario_zero(client, crea_utente, db):
+    """Il form 'Modifica' in _tabella_dipendenti.html deve precompilare il
+    campo costo_orario con "0" quando il valore salvato è 0.0, non lasciarlo
+    vuoto: altrimenti chi apre il form per cambiare un altro campo (es. il
+    nome) e salva senza toccare costo_orario finirebbe per azzerarlo
+    silenziosamente a "nessun costo impostato" (None) invece di 0."""
+    from app.models import Dipendente
+
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+    dip = Dipendente(cognome="Test", nome="CostoZeroForm", attivo=True, costo_orario=0.0)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.get("/dipendenti")
+    assert r.status_code == 200
+    riquadro = r.text.split(f'/dipendenti/{dip.id}/modifica')[1].split("</form>")[0]
+    campo_costo = riquadro.split('name="costo_orario"')[1].split(">")[0]
+    assert 'value="0.0"' in campo_costo or 'value="0"' in campo_costo
+
+
 def test_disattivare_dipendente_con_account_collegato_mostra_avviso(client, crea_utente, db):
     from app.models import Dipendente
 
