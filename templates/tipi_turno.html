@@ -27,6 +27,10 @@
                         </form>
                     </div>
                 </details>
+                <form method="post" action="/tipi-turno/{{ t.id }}/elimina" style="display:inline;" onsubmit="return confirm('Eliminare il tipo turno \'{{ t.etichetta }}\'? Non si può annullare, ma non è possibile se è già usato in qualche turno assegnato o nel pattern base di un dipendente.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                    <button type="submit">Elimina</button>
+                </form>
                 {% endif %}
             </td>
         </tr>
