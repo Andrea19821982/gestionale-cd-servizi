@@ -1,6 +1,6 @@
 from datetime import date, time, timedelta
 
-from app.models import AssegnazioneGiornaliera, Dipendente, EventoSala, Sala, Sede, TipoTurno
+from app.models import AssegnazioneGiornaliera, Dipendente, EventoSala, Sala, Sede, SottosezioneCopertura, TipoTurno
 from app.routers.copertura import calcola_copertura
 from tests.conftest import login
 
@@ -76,21 +76,26 @@ def test_copertura_minima_zero_senza_configurazione(db):
     assert blocchi[0]["sotto_minimo"] is False
 
 
-def test_copertura_minima_ordinaria_segnala_carenza(db):
+def test_copertura_minima_segnala_carenza_su_ciascuna_fascia(db):
     sede = _crea_sede(db)
-    sede.copertura_minima_ordinaria = 2
+    sede.copertura_minima_mattina = 2
+    sede.copertura_minima_pomeriggio = 1
     db.commit()
     oggi = date.today()
     blocchi = calcola_copertura(db, oggi)
     blocco = blocchi[0]
-    assert blocco["copertura_minima"] == 2
+    assert blocco["copertura_minima_mattina"] == 2
+    assert blocco["copertura_minima_pomeriggio"] == 1
     assert blocco["presenti"] == 0
+    assert blocco["sotto_minimo_mattina"] is True
+    assert blocco["sotto_minimo_pomeriggio"] is True
     assert blocco["sotto_minimo"] is True
 
 
-def test_evento_in_sala_aumenta_copertura_minima(db):
+def test_evento_in_sala_aumenta_copertura_minima_di_entrambe_le_fasce(db):
     sede = _crea_sede(db)
-    sede.copertura_minima_ordinaria = 1
+    sede.copertura_minima_mattina = 1
+    sede.copertura_minima_pomeriggio = 1
     db.commit()
     sala = Sala(nome="Sala della Lupa Test", sede_id=sede.id, copertura_minima_aggiuntiva=3, attivo=True)
     db.add(sala)
@@ -102,7 +107,8 @@ def test_evento_in_sala_aumenta_copertura_minima(db):
 
     blocchi = calcola_copertura(db, oggi)
     blocco = blocchi[0]
-    assert blocco["copertura_minima"] == 4  # 1 ordinaria + 3 per l'evento
+    assert blocco["copertura_minima_mattina"] == 4  # 1 ordinaria + 3 per l'evento
+    assert blocco["copertura_minima_pomeriggio"] == 4
     assert len(blocco["eventi_oggi"]) == 1
     assert blocco["eventi_oggi"][0].sala_id == sala.id
     assert blocco["sotto_minimo"] is True
@@ -110,7 +116,7 @@ def test_evento_in_sala_aumenta_copertura_minima(db):
 
 def test_evento_fuori_data_non_conta(db):
     sede = _crea_sede(db)
-    sede.copertura_minima_ordinaria = 1
+    sede.copertura_minima_mattina = 1
     db.commit()
     sala = Sala(nome="Sala Fuori Data", sede_id=sede.id, copertura_minima_aggiuntiva=5, attivo=True)
     db.add(sala)
@@ -121,13 +127,13 @@ def test_evento_fuori_data_non_conta(db):
     db.commit()
 
     blocchi = calcola_copertura(db, oggi)
-    assert blocchi[0]["copertura_minima"] == 1
+    assert blocchi[0]["copertura_minima_mattina"] == 1
     assert blocchi[0]["eventi_oggi"] == []
 
 
 def test_sala_disattivata_non_conta_anche_con_evento_attivo(db):
     sede = _crea_sede(db)
-    sede.copertura_minima_ordinaria = 1
+    sede.copertura_minima_mattina = 1
     db.commit()
     sala = Sala(nome="Sala Disattivata", sede_id=sede.id, copertura_minima_aggiuntiva=5, attivo=False)
     db.add(sala)
@@ -138,15 +144,15 @@ def test_sala_disattivata_non_conta_anche_con_evento_attivo(db):
     db.commit()
 
     blocchi = calcola_copertura(db, oggi)
-    assert blocchi[0]["copertura_minima"] == 1
+    assert blocchi[0]["copertura_minima_mattina"] == 1
     assert blocchi[0]["eventi_oggi"] == []
 
 
 def test_presenti_sufficienti_non_segnalano_carenza(db):
     sede = _crea_sede(db)
-    sede.copertura_minima_ordinaria = 1
+    sede.copertura_minima_mattina = 1
     db.commit()
-    tipo = TipoTurno(etichetta="Mattina Copertura Test", ora_inizio=time(7, 0), ora_fine=time(13, 30))
+    tipo = TipoTurno(etichetta="Mattina Copertura Test", ora_inizio=time(7, 0), ora_fine=time(13, 30), fascia="mattina")
     db.add(tipo)
     dip = Dipendente(cognome="Bianchi", nome="Test", sede_riferimento_id=sede.id, attivo=True)
     db.add(dip)
@@ -162,13 +168,41 @@ def test_presenti_sufficienti_non_segnalano_carenza(db):
     blocchi = calcola_copertura(db, oggi)
     blocco = blocchi[0]
     assert blocco["presenti"] == 1
-    assert blocco["copertura_minima"] == 1
+    assert blocco["presenti_mattina"] == 1
+    assert blocco["copertura_minima_mattina"] == 1
     assert blocco["sotto_minimo"] is False
+
+
+def test_turno_senza_fascia_classificata_non_conta_per_nessun_minimo(db):
+    """TipoTurno.fascia è None finché l'amministratore non lo classifica in
+    Tipi turno: chi lo ha assegnato compare comunque come "presente"
+    nell'elenco, ma non concorre al minimo di nessuna delle due fasce."""
+    sede = _crea_sede(db)
+    sede.copertura_minima_mattina = 1
+    db.commit()
+    tipo = TipoTurno(etichetta="Non Classificato", ora_inizio=time(9, 0), ora_fine=time(13, 0), fascia=None)
+    db.add(tipo)
+    dip = Dipendente(cognome="Bianchi", nome="NonClassificato", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    db.refresh(tipo)
+    oggi = date.today()
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.commit()
+
+    blocchi = calcola_copertura(db, oggi)
+    blocco = blocchi[0]
+    assert blocco["presenti"] == 1
+    assert blocco["presenti_mattina"] == 0
+    assert blocco["sotto_minimo_mattina"] is True
 
 
 def test_suggerisce_dipendenti_non_pianificati_in_altre_sedi(db):
     sede_carente = _crea_sede(db, nome="Sede Carente")
-    sede_carente.copertura_minima_ordinaria = 2
+    sede_carente.copertura_minima_mattina = 2
     sede_altra = _crea_sede(db, nome="Sede Altra")
     db.commit()
 
@@ -190,6 +224,51 @@ def test_suggerisce_dipendenti_non_pianificati_in_altre_sedi(db):
     assert libero_qui.id not in suggeriti_id
     # Un blocco che rispetta il minimo non propone suggerimenti.
     assert blocco_altro["dipendenti_suggeriti"] == []
+
+
+def test_sottosezione_ha_blocco_e_minimo_separati_dalla_sede_principale(db):
+    """Un comparto come "Parcheggio" dentro Valdina (Dipendente.sottosezione
+    + SottosezioneCopertura) va monitorato con un proprio minimo, non
+    mischiato con quello della sede: un dipendente del comparto non entra
+    nel conteggio "presenti" del blocco principale della sede, e viceversa."""
+    sede = _crea_sede(db, nome="Valdina Test")
+    sede.copertura_minima_mattina = 5
+    db.add(SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1))
+    db.commit()
+
+    tipo = TipoTurno(etichetta="Mattina Parcheggio", ora_inizio=time(7, 0), ora_fine=time(13, 30), fascia="mattina")
+    db.add(tipo)
+    dip_principale = Dipendente(cognome="Principale", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    dip_parcheggio = Dipendente(
+        cognome="Parcheggiato", nome="Test", sede_riferimento_id=sede.id, attivo=True, sottosezione="Parcheggio",
+    )
+    db.add_all([dip_principale, dip_parcheggio])
+    db.commit()
+    db.refresh(tipo)
+    db.refresh(dip_parcheggio)
+
+    oggi = date.today()
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip_parcheggio.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.commit()
+
+    blocchi = calcola_copertura(db, oggi)
+    blocchi_sede = [b for b in blocchi if b["sede"].id == sede.id]
+    assert len(blocchi_sede) == 2
+
+    blocco_principale = next(b for b in blocchi_sede if b["nome_sottosezione"] is None)
+    blocco_parcheggio = next(b for b in blocchi_sede if b["nome_sottosezione"] == "Parcheggio")
+
+    assert blocco_principale["totale"] == 1
+    assert blocco_principale["presenti"] == 0
+    assert blocco_principale["sotto_minimo_mattina"] is True  # 0 presenti su 5 richiesti
+
+    assert blocco_parcheggio["totale"] == 1
+    assert blocco_parcheggio["presenti"] == 1
+    assert blocco_parcheggio["copertura_minima_mattina"] == 1
+    assert blocco_parcheggio["sotto_minimo_mattina"] is False
+    assert blocco_parcheggio["nome_visualizzato"] == "Valdina Test — Parcheggio"
 
 
 def test_calcola_copertura_rispetta_ordine_visualizzazione(db):

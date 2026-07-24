@@ -9,7 +9,14 @@ from tests.conftest import login
 
 
 def _crea_sede(db, nome="Sede Test", copertura_minima_ordinaria=0):
-    sede = Sede(nome=nome, colore_hex="#123456", attivo=True, copertura_minima_ordinaria=copertura_minima_ordinaria)
+    # Il nome del parametro resta quello storico per non dover toccare ogni
+    # chiamata nei test sotto: applica lo stesso minimo a entrambe le fasce
+    # (vedi Sede.copertura_minima_mattina/pomeriggio).
+    sede = Sede(
+        nome=nome, colore_hex="#123456", attivo=True,
+        copertura_minima_mattina=copertura_minima_ordinaria,
+        copertura_minima_pomeriggio=copertura_minima_ordinaria,
+    )
     db.add(sede)
     db.commit()
     db.refresh(sede)

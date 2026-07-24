@@ -30,14 +30,46 @@ class Sede(Base):
     nome: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     colore_hex: Mapped[str] = mapped_column(String, nullable=False)
     attivo: Mapped[bool] = mapped_column(default=True, nullable=False)
-    # Numero minimo di persone richieste per il solo funzionamento ordinario
-    # del palazzo, a prescindere da eventi nelle sale (vedi Sala sotto). 0 =
-    # non ancora configurato dall'amministratore.
+    # Sostituita da copertura_minima_mattina/pomeriggio sotto (la copertura
+    # minima ora si valuta separatamente per le due fasce, non più su tutta
+    # la giornata insieme): rimane in tabella solo perché SQLite prima della
+    # 3.35 non rimuove colonne facilmente, ma non è più letta da nessuna
+    # query — vedi _migra_schema in app/database.py per come sono stati
+    # riportati i valori esistenti nelle due colonne nuove.
     copertura_minima_ordinaria: Mapped[int] = mapped_column(default=0, nullable=False)
+    # Numero minimo di persone richieste nella fascia di mattina/pomeriggio
+    # per il solo funzionamento ordinario del palazzo, a prescindere da
+    # eventi nelle sale (vedi Sala sotto). 0 = non ancora configurato
+    # dall'amministratore. La fascia di un turno è TipoTurno.fascia.
+    copertura_minima_mattina: Mapped[int] = mapped_column(default=0, nullable=False)
+    copertura_minima_pomeriggio: Mapped[int] = mapped_column(default=0, nullable=False)
     # Ordine con cui il palazzo compare nel cruscotto Copertura (e nel
     # riepilogo giornaliero via email, che usa la stessa query): a parità di
     # valore si ordina per nome. Impostabile da Sedi.
     ordine_visualizzazione: Mapped[int] = mapped_column(default=0, nullable=False)
+
+
+class SottosezioneCopertura(Base):
+    """Copertura minima propria per un comparto (Dipendente.sottosezione,
+    es. "Parcheggio" dentro Valdina): stesso principio di Sede sopra, ma per
+    un sottoinsieme di dipendenti della sede che va monitorato a parte
+    invece che insieme al resto del palazzo (vedi
+    app/routers/copertura.py::calcola_copertura). "nome" deve corrispondere
+    esattamente al testo scritto in Dipendente.sottosezione: non è una
+    chiave esterna verso una tabella di dipendenti perché sottosezione resta
+    un campo libero, non un elenco chiuso."""
+    __tablename__ = "sottosezioni_copertura"
+    __table_args__ = (
+        UniqueConstraint("sede_id", "nome", name="uq_sottosezione_copertura_sede_nome"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sede_id: Mapped[int] = mapped_column(ForeignKey("sedi.id"), nullable=False)
+    nome: Mapped[str] = mapped_column(String, nullable=False)
+    copertura_minima_mattina: Mapped[int] = mapped_column(default=0, nullable=False)
+    copertura_minima_pomeriggio: Mapped[int] = mapped_column(default=0, nullable=False)
+
+    sede: Mapped[Sede] = relationship()
 
 
 class Sala(Base):
@@ -101,13 +133,29 @@ class Dipendente(Base):
     sede_riferimento: Mapped[Sede | None] = relationship()
 
 
+FASCE_TURNO_VALIDE = ("mattina", "pomeriggio")
+
+
 class TipoTurno(Base):
     __tablename__ = "tipi_turno"
+    __table_args__ = (
+        CheckConstraint(f"fascia IS NULL OR fascia IN {FASCE_TURNO_VALIDE}", name="ck_tipi_turno_fascia"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     etichetta: Mapped[str] = mapped_column(String, nullable=False)
     ora_inizio: Mapped[time] = mapped_column(Time, nullable=False)
     ora_fine: Mapped[time] = mapped_column(Time, nullable=False)
+    # A quale fascia appartiene questo turno, per il conteggio della
+    # copertura minima mattina/pomeriggio (vedi Sede.copertura_minima_mattina
+    # sopra e calcola_copertura in app/routers/copertura.py): impostato
+    # esplicitamente dall'amministratore in Tipi turno, mai dedotto in
+    # automatico dall'orario, perché un turno come "Pomeriggio lungo"
+    # (14:30-21:00) o uno importato con orari intermedi non ha una fascia
+    # ovvia da un semplice confronto sull'ora di inizio. None = non ancora
+    # classificato: quel turno non entra nel conteggio di nessuna delle due
+    # fasce finché l'amministratore non lo imposta.
+    fascia: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class PatternTurno(Base):

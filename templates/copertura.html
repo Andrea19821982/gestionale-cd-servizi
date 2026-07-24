@@ -12,15 +12,23 @@
 
 <div class="griglia-copertura">
     {% for blocco in blocchi %}
-    <div class="riquadro blocco-copertura{% if blocco.presenti == 0 and blocco.totale > 0 %} blocco-copertura-vuoto{% endif %}{% if blocco.sotto_minimo %} blocco-copertura-carente{% endif %}">
-        <h2 style="margin-top:0;">{{ blocco.sede.nome }}</h2>
+    <div class="riquadro blocco-copertura{% if blocco.presenti == 0 and blocco.totale > 0 %} blocco-copertura-vuoto{% endif %}{% if blocco.sotto_minimo %} blocco-copertura-carente{% endif %}{% if blocco.nome_sottosezione %} blocco-copertura-comparto{% endif %}">
+        <h2 style="margin-top:0;">{{ blocco.nome_visualizzato }}</h2>
         <p class="muted">{{ blocco.presenti }} presenti su {{ blocco.totale }} dipendenti di riferimento</p>
-        {% if blocco.copertura_minima > 0 %}
-        <p>
-            {% if blocco.sotto_minimo %}<span class="badge badge-danger-testo">Sotto il minimo richiesto</span>{% else %}<span class="badge badge-ok-testo">Minimo rispettato</span>{% endif %}
-            — copertura minima richiesta oggi: <strong>{{ blocco.copertura_minima }}</strong>
-            ({{ blocco.sede.copertura_minima_ordinaria }} ordinaria{% if blocco.eventi_oggi %} + {{ blocco.copertura_minima - blocco.sede.copertura_minima_ordinaria }} per eventi in corso{% endif %})
+        {% if blocco.copertura_minima_mattina > 0 or blocco.copertura_minima_pomeriggio > 0 %}
+        <p class="copertura-fasce">
+            <span class="copertura-fascia{% if blocco.sotto_minimo_mattina %} copertura-fascia-carente{% endif %}">
+                Mattina: <strong>{{ blocco.presenti_mattina }}</strong>/{{ blocco.copertura_minima_mattina }}
+                {% if blocco.sotto_minimo_mattina %}<span class="badge badge-danger-testo">Sotto il minimo</span>{% elif blocco.copertura_minima_mattina > 0 %}<span class="badge badge-ok-testo">OK</span>{% endif %}
+            </span>
+            <span class="copertura-fascia{% if blocco.sotto_minimo_pomeriggio %} copertura-fascia-carente{% endif %}">
+                Pomeriggio: <strong>{{ blocco.presenti_pomeriggio }}</strong>/{{ blocco.copertura_minima_pomeriggio }}
+                {% if blocco.sotto_minimo_pomeriggio %}<span class="badge badge-danger-testo">Sotto il minimo</span>{% elif blocco.copertura_minima_pomeriggio > 0 %}<span class="badge badge-ok-testo">OK</span>{% endif %}
+            </span>
         </p>
+        {% if blocco.eventi_oggi %}
+        <p class="muted">Il minimo include {{ blocco.copertura_minima_mattina - blocco.sede.copertura_minima_mattina }} in più per eventi in corso.</p>
+        {% endif %}
         {% endif %}
         {% if blocco.eventi_oggi %}
         <p><strong>Eventi in corso oggi:</strong>
@@ -38,8 +46,8 @@
                     <td><span class="avatar" style="background:{{ colore_avatar(riga.dipendente.cognome + riga.dipendente.nome) }}">{{ iniziali(riga.dipendente.nome, riga.dipendente.cognome) }}</span>{{ riga.dipendente.cognome }} {{ riga.dipendente.nome }}</td>
                     <td>
                         {% if riga.stato == "presente" %}<span class="badge badge-ok-testo">Presente</span>
-                        {% elif riga.stato == "assente" %}<span class="badge badge-warn-testo">Assente</span>
-                        {% else %}<span class="badge badge-danger-testo">Non pianificato</span>{% endif %}
+                        {% elif riga.stato == "assente" %}<span class="badge badge-danger-testo">Assente</span>
+                        {% else %}<span class="badge badge-warn-testo">Non pianificato</span>{% endif %}
                     </td>
                     <td>{% if riga.assegnazione and riga.assegnazione.tipo_turno %}{{ riga.assegnazione.tipo_turno.etichetta }}{% else %}—{% endif %}</td>
                 </tr>

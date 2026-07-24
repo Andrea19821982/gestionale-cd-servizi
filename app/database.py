@@ -49,6 +49,27 @@ def _migra_schema():
             conn.execute(text("ALTER TABLE dipendenti ADD COLUMN sottosezione TEXT"))
             conn.commit()
 
+        colonne_sedi = {r[1] for r in conn.execute(text("PRAGMA table_info(sedi)"))}
+        if "copertura_minima_mattina" not in colonne_sedi:
+            conn.execute(text("ALTER TABLE sedi ADD COLUMN copertura_minima_mattina INTEGER NOT NULL DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sedi ADD COLUMN copertura_minima_pomeriggio INTEGER NOT NULL DEFAULT 0"))
+            # Riporta il vecchio minimo unico (valido per l'intera giornata)
+            # su entrambe le fasce nuove, così un minimo già configurato non
+            # sparisce silenziosamente al primo avvio dopo l'aggiornamento:
+            # resta comunque da rivedere/correggere a mano in Sedi, visto che
+            # non è detto che lo stesso numero fosse pensato per entrambe le
+            # fasce separatamente.
+            conn.execute(text(
+                "UPDATE sedi SET copertura_minima_mattina = copertura_minima_ordinaria, "
+                "copertura_minima_pomeriggio = copertura_minima_ordinaria"
+            ))
+            conn.commit()
+
+        colonne_tipi_turno = {r[1] for r in conn.execute(text("PRAGMA table_info(tipi_turno)"))}
+        if "fascia" not in colonne_tipi_turno:
+            conn.execute(text("ALTER TABLE tipi_turno ADD COLUMN fascia TEXT"))
+            conn.commit()
+
 
 def init_db():
     from app import models  # noqa: F401  (registra i modelli su Base)

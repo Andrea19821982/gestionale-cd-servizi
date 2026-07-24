@@ -228,6 +228,32 @@ h3 {
     background: var(--warn-soft);
 }
 
+/* Blocco di un comparto con copertura monitorata a parte dentro una sede
+   (es. "Parcheggio" dentro Valdina, vedi Dipendente.sottosezione e
+   SottosezioneCopertura): un tratteggio invece del bordo pieno per
+   segnalare a colpo d'occhio che è collegato alla sede sopra, non un
+   palazzo indipendente. */
+.blocco-copertura-comparto {
+    border-style: dashed;
+}
+
+.copertura-fasce {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.25rem;
+}
+
+.copertura-fascia {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.copertura-fascia-carente {
+    color: var(--danger);
+    font-weight: 600;
+}
+
 .riepilogo-personale {
     display: flex;
     flex-wrap: wrap;
