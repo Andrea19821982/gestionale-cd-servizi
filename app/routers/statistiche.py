@@ -15,9 +15,11 @@ singolo dipendente è nella sua scheda (/dipendenti/{id}/storico).
 """
 
 from calendar import monthrange
+from collections import defaultdict
 from datetime import date
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth import RUOLI_LETTURA, richiedi_ruolo
@@ -64,6 +66,36 @@ def _giorni_ferie_usati_nell_anno(db: Session, dipendente_id: int, anno: int) ->
     return totale
 
 
+def _giorni_ferie_usati_nell_anno_per_dipendenti(
+    db: Session, id_dipendenti: list[int], anno: int
+) -> dict[int, int]:
+    """Come _giorni_ferie_usati_nell_anno, ma per più dipendenti in una sola
+    query (usata dalla pagina /statistiche, che altrimenti ne farebbe una per
+    dipendente): ritorna un dict dipendente_id -> giorni usati, con solo le
+    chiavi dei dipendenti che hanno almeno un'assenza di ferie nel periodo."""
+    if not id_dipendenti:
+        return {}
+    inizio_anno = date(anno, 1, 1)
+    fine_anno = date(anno, 12, 31)
+    assenze_ferie = (
+        db.query(Assenza)
+        .filter(
+            Assenza.dipendente_id.in_(id_dipendenti),
+            Assenza.tipo_assenza.ilike("%ferie%"),
+            Assenza.stato == "approvata",
+            Assenza.data_inizio <= fine_anno,
+            Assenza.data_fine >= inizio_anno,
+        )
+        .all()
+    )
+    totali: dict[int, int] = defaultdict(int)
+    for assenza in assenze_ferie:
+        inizio_clip = max(assenza.data_inizio, inizio_anno)
+        fine_clip = min(assenza.data_fine, fine_anno)
+        totali[assenza.dipendente_id] += (fine_clip - inizio_clip).days + 1
+    return dict(totali)
+
+
 def _ore_lavorate_nel_mese(db: Session, dipendente_id: int, anno: int, mese: int) -> float:
     numero_giorni = monthrange(anno, mese)[1]
     data_inizio = date(anno, mese, 1)
@@ -90,6 +122,37 @@ def _ore_lavorate_nel_mese(db: Session, dipendente_id: int, anno: int, mese: int
     return round(totale_minuti / 60, 1)
 
 
+def _ore_lavorate_nel_mese_per_dipendenti(
+    db: Session, id_dipendenti: list[int], anno: int, mese: int
+) -> dict[int, float]:
+    """Come _ore_lavorate_nel_mese, ma per più dipendenti in una sola query."""
+    if not id_dipendenti:
+        return {}
+    numero_giorni = monthrange(anno, mese)[1]
+    data_inizio = date(anno, mese, 1)
+    data_fine = date(anno, mese, numero_giorni)
+    righe = (
+        db.query(AssegnazioneGiornaliera)
+        .options(joinedload(AssegnazioneGiornaliera.tipo_turno))
+        .filter(
+            AssegnazioneGiornaliera.dipendente_id.in_(id_dipendenti),
+            AssegnazioneGiornaliera.data >= data_inizio,
+            AssegnazioneGiornaliera.data <= data_fine,
+            AssegnazioneGiornaliera.tipo_turno_id.isnot(None),
+        )
+        .all()
+    )
+    totale_minuti: dict[int, int] = defaultdict(int)
+    for riga in righe:
+        turno = riga.tipo_turno
+        inizio_minuti = turno.ora_inizio.hour * 60 + turno.ora_inizio.minute
+        fine_minuti = turno.ora_fine.hour * 60 + turno.ora_fine.minute
+        if fine_minuti <= inizio_minuti:
+            fine_minuti += 24 * 60  # turno che attraversa la mezzanotte
+        totale_minuti[riga.dipendente_id] += fine_minuti - inizio_minuti
+    return {dip_id: round(minuti / 60, 1) for dip_id, minuti in totale_minuti.items()}
+
+
 def _conta_assenze_per_stato(db: Session, dipendente_id: int, anno: int, stato: str) -> int:
     """Richieste di ferie/permesso/malattia iniziate nell'anno scelto, per
     stato: conta le richieste (decisioni), non i giorni."""
@@ -107,6 +170,29 @@ def _conta_assenze_per_stato(db: Session, dipendente_id: int, anno: int, stato: 
     )
 
 
+def _conta_assenze_per_stato_per_dipendenti(
+    db: Session, id_dipendenti: list[int], anno: int, stato: str
+) -> dict[int, int]:
+    """Come _conta_assenze_per_stato, ma per più dipendenti in una sola query
+    (un GROUP BY invece di un COUNT per dipendente)."""
+    if not id_dipendenti:
+        return {}
+    inizio_anno = date(anno, 1, 1)
+    fine_anno = date(anno, 12, 31)
+    righe = (
+        db.query(Assenza.dipendente_id, func.count(Assenza.id))
+        .filter(
+            Assenza.dipendente_id.in_(id_dipendenti),
+            Assenza.stato == stato,
+            Assenza.data_inizio >= inizio_anno,
+            Assenza.data_inizio <= fine_anno,
+        )
+        .group_by(Assenza.dipendente_id)
+        .all()
+    )
+    return dict(righe)
+
+
 def _conta_sostituzioni_fatte(db: Session, dipendente_id: int, anno: int) -> int:
     """Quante volte il dipendente ha coperto qualcun altro (come sostituto)
     nell'anno scelto."""
@@ -121,6 +207,27 @@ def _conta_sostituzioni_fatte(db: Session, dipendente_id: int, anno: int) -> int
         )
         .count()
     )
+
+
+def _conta_sostituzioni_fatte_per_dipendenti(
+    db: Session, id_dipendenti: list[int], anno: int
+) -> dict[int, int]:
+    """Come _conta_sostituzioni_fatte, ma per più dipendenti in una sola query."""
+    if not id_dipendenti:
+        return {}
+    inizio_anno = date(anno, 1, 1)
+    fine_anno = date(anno, 12, 31)
+    righe = (
+        db.query(Sostituzione.dipendente_sostituto_id, func.count(Sostituzione.id))
+        .filter(
+            Sostituzione.dipendente_sostituto_id.in_(id_dipendenti),
+            Sostituzione.data >= inizio_anno,
+            Sostituzione.data <= fine_anno,
+        )
+        .group_by(Sostituzione.dipendente_sostituto_id)
+        .all()
+    )
+    return dict(righe)
 
 
 @router.get("/statistiche")
@@ -140,9 +247,20 @@ def statistiche(
         .all()
     )
 
+    # Una manciata di query per TUTTI i dipendenti (raggruppate per id),
+    # invece di ~5 query per ciascuno: con molti dipendenti attivi la
+    # differenza è sostanziale (vedi _dati_calendario_sede in calendario.py
+    # per lo stesso pattern di batching).
+    id_dipendenti = [d.id for d in dipendenti]
+    ferie_usate_per_dip = _giorni_ferie_usati_nell_anno_per_dipendenti(db, id_dipendenti, anno)
+    ore_lavorate_per_dip = _ore_lavorate_nel_mese_per_dipendenti(db, id_dipendenti, anno, mese)
+    sostituzioni_per_dip = _conta_sostituzioni_fatte_per_dipendenti(db, id_dipendenti, anno)
+    concesse_per_dip = _conta_assenze_per_stato_per_dipendenti(db, id_dipendenti, anno, "approvata")
+    rifiutate_per_dip = _conta_assenze_per_stato_per_dipendenti(db, id_dipendenti, anno, "rifiutata")
+
     righe = []
     for dipendente in dipendenti:
-        ferie_usate = _giorni_ferie_usati_nell_anno(db, dipendente.id, anno)
+        ferie_usate = ferie_usate_per_dip.get(dipendente.id, 0)
         ferie_annuali_effettive = _ferie_annuali_effettive(dipendente)
         righe.append(
             {
@@ -150,11 +268,11 @@ def statistiche(
                 "ferie_annuali_effettive": ferie_annuali_effettive,
                 "ferie_usate": ferie_usate,
                 "ferie_residue": ferie_annuali_effettive - ferie_usate,
-                "ore_lavorate_mese": _ore_lavorate_nel_mese(db, dipendente.id, anno, mese),
+                "ore_lavorate_mese": ore_lavorate_per_dip.get(dipendente.id, 0.0),
                 "ore_contrattuali_mese": _ore_contrattuali_nel_mese(dipendente),
-                "sostituzioni_fatte": _conta_sostituzioni_fatte(db, dipendente.id, anno),
-                "assenze_concesse": _conta_assenze_per_stato(db, dipendente.id, anno, "approvata"),
-                "assenze_rifiutate": _conta_assenze_per_stato(db, dipendente.id, anno, "rifiutata"),
+                "sostituzioni_fatte": sostituzioni_per_dip.get(dipendente.id, 0),
+                "assenze_concesse": concesse_per_dip.get(dipendente.id, 0),
+                "assenze_rifiutate": rifiutate_per_dip.get(dipendente.id, 0),
             }
         )
 

@@ -189,3 +189,90 @@ def test_ore_contrattuali_mese_riflette_il_part_time(client, crea_utente, db):
     r = client.get("/statistiche?anno=2026&mese=8")
     riga = r.text.split("OreContratto Test")[1].split("</tr>")[0]
     assert ">87.0<" in riga  # 20 ore/settimana * 4.348 settimane/mese
+
+
+def test_valori_corretti_e_isolati_con_piu_dipendenti(client, crea_utente, db):
+    """Caratterizza il fix dell'N+1 in statistiche(): con più dipendenti in
+    pagina, ciascuno deve mostrare SOLO i propri numeri (ferie usate, ore
+    lavorate, sostituzioni, esiti assenze), senza che il batching per id
+    faccia trapelare i dati di un dipendente su un altro. Copre anche i due
+    casi limite tipici di un bug di raggruppamento: un dipendente senza
+    alcuna assegnazione/assenza nel periodo (tutto a zero) e un dipendente
+    con dati solo fuori dal mese/anno interrogato (deve restare a zero per
+    quel periodo, pur avendo righe nel database)."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    tipo = _crea_tipo_turno(db, "Mattina Multi", time(7, 0), time(13, 30))  # 6.5 ore
+
+    # Dipendente A: dati pieni nel periodo interrogato (agosto 2026 / anno 2026).
+    dip_a = Dipendente(cognome="Multi", nome="Alfa", sede_riferimento_id=sede.id, attivo=True)
+    # Dipendente B: nessuna assegnazione né assenza in assoluto (tutto zero).
+    dip_b = Dipendente(cognome="Multi", nome="Beta", sede_riferimento_id=sede.id, attivo=True)
+    # Dipendente C: ha dati, ma solo fuori dal mese/anno richiesto (es. "assunto"
+    # più avanti nell'anno / assegnazioni in un mese diverso): per agosto 2026
+    # deve risultare a zero ore lavorate, pur avendo assegnazioni a luglio.
+    dip_c = Dipendente(cognome="Multi", nome="Gamma", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([dip_a, dip_b, dip_c])
+    db.commit()
+    for d in (dip_a, dip_b, dip_c):
+        db.refresh(d)
+
+    # A: 2 giorni lavorati ad agosto 2026, 3 giorni di ferie approvate nel 2026,
+    # 2 assenze concesse (la ferie stessa + un permesso) e 1 rifiutata nel 2026.
+    for giorno in (10, 11):
+        db.add(AssegnazioneGiornaliera(
+            dipendente_id=dip_a.id, data=date(2026, 8, giorno), sede_effettiva_id=sede.id,
+            tipo_turno_id=tipo.id, origine="manuale",
+        ))
+    db.add(Assenza(
+        dipendente_id=dip_a.id, data_inizio=date(2026, 6, 1), data_fine=date(2026, 6, 3),
+        tipo_assenza="Ferie", stato="approvata",
+    ))
+    db.add(Assenza(
+        dipendente_id=dip_a.id, data_inizio=date(2026, 5, 1), data_fine=date(2026, 5, 1),
+        tipo_assenza="Permesso", stato="approvata",
+    ))
+    db.add(Assenza(
+        dipendente_id=dip_a.id, data_inizio=date(2026, 4, 1), data_fine=date(2026, 4, 1),
+        tipo_assenza="Permesso", stato="rifiutata",
+    ))
+
+    # C: assegnazioni SOLO a luglio 2026 (fuori dal mese richiesto, agosto) e
+    # ferie approvate SOLO nel 2025 (fuori dall'anno richiesto, 2026).
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip_c.id, data=date(2026, 7, 15), sede_effettiva_id=sede.id,
+        tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.add(Assenza(
+        dipendente_id=dip_c.id, data_inizio=date(2025, 8, 1), data_fine=date(2025, 8, 2),
+        tipo_assenza="Ferie", stato="approvata",
+    ))
+    db.commit()
+
+    r = client.get("/statistiche?anno=2026&mese=8")
+    assert r.status_code == 200
+
+    # Nota: split(nome)[1] taglia via il primo <td> (quello col nome), quindi
+    # split("<td") su questo resto parte già dalla cella "sede" in poi: si usano
+    # indici negativi (stabili, contati dalla fine della riga) invece che
+    # positivi, per non doversi ricordare di questo slittamento di uno.
+    # ordine dalla fine: ..., usate(-7), residue(-6), ore(-5), ore contr.(-4), sostituzioni(-3), concesse(-2), rifiutate(-1)
+    riga_a = r.text.split("Multi Alfa")[1].split("</tr>")[0]
+    celle_a = [_testo_cella(c.split("</td")[0]) for c in riga_a.split("<td")[1:]]
+    assert celle_a[-7] == "3"  # ferie usate (solo le sue, non quelle di altri)
+    assert celle_a[-5] == "13.0"  # ore lavorate: 2 giorni * 6.5 ore
+    assert celle_a[-2] == "2"  # concesse: ferie di giugno + permesso di maggio, entrambi approvati
+    assert celle_a[-1] == "1"  # rifiutate
+
+    riga_b = r.text.split("Multi Beta")[1].split("</tr>")[0]
+    celle_b = [_testo_cella(c.split("</td")[0]) for c in riga_b.split("<td")[1:]]
+    assert celle_b[-7] == "0"  # ferie usate: nessuna assenza in assoluto
+    assert celle_b[-5] == "0.0"  # ore lavorate: nessuna assegnazione in assoluto
+    assert celle_b[-3] == "0"  # sostituzioni fatte
+    assert celle_b[-2] == "0"  # concesse
+    assert celle_b[-1] == "0"  # rifiutate
+
+    riga_c = r.text.split("Multi Gamma")[1].split("</tr>")[0]
+    celle_c = [_testo_cella(c.split("</td")[0]) for c in riga_c.split("<td")[1:]]
+    assert celle_c[-7] == "0"  # ferie usate nel 2026: la sua ferie è del 2025
+    assert celle_c[-5] == "0.0"  # ore lavorate ad agosto: la sua assegnazione è a luglio
