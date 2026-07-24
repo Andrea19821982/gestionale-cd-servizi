@@ -7,6 +7,7 @@ e sostituzioni."""
 import logging
 from datetime import date, datetime, time, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import email_config
@@ -55,21 +56,36 @@ def invia_riepilogo_giornaliero(db: Session, forza: bool = False, inviato_da: in
     if not riuscito:
         return False
 
-    if gia_inviato is not None:
-        # Reinvio manuale forzato di un giorno già coperto: aggiorna la
-        # riga esistente invece di violare l'unicità su data_riepilogo.
-        gia_inviato.inviato_il = datetime.now()
-        gia_inviato.destinatari = ", ".join(email_config.RIEPILOGO_GIORNALIERO_DESTINATARI)
-        gia_inviato.manuale = True
-        gia_inviato.inviato_da = inviato_da
-    else:
-        db.add(InvioGiornaliero(
-            data_riepilogo=domani,
-            destinatari=", ".join(email_config.RIEPILOGO_GIORNALIERO_DESTINATARI),
-            manuale=inviato_da is not None,
-            inviato_da=inviato_da,
-        ))
-    db.commit()
+    try:
+        if gia_inviato is not None:
+            # Reinvio manuale forzato di un giorno già coperto: aggiorna la
+            # riga esistente invece di violare l'unicità su data_riepilogo.
+            gia_inviato.inviato_il = datetime.now()
+            gia_inviato.destinatari = ", ".join(email_config.RIEPILOGO_GIORNALIERO_DESTINATARI)
+            gia_inviato.manuale = True
+            gia_inviato.inviato_da = inviato_da
+        else:
+            db.add(InvioGiornaliero(
+                data_riepilogo=domani,
+                destinatari=", ".join(email_config.RIEPILOGO_GIORNALIERO_DESTINATARI),
+                manuale=inviato_da is not None,
+                inviato_da=inviato_da,
+            ))
+        db.commit()
+    except IntegrityError:
+        # Il controllo "già inviato?" più sopra e questo insert/update non
+        # sono atomici: se un'altra chiamata concorrente (due richieste quasi
+        # simultanee, o il thread di sfondo e un "Invia ora" manuale) ha
+        # registrato la stessa data_riepilogo nel frattempo, questo commit
+        # sbatte contro l'UniqueConstraint. La mail è comunque già stata
+        # spedita da questa chiamata: non c'è modo di "de-inviarla", ma non
+        # dobbiamo almeno far esplodere un 500 né lasciare la sessione in uno
+        # stato inconsistente.
+        db.rollback()
+        logger.warning(
+            "Riepilogo giornaliero per %s già registrato da un invio concorrente: mail spedita due volte.",
+            domani,
+        )
     return True
 
 

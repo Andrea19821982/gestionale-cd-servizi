@@ -1,5 +1,7 @@
 from datetime import date, time, timedelta
 
+import pytest
+
 import app.riepilogo_giornaliero as riepilogo_giornaliero
 from app import email_config
 from app.models import AssegnazioneGiornaliera, Dipendente, EventoSala, InvioGiornaliero, Sala, Sede, TipoTurno
@@ -141,6 +143,44 @@ def test_email_segnala_copertura_sotto_il_minimo(db, monkeypatch):
     _, corpo_html, _ = chiamate[0]
     assert "Sotto il minimo richiesto" in corpo_html
     assert "Sala della Lupa Rip" in corpo_html
+
+
+def test_invii_concorrenti_non_devono_far_esplodere_un_errore_del_database(db, monkeypatch, SessionTest):
+    """Il guard "già inviato oggi?" (query poi, molto più tardi, insert) non
+    è atomico: se due chiamate concorrenti (due sessioni, come sarebbero due
+    richieste HTTP, o il thread di sfondo e un "Invia ora" quasi in
+    contemporanea) leggono entrambe gia_inviato=None prima che una delle due
+    abbia scritto la sua riga, entrambe spediscono la mail (doppio invio) e
+    la seconda a committare si scontra con l'UniqueConstraint su
+    data_riepilogo: prima del fix, quell'IntegrityError non era gestito e
+    saliva fino al chiamante (un 500 per l'utente che ha premuto il
+    pulsante, con la mail già spedita comunque). Si simula la sovrapposizione
+    facendo scattare la "seconda richiesta" (sessione indipendente,
+    stesso database) dentro il finto invio della prima, cioè esattamente nel
+    punto in cui la prima ha già superato il controllo ma non ha ancora
+    scritto la propria riga."""
+    _configura_riepilogo(monkeypatch)
+    chiamate = []
+
+    def _finto_con_richiesta_concorrente(oggetto, corpo_html, destinatari=None):
+        chiamate.append((oggetto, corpo_html, destinatari))
+        if len(chiamate) == 1:
+            db_concorrente = SessionTest()
+            try:
+                assert riepilogo_giornaliero.invia_riepilogo_giornaliero(db_concorrente, forza=True) is True
+            finally:
+                db_concorrente.close()
+        return True
+
+    monkeypatch.setattr(riepilogo_giornaliero, "_invia_ora", _finto_con_richiesta_concorrente)
+
+    # Non deve sollevare IntegrityError: la seconda scrittura in conflitto va
+    # gestita (rollback e via), non propagata.
+    assert riepilogo_giornaliero.invia_riepilogo_giornaliero(db, forza=True) is True
+
+    domani = date.today() + timedelta(days=1)
+    # Una sola riga per la data, anche se la mail è stata spedita due volte.
+    assert db.query(InvioGiornaliero).filter_by(data_riepilogo=domani).count() == 1
 
 
 def test_controlla_e_invia_se_dovuto_rispetta_orario_configurato(db, monkeypatch):
