@@ -124,6 +124,27 @@ def test_delega_approvazione_non_vale_piu_se_delegato_degradato_a_dipendente(cli
     assert r2.status_code == 403
 
 
+def test_navbar_riflette_il_ruolo_aggiornato_senza_rifare_login(client, crea_utente, db):
+    """base.html decide cosa mostrare nel menu in base a
+    request.session["utente_ruolo"], impostato solo al login (vedi
+    esegui_login in app/routers/auth_router.py). I permessi veri sono sempre
+    verificati sul ruolo aggiornato nel database (richiedi_ruolo, tramite
+    get_utente_corrente), quindi non c'è mai un'escalation reale; ma se un
+    altro amministratore cambia il ruolo di un utente con una sessione già
+    aperta altrove, quella sessione deve vedere un menu coerente con il
+    ruolo attuale alla richiesta successiva, non quello ormai scaduto di
+    quando ha fatto login."""
+    utente = crea_utente("da_promuovere", "passwordsegreta", "consultazione")
+    login(client, "da_promuovere", "passwordsegreta")
+
+    utente.ruolo = "amministratore"
+    db.commit()
+
+    r = client.get("/sedi")
+    assert r.status_code == 200
+    assert 'href="/utenti"' in r.text
+
+
 def test_login_accetta_next_interno(client, crea_utente):
     crea_utente("admin_test", "passwordsegreta", "amministratore")
     r = client.post(

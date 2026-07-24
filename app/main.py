@@ -114,7 +114,16 @@ async def calcola_richieste_pendenti(request: Request, call_next):
     database reale, che romperebbe l'isolamento dei test. Registrato DOPO
     SessionMiddleware qui sotto: in Starlette l'ultimo middleware aggiunto è
     il più esterno ed è eseguito per primo, quindi va aggiunto SessionMiddleware
-    per ultimo perché request.session sia già disponibile qui."""
+    per ultimo perché request.session sia già disponibile qui.
+
+    Ne approfitta anche per tenere allineato session["utente_ruolo"] (letto
+    da base.html per decidere le voci di menu da mostrare) con il ruolo
+    attuale sul database: senza questo aggiornamento, un utente con una
+    sessione già aperta il cui ruolo viene cambiato da un amministratore
+    vedrebbe un menu basato sul ruolo ormai scaduto di quando ha fatto
+    login, finché non rifà il login. I permessi veri restano comunque
+    sempre quelli verificati da richiedi_ruolo sul database ad ogni
+    richiesta: qui si aggiorna solo cosa viene mostrato nel menu."""
     request.state.richieste_pendenti = 0
     request.state.bozze_email_pendenti = 0
     request.state.flash = request.session.pop("flash", None)
@@ -126,6 +135,7 @@ async def calcola_richieste_pendenti(request: Request, call_next):
         try:
             utente = db.get(Utente, utente_id)
             if utente is not None and utente.attivo:
+                request.session["utente_ruolo"] = utente.ruolo
                 if puo_approvare_assenze(db, utente):
                     request.state.richieste_pendenti = db.query(Assenza).filter(Assenza.stato == "richiesta").count()
                 if utente.ruolo in ("amministratore", "gestore_turni"):
