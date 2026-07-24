@@ -202,10 +202,12 @@ h3 {
 
 .griglia-copertura {
     display: grid;
-    /* Pensata per starci in 5 sulla stessa riga su uno schermo da ufficio
-       tipico (~1280px), restringendosi in automatico su schermi più
-       piccoli invece di forzarle sempre in 5 anche quando non ci stanno. */
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    /* Card larghe abbastanza da mostrare la tabella dei dipendenti senza
+       comprimerla: quante ce ne stanno per riga dipende dallo schermo e
+       da quanti palazzi ci sono, quelle in più vanno semplicemente a capo
+       (si scorre in verticale) invece di restringersi fino a diventare
+       illeggibili. */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1rem;
 }
 
