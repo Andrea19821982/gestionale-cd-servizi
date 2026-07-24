@@ -122,6 +122,36 @@ def test_pagina_richiede_ruolo_operativo(client, crea_utente):
     assert r2.status_code == 403
 
 
+def test_invii_concorrenti_non_devono_far_esplodere_un_errore_del_database(db, monkeypatch, SessionTest):
+    """Stessa race di riepilogo_giornaliero.py (vedi test analogo lì): il
+    controllo "già segnalato oggi?" e l'insert/update finale non sono
+    atomici. Due chiamate concorrenti (due sessioni indipendenti) che
+    leggono entrambe gia_inviato=None prima che una delle due scriva la
+    propria riga finiscono per scontrarsi sull'UniqueConstraint su
+    data_riferimento al secondo commit: prima del fix quell'IntegrityError
+    non era gestito e saliva al chiamante."""
+    _configura_allarme(monkeypatch)
+    _crea_sede(db, copertura_minima_ordinaria=3)
+    chiamate = []
+
+    def _finto_con_richiesta_concorrente(oggetto, corpo_html, destinatari=None):
+        chiamate.append((oggetto, corpo_html, destinatari))
+        if len(chiamate) == 1:
+            db_concorrente = SessionTest()
+            try:
+                assert allarme_copertura.controlla_e_segnala_carenza(db_concorrente, forza=True) is True
+            finally:
+                db_concorrente.close()
+        return True
+
+    monkeypatch.setattr(allarme_copertura, "_invia_ora", _finto_con_richiesta_concorrente)
+
+    assert allarme_copertura.controlla_e_segnala_carenza(db, forza=True) is True
+
+    domani = date.today() + timedelta(days=1)
+    assert db.query(AllarmeCoperturaInviato).filter_by(data_riferimento=domani).count() == 1
+
+
 def test_controlla_e_invia_se_dovuto_rispetta_orario_configurato(db, monkeypatch):
     _configura_allarme(monkeypatch)
     _invio_finto_riuscito(monkeypatch)

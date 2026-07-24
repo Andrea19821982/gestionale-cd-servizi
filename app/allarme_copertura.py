@@ -7,6 +7,7 @@ sostituzione prima del cutoff delle 20:00 del riepilogo giornaliero."""
 import logging
 from datetime import date, datetime, time, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import email_config
@@ -65,23 +66,34 @@ def controlla_e_segnala_carenza(db: Session, forza: bool = False, inviato_da: in
     if not riuscito:
         return False
 
-    if gia_inviato is not None:
-        # Reinvio manuale forzato di un giorno già segnalato: aggiorna la
-        # riga esistente invece di violare l'unicità su data_riferimento.
-        gia_inviato.inviato_il = datetime.now()
-        gia_inviato.destinatari = ", ".join(email_config.ALLARME_COPERTURA_DESTINATARI)
-        gia_inviato.palazzi_carenti = nomi_palazzi
-        gia_inviato.manuale = True
-        gia_inviato.inviato_da = inviato_da
-    else:
-        db.add(AllarmeCoperturaInviato(
-            data_riferimento=domani,
-            destinatari=", ".join(email_config.ALLARME_COPERTURA_DESTINATARI),
-            palazzi_carenti=nomi_palazzi,
-            manuale=inviato_da is not None,
-            inviato_da=inviato_da,
-        ))
-    db.commit()
+    try:
+        if gia_inviato is not None:
+            # Reinvio manuale forzato di un giorno già segnalato: aggiorna la
+            # riga esistente invece di violare l'unicità su data_riferimento.
+            gia_inviato.inviato_il = datetime.now()
+            gia_inviato.destinatari = ", ".join(email_config.ALLARME_COPERTURA_DESTINATARI)
+            gia_inviato.palazzi_carenti = nomi_palazzi
+            gia_inviato.manuale = True
+            gia_inviato.inviato_da = inviato_da
+        else:
+            db.add(AllarmeCoperturaInviato(
+                data_riferimento=domani,
+                destinatari=", ".join(email_config.ALLARME_COPERTURA_DESTINATARI),
+                palazzi_carenti=nomi_palazzi,
+                manuale=inviato_da is not None,
+                inviato_da=inviato_da,
+            ))
+        db.commit()
+    except IntegrityError:
+        # Stessa race di app/riepilogo_giornaliero.py: il controllo "già
+        # segnalato?" e questo insert/update non sono atomici. La mail è
+        # comunque già stata spedita da questa chiamata: non propaghiamo un
+        # 500 né lasciamo la sessione in uno stato inconsistente.
+        db.rollback()
+        logger.warning(
+            "Allarme di copertura per %s già registrato da un invio concorrente: mail spedita due volte.",
+            domani,
+        )
     return True
 
 
