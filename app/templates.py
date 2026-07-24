@@ -65,6 +65,18 @@ def _colore_avatar(chiave: str) -> str:
     return _PALETTE_AVATAR[indice]
 
 
+def _colore_sequenziale(indice: int) -> str:
+    """Colore dalla stessa palette categorica sopra, ma scelto per indice
+    (in pratica l'id della riga) invece che con l'hash del testo: garantisce
+    che elementi aggiunti in sequenza (es. un nuovo tipo turno) abbiano
+    sempre un colore diverso dal precedente, a differenza di
+    colore_avatar(etichetta) che può far collidere per caso due etichette
+    diverse sullo stesso colore (successo prima con "Mattina" e
+    "Pomeriggio", stessa somma di codici carattere modulo la lunghezza della
+    palette)."""
+    return _PALETTE_AVATAR[indice % len(_PALETTE_AVATAR)]
+
+
 def _codice_turno(etichetta: str) -> str:
     """Abbreviazione compatta per la cella del calendario, troppo stretta
     per l'etichetta intera: M/P per i turni mattina/pomeriggio più comuni,
@@ -111,5 +123,6 @@ templates.env.globals["flash"] = _flash
 templates.env.globals["classe_nav_attiva"] = _classe_nav_attiva
 templates.env.globals["iniziali"] = _iniziali
 templates.env.globals["colore_avatar"] = _colore_avatar
+templates.env.globals["colore_sequenziale"] = _colore_sequenziale
 templates.env.globals["codice_turno"] = _codice_turno
 templates.env.globals["orario_turno"] = _orario_turno

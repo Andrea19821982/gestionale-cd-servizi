@@ -991,11 +991,51 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
    Copertura, strette apposta per starci in più di una per riga — senza
    questa regola la tabella dei dipendenti, più larga della card, sfora
    visivamente in quella accanto. Su una tabella che già entra nella sua
-   colonna non cambia nulla (nessuna barra di scorrimento appare). */
-.tabella:not(.tabella-calendario):not(.tabella-statistiche) {
+   colonna non cambia nulla (nessuna barra di scorrimento appare).
+   Esclusa #tabella-dipendenti (pagina /dipendenti): display:block toglie
+   alla tabella il layout nativo delle celle, che invece serve lì perché il
+   form "Modifica" dentro <details> ha bisogno che la sua colonna si allarghi
+   per contenerlo quando si apre — con display:block la colonna resta
+   bloccata alla larghezza del solo testo "Modifica" collassato, e il form
+   con tutti i suoi campi si schiaccia su una colonna stretta invece di
+   stare su una riga. Quella tabella non vive dentro una card stretta, quindi
+   escluderla non fa risorgere il problema originale che questa regola
+   risolve — ma le serve comunque un modo per non sforare la pagina quando
+   il form "Modifica" aperto la allarga: vedi .scroll-tabella-dipendenti
+   sotto, un div che la avvolge e scorre lui in orizzontale, lasciando la
+   tabella libera di usare il proprio layout nativo. */
+.tabella:not(.tabella-calendario):not(.tabella-statistiche):not(#tabella-dipendenti) {
     display: block;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+}
+
+.scroll-tabella-dipendenti {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* .tabella impone width:100% (riempie la sua colonna quando non serve più
+   spazio): qui invece la tabella deve poter crescere OLTRE il 100% quando
+   il form "Modifica" è aperto e ha bisogno di più spazio di quanto ce ne
+   sia — min-width mantiene il comportamento normale (sempre larga almeno
+   quanto il contenitore) mentre width:auto lascia che cresca se il
+   contenuto lo richiede, con lo scroll orizzontale di
+   .scroll-tabella-dipendenti sopra a contenerla. */
+#tabella-dipendenti {
+    width: auto;
+    min-width: 100%;
+}
+
+/* .form-inline usa flex-wrap: può sempre restringersi andando a capo, quindi
+   per l'algoritmo di layout automatico delle tabelle non "ha bisogno" di più
+   spazio e la colonna Modifica resta stretta quanto il suo campo più corto
+   (i campi vanno tutti a capo uno sotto l'altro invece di stare su una o
+   due righe). Un min-width sul riquadro dà alla colonna un vincolo concreto
+   da rispettare, lasciando comunque .scroll-tabella-dipendenti a scorrere in
+   orizzontale sugli schermi più stretti di questo minimo. */
+#tabella-dipendenti .riquadro {
+    min-width: 42rem;
 }
 
 /* --- Responsive --- */

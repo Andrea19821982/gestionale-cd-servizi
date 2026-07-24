@@ -10,7 +10,7 @@
     <tbody>
         {% for t in tipi %}
         <tr>
-            <td><span class="badge" style="background:{{ colore_avatar(t.etichetta) }}">{{ t.etichetta }}</span></td>
+            <td><span class="badge" style="background:{{ colore_sequenziale(t.id) }}">{{ t.etichetta }}</span></td>
             <td>{{ t.ora_inizio.strftime("%H:%M") }}</td>
             <td>{{ t.ora_fine.strftime("%H:%M") }}</td>
             <td>{{ "Mattina" if t.fascia == "mattina" else ("Pomeriggio" if t.fascia == "pomeriggio" else "—") }}</td>
