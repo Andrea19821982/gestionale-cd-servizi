@@ -4,8 +4,23 @@
 <h1>Email dipendenti</h1>
 <p class="muted">Assenze e sostituzioni interpretate automaticamente dalle email dei dipendenti (vedi <code>docs/06-formato-email-dipendenti.md</code>). Non toccano il calendario finché non le confermi qui sotto: controlla i dati prima di confermare, soprattutto se c'è un avviso.</p>
 
+<details style="margin-bottom: 1.5rem;" open>
+    <summary><strong>📄 Moduli PDF pronti da inoltrare</strong> <span class="muted">— uno per le assenze, uno per le sostituzioni</span></summary>
+    <div class="riquadro">
+        {% if not indirizzo_email %}
+        <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato: compilalo qui sotto in "Casella email per le richieste dei dipendenti", nei moduli qui sotto resta un segnaposto da completare a mano prima di inoltrarli.</p>
+        {% endif %}
+        <p class="muted">Ognuno dei due contiene il modulo da compilare e le istruzioni per farlo correttamente: aprili, stampali o salvali come PDF (pulsante "Stampa / Salva come PDF" nella pagina che si apre) e inoltrali ai dipendenti separatamente, secondo cosa devono segnalare.</p>
+        <p>
+            <a href="/bozze-email/modulo-assenza-stampa" target="_blank">📄 PDF — Modulo assenze</a>
+            &nbsp;·&nbsp;
+            <a href="/bozze-email/modulo-sostituzione-stampa" target="_blank">📄 PDF — Modulo sostituzioni</a>
+        </p>
+    </div>
+</details>
+
 <details style="margin-bottom: 1.5rem;">
-    <summary><strong>📋 Testo da inoltrare ai dipendenti</strong> <span class="muted">— spiega come segnalare ferie, permessi, malattie e sostituzioni via email</span></summary>
+    <summary><strong>📋 Testo da inoltrare ai dipendenti</strong> <span class="muted">— guida unica con entrambi gli argomenti, da copiare in un'email</span></summary>
     <div class="riquadro">
         {% if not indirizzo_email %}
         <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato: compilalo qui sotto in "Casella email per le richieste dei dipendenti", nel testo qui sotto resta un segnaposto da completare a mano prima di inoltrarlo.</p>

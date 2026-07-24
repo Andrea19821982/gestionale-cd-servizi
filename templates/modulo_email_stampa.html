@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ titolo_pagina }}</title>
+    <link rel="stylesheet" href="/static/style.css?v={{ versione_statico('style.css') }}">
+</head>
+<body>
+    <div class="barra-stampa no-stampa">
+        <button onclick="window.print()">🖨️ Stampa / Salva come PDF</button>
+        <a href="/bozze-email">&larr; torna a Email dipendenti</a>
+    </div>
+
+    <section class="pagina-stampa">
+        <pre style="white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.85rem;">{{ testo_modulo }}</pre>
+    </section>
+</body>
+</html>

@@ -98,6 +98,118 @@ Grazie della collaborazione!
 """
 
 
+def esempio_corpo_assenza() -> str:
+    """Corpo dell'esempio già compilato mostrato nel modulo assenze (vedi
+    genera_modulo_assenza sotto): un'unica fonte, così l'esempio stampato
+    nel PDF è esattamente lo stesso testo verificato da
+    tests/test_impostazioni_email.py e tests/test_email_ingest.py contro
+    app/email_ingest.py — se cambia qui, cambia anche cosa viene testato,
+    non può disallinearsi in silenzio."""
+    return (
+        "Nome: Mario Rossi\n"
+        "Tipo: Ferie\n"
+        "Dal: 10/08/2026\n"
+        "Al: 14/08/2026\n"
+        "Note: rientro il 15\n"
+    )
+
+
+def esempio_corpo_sostituzione() -> str:
+    """Vedi esempio_corpo_assenza sopra: stessa logica, per il modulo
+    sostituzioni."""
+    return (
+        "Data: 10/08/2026\n"
+        "Assente: Mario Rossi\n"
+        "Sostituto: Luca Verdi\n"
+        "Orario: intera giornata\n"
+    )
+
+
+def genera_modulo_assenza(indirizzo: str) -> str:
+    """Modulo autonomo pronto da inoltrare via email, pensato per essere
+    stampato/salvato in PDF (vedi /bozze-email/modulo-assenza-stampa) e
+    inoltrato da solo ai dipendenti che devono segnalare un'assenza: a
+    differenza di genera_testo_email_dipendenti() sopra (guida completa con
+    entrambi gli argomenti), questo copre solo le assenze."""
+    indirizzo_mostrato = indirizzo or "[inserisci qui l'indirizzo email dedicato]"
+    return f"""MODULO PER SEGNALARE UN'ASSENZA (ferie, malattia, permesso)
+
+Copia il modulo qui sotto nel corpo di una nuova email, compila i campi con
+i tuoi dati e invialo a: {indirizzo_mostrato}
+Oggetto dell'email (scrivilo esattamente così nel campo oggetto): ASSENZA
+
+===================================
+MODULO DA COMPILARE
+===================================
+
+Nome:
+Tipo:
+Dal: gg/mm/aaaa
+Al: gg/mm/aaaa
+Note:
+
+===================================
+ISTRUZIONI PER COMPILARE CORRETTAMENTE
+===================================
+
+- Nome: cognome e nome per intero (es. "Rossi Mario"), non solo il nome di battesimo: il programma deve trovare esattamente il tuo nominativo tra i dipendenti attivi.
+- Tipo: il motivo dell'assenza, per esempio Ferie, Malattia oppure Permesso.
+- Dal / Al: data di inizio e fine, nel formato giorno/mese/anno (es. 10/08/2026). Se l'assenza dura un solo giorno, scrivi la stessa data in entrambi i campi.
+- Note: facoltativo, per aggiungere dettagli (es. "rientro il 15").
+- Rispetta il formato "Etichetta: valore", una riga per campo, esattamente come nel modulo sopra: il programma legge da solo l'email e prepara la richiesta, che un amministrativo controlla e conferma prima che diventi effettiva sul calendario.
+- Un'email = una sola assenza. Per segnalarne più di una, manda email separate.
+- Se qualcosa non è chiaro (data scritta diversamente, nome non trovato), il programma non inventa nulla: segnala la richiesta come "da controllare" e la lascia a chi la deve confermare. Se è urgente, avvisa comunque anche telefonicamente.
+
+===================================
+ESEMPIO GIÀ COMPILATO
+===================================
+
+Oggetto: ASSENZA
+
+{esempio_corpo_assenza()}"""
+
+
+def genera_modulo_sostituzione(indirizzo: str) -> str:
+    """Vedi genera_modulo_assenza sopra: stesso schema, ma per le
+    sostituzioni (vedi /bozze-email/modulo-sostituzione-stampa)."""
+    indirizzo_mostrato = indirizzo or "[inserisci qui l'indirizzo email dedicato]"
+    return f"""MODULO PER SEGNALARE UNA SOSTITUZIONE
+
+Copia il modulo qui sotto nel corpo di una nuova email, compila i campi e
+invialo a: {indirizzo_mostrato}
+Oggetto dell'email (scrivilo esattamente così nel campo oggetto): SOSTITUZIONE
+
+===================================
+MODULO DA COMPILARE
+===================================
+
+Data: gg/mm/aaaa
+Assente:
+Sostituto:
+Orario:
+
+===================================
+ISTRUZIONI PER COMPILARE CORRETTAMENTE
+===================================
+
+- Data: il giorno della sostituzione, nel formato giorno/mese/anno (es. 10/08/2026).
+- Assente: cognome e nome per intero del dipendente che va sostituito (es. "Rossi Mario").
+- Sostituto: cognome e nome per intero di chi lo sostituisce.
+- Orario: scrivi "intera giornata" se la sostituzione copre tutto il turno, oppure l'orario esatto nel formato OO:MM-OO:MM (es. 09:00-13:00) se copre solo alcune ore.
+- Scrivi sempre cognome e nome per intero (non solo il nome di battesimo) sia per l'assente sia per il sostituto: il programma deve trovare esattamente i due nominativi tra i dipendenti attivi, senza poter confondere l'uno con l'altro.
+- Rispetta il formato "Etichetta: valore", una riga per campo, esattamente come nel modulo sopra.
+- Un'email = una sola sostituzione. Per segnalarne più di una, manda email separate.
+- Se qualcosa non è chiaro, il programma non inventa nulla: segnala la richiesta come "da controllare" e la lascia a chi la deve confermare.
+
+===================================
+ESEMPIO GIÀ COMPILATO
+===================================
+
+Oggetto: SOSTITUZIONE
+
+{esempio_corpo_sostituzione()}"""
+
+
 def _data_o_400(valore: str) -> date:
     try:
         return date.fromisoformat(valore)
@@ -178,6 +290,44 @@ def guida_email_stampa(
         request,
         "guida_email_stampa.html",
         {"testo_email_dipendenti": genera_testo_email_dipendenti(cfg.utente)},
+    )
+
+
+@router.get("/bozze-email/modulo-assenza-stampa")
+def modulo_assenza_stampa(
+    request: Request,
+    db: Session = Depends(get_db),
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
+):
+    """PDF autonomo (solo assenze) pronto da inoltrare da solo ai
+    dipendenti, separato dalla guida completa sopra: vedi
+    genera_modulo_assenza()."""
+    cfg = impostazioni_email.imap_effettivo(db)
+    return templates.TemplateResponse(
+        request,
+        "modulo_email_stampa.html",
+        {
+            "titolo_pagina": "Modulo assenze — Calendario Turni",
+            "testo_modulo": genera_modulo_assenza(cfg.utente),
+        },
+    )
+
+
+@router.get("/bozze-email/modulo-sostituzione-stampa")
+def modulo_sostituzione_stampa(
+    request: Request,
+    db: Session = Depends(get_db),
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
+):
+    """PDF autonomo (solo sostituzioni), vedi modulo_assenza_stampa sopra."""
+    cfg = impostazioni_email.imap_effettivo(db)
+    return templates.TemplateResponse(
+        request,
+        "modulo_email_stampa.html",
+        {
+            "titolo_pagina": "Modulo sostituzioni — Calendario Turni",
+            "testo_modulo": genera_modulo_sostituzione(cfg.utente),
+        },
     )
 
 
