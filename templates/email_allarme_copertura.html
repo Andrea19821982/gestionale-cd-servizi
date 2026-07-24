@@ -15,7 +15,13 @@
               <h1 style="margin:0 0 16px; font-size:16px; color:#1f2430;">Presidi del {{ data_riferimento.strftime("%d/%m/%Y") }}</h1>
               <p style="font-size:13px; color:#3f4759; margin:0 0 16px;">In base a chi è pianificato oggi, i palazzi elencati sotto risulteranno sotto la copertura minima richiesta domani: c'è ancora tempo per organizzare una sostituzione prima dell'invio del riepilogo alla Camera dei Deputati.</p>
               {% for blocco in blocchi %}
-              <h2 style="margin:20px 0 4px; font-size:14px; color:#d64545;">{{ blocco.sede.nome }} — {{ blocco.presenti }} presenti su {{ blocco.copertura_minima }} richiesti</h2>
+              <div style="margin:20px 0 4px;{% if blocco.nome_sottosezione %} padding-left:12px; border-left:3px dashed #f3c2c2;{% endif %}">
+              <h2 style="margin:0 0 4px; font-size:14px; color:#d64545;">{{ blocco.nome_visualizzato }} — {{ blocco.presenti }} presenti</h2>
+              <p style="font-size:13px; margin:0 0 4px; color:#3f4759;">
+                <span style="{% if blocco.sotto_minimo_mattina %}color:#d64545; font-weight:700;{% endif %}">Mattina: {{ blocco.presenti_mattina }}/{{ blocco.copertura_minima_mattina }}{% if blocco.sotto_minimo_mattina %} ⚠️{% endif %}</span>
+                &nbsp;&nbsp;
+                <span style="{% if blocco.sotto_minimo_pomeriggio %}color:#d64545; font-weight:700;{% endif %}">Pomeriggio: {{ blocco.presenti_pomeriggio }}/{{ blocco.copertura_minima_pomeriggio }}{% if blocco.sotto_minimo_pomeriggio %} ⚠️{% endif %}</span>
+              </p>
               {% if blocco.eventi_oggi %}
               <p style="font-size:13px; color:#6b7280; margin:0 0 4px;">Eventi in corso: {% for e in blocco.eventi_oggi %}{{ e.sala.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
               {% endif %}
@@ -26,6 +32,7 @@
               {% else %}
               <p style="font-size:13px; color:#6b7280; margin:4px 0;">Nessun dipendente libero altrove risulta disponibile in automatico.</p>
               {% endif %}
+              </div>
               {% endfor %}
             </td>
           </tr>
