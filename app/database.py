@@ -39,9 +39,14 @@ def _migra_schema():
     sicuro da rilanciare a ogni avvio controllando prima se la colonna
     c'è già."""
     with engine.connect() as conn:
-        colonne = {r[1] for r in conn.execute(text("PRAGMA table_info(sedi)"))}
-        if "ordine_visualizzazione" not in colonne:
+        colonne_sedi = {r[1] for r in conn.execute(text("PRAGMA table_info(sedi)"))}
+        if "ordine_visualizzazione" not in colonne_sedi:
             conn.execute(text("ALTER TABLE sedi ADD COLUMN ordine_visualizzazione INTEGER NOT NULL DEFAULT 0"))
+            conn.commit()
+
+        colonne_dipendenti = {r[1] for r in conn.execute(text("PRAGMA table_info(dipendenti)"))}
+        if "sottosezione" not in colonne_dipendenti:
+            conn.execute(text("ALTER TABLE dipendenti ADD COLUMN sottosezione TEXT"))
             conn.commit()
 
 

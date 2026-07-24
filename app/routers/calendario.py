@@ -91,16 +91,44 @@ def _giorni_del_mese(anno: int, mese: int) -> list[dict]:
     return giorni
 
 
+def _raggruppa_per_sottosezione(dipendenti: list[Dipendente]) -> tuple[list[Dipendente], dict[int, str]]:
+    """Chi ha Dipendente.sottosezione valorizzato (es. "Parcheggio") va
+    mostrato raggruppato in una sezione separata, staccata dagli altri della
+    stessa sede ma nella stessa pagina: qui si riordina l'elenco (chi non ha
+    sottosezione per primo, poi un gruppo per volta nell'ordine in cui
+    compare la prima volta, con l'ordinamento interno già dato dalla query
+    invariato) e si segna, per id dipendente, quale titolo di sezione va
+    mostrato subito PRIMA della sua riga: solo il primo di ogni gruppo, per
+    disegnare l'intestazione una sola volta."""
+    senza_gruppo = [d for d in dipendenti if not d.sottosezione]
+    gruppi: dict[str, list[Dipendente]] = {}
+    for d in dipendenti:
+        if d.sottosezione:
+            gruppi.setdefault(d.sottosezione, []).append(d)
+
+    riordinati = list(senza_gruppo)
+    titoli_per_dipendente_id: dict[int, str] = {}
+    for titolo, membri in gruppi.items():
+        titoli_per_dipendente_id[membri[0].id] = titolo
+        riordinati.extend(membri)
+
+    return riordinati, titoli_per_dipendente_id
+
+
 def _dati_calendario_sede(db: Session, sede: Sede, anno: int, mese: int, numero_giorni: int):
     """Dipendenti di una sede col loro calendario del mese: assegnazioni
     giornaliere e sostituzioni in arrivo, pronte per il rendering (usato sia
-    dalla vista interattiva sia dalla vista di stampa)."""
+    dalla vista interattiva sia dalla vista di stampa). titoli_sottosezione
+    indica, per id dipendente, il titolo della sezione da mostrare subito
+    prima della sua riga (vedi _raggruppa_per_sottosezione): vuoto per chi
+    non è il primo del proprio gruppo o non ha nessun gruppo."""
     dipendenti = (
         db.query(Dipendente)
         .filter(Dipendente.sede_riferimento_id == sede.id, Dipendente.attivo == True)  # noqa: E712
         .order_by(Dipendente.ordine_visualizzazione, Dipendente.cognome, Dipendente.nome)
         .all()
     )
+    dipendenti, titoli_sottosezione = _raggruppa_per_sottosezione(dipendenti)
     assegnazioni_per_dipendente = defaultdict(dict)
     sostituzioni_per_dipendente = defaultdict(lambda: defaultdict(list))
     if dipendenti:
@@ -136,7 +164,7 @@ def _dati_calendario_sede(db: Session, sede: Sede, anno: int, mese: int, numero_
         for r in righe_sost:
             sostituzioni_per_dipendente[r.dipendente_partente_id][r.data.day].append(r)
 
-    return dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente
+    return dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, titoli_sottosezione
 
 
 @router.get("/calendario")
@@ -165,8 +193,9 @@ def vista_calendario(
     dipendenti = []
     assegnazioni_per_dipendente = defaultdict(dict)
     sostituzioni_per_dipendente = defaultdict(lambda: defaultdict(list))
+    titoli_sottosezione = {}
     if sede_corrente:
-        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente = _dati_calendario_sede(
+        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, titoli_sottosezione = _dati_calendario_sede(
             db, sede_corrente, anno, mese, numero_giorni
         )
 
@@ -188,6 +217,7 @@ def vista_calendario(
             "dipendenti": dipendenti,
             "assegnazioni_per_dipendente": assegnazioni_per_dipendente,
             "sostituzioni_per_dipendente": sostituzioni_per_dipendente,
+            "titoli_sottosezione": titoli_sottosezione,
             "tipi_turno": tipi_turno,
             "anno_prec": anno_prec,
             "mese_prec": mese_prec,
@@ -388,7 +418,7 @@ def stampa_calendario(
 
     blocchi = []
     for sede in sedi_da_stampare:
-        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente = _dati_calendario_sede(
+        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, titoli_sottosezione = _dati_calendario_sede(
             db, sede, anno, mese, numero_giorni
         )
         blocchi.append(
@@ -397,6 +427,7 @@ def stampa_calendario(
                 "dipendenti": dipendenti,
                 "assegnazioni_per_dipendente": assegnazioni_per_dipendente,
                 "sostituzioni_per_dipendente": sostituzioni_per_dipendente,
+                "titoli_sottosezione": titoli_sottosezione,
             }
         )
 

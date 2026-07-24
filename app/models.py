@@ -90,6 +90,13 @@ class Dipendente(Base):
     # (vedi statistiche._ferie_annuali_effettive / _ore_contrattuali_nel_mese).
     ore_settimanali_contrattuali: Mapped[float] = mapped_column(default=40.0, nullable=False)
     costo_orario: Mapped[float | None] = mapped_column(nullable=True)
+    # Raggruppamento libero all'interno della sede (es. "Parcheggio",
+    # "Archivio legislativo"): chi ce l'ha valorizzato viene mostrato nel
+    # calendario in una sezione separata, staccata dagli altri dipendenti
+    # della stessa sede ma nella stessa pagina (vedi
+    # app/routers/calendario.py::_raggruppa_per_sottosezione). None = nessun
+    # raggruppamento, mostrato come oggi insieme a tutti gli altri.
+    sottosezione: Mapped[str | None] = mapped_column(String, nullable=True)
 
     sede_riferimento: Mapped[Sede | None] = relationship()
 

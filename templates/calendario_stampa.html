@@ -33,6 +33,12 @@
             </thead>
             <tbody>
                 {% for d in blocco.dipendenti %}
+                {% set titolo_sezione = blocco.titoli_sottosezione.get(d.id) %}
+                {% if titolo_sezione %}
+                <tr class="riga-sottosezione">
+                    <td colspan="{{ giorni|length + 1 }}">{{ titolo_sezione }}</td>
+                </tr>
+                {% endif %}
                 <tr>
                     <td class="colonna-dipendente" title="{{ d.cognome }} {{ d.nome }}">{{ d.cognome }} {{ d.nome }}</td>
                     {% for g in giorni %}

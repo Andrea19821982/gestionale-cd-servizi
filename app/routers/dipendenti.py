@@ -80,6 +80,7 @@ def crea_dipendente(
     tipo_contratto: str = Form(""),
     ore_settimanali_contrattuali: float = Form(40.0),
     costo_orario: str = Form(""),
+    sottosezione: str = Form(""),
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
     _csrf: None = Depends(richiedi_csrf_valido),
@@ -93,6 +94,7 @@ def crea_dipendente(
         tipo_contratto=tipo_contratto.strip() or None,
         ore_settimanali_contrattuali=_ore_settimanali_o_400(ore_settimanali_contrattuali),
         costo_orario=_costo_orario_o_400(costo_orario),
+        sottosezione=sottosezione.strip() or None,
         attivo=True,
     )
     db.add(dipendente)
@@ -117,6 +119,7 @@ def modifica_dipendente(
     tipo_contratto: str = Form(""),
     ore_settimanali_contrattuali: float = Form(40.0),
     costo_orario: str = Form(""),
+    sottosezione: str = Form(""),
     attivo: str = Form(None),
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
@@ -132,6 +135,7 @@ def modifica_dipendente(
     dipendente.tipo_contratto = tipo_contratto.strip() or None
     dipendente.ore_settimanali_contrattuali = _ore_settimanali_o_400(ore_settimanali_contrattuali)
     dipendente.costo_orario = _costo_orario_o_400(costo_orario)
+    dipendente.sottosezione = sottosezione.strip() or None
     dipendente.attivo = checkbox_a_bool(attivo)
     registra_modifica(
         db, utente.id, "dipendenti", dipendente.id, "modifica",

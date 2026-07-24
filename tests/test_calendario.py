@@ -74,3 +74,45 @@ def test_calendario_richiede_login(client):
     r = client.get("/calendario", follow_redirects=False)
     assert r.status_code == 303
     assert r.headers["location"].startswith("/login")
+
+
+def test_raggruppa_per_sottosezione_ordina_senza_gruppo_prima_poi_i_gruppi():
+    from app.routers.calendario import _raggruppa_per_sottosezione
+
+    class Finto:
+        def __init__(self, id, sottosezione=None):
+            self.id = id
+            self.sottosezione = sottosezione
+
+    a = Finto(1)
+    b = Finto(2, "Parcheggio")
+    c = Finto(3)
+    d = Finto(4, "Parcheggio")
+    e = Finto(5, "Archivio")
+
+    riordinati, titoli = _raggruppa_per_sottosezione([a, b, c, d, e])
+
+    assert [x.id for x in riordinati] == [1, 3, 2, 4, 5]
+    assert titoli == {2: "Parcheggio", 5: "Archivio"}
+
+
+def test_calendario_mostra_sezione_sottosezione_con_i_membri_raggruppati(client, crea_utente, db):
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+    sede = _crea_sede(db)
+    db.add(Dipendente(cognome="Normale", nome="Uno", sede_riferimento_id=sede.id, attivo=True))
+    db.add(Dipendente(cognome="Parcheggiato", nome="Due", sede_riferimento_id=sede.id, attivo=True, sottosezione="Parcheggio"))
+    db.add(Dipendente(cognome="Normale", nome="Tre", sede_riferimento_id=sede.id, attivo=True))
+    db.commit()
+
+    r = client.get(f"/calendario?sede_id={sede.id}&anno=2026&mese=7")
+    assert r.status_code == 200
+    assert "Parcheggio" in r.text
+    # Il dipendente della sottosezione compare dopo entrambi quelli senza gruppo.
+    pos_normale_uno = r.text.index("Normale Uno")
+    pos_normale_tre = r.text.index("Normale Tre")
+    pos_sezione = r.text.index("Parcheggio")
+    pos_parcheggiato = r.text.index("Parcheggiato Due")
+    assert pos_normale_uno < pos_sezione
+    assert pos_normale_tre < pos_sezione
+    assert pos_sezione < pos_parcheggiato

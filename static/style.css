@@ -788,6 +788,28 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     background: var(--warn-soft);
 }
 
+/* Riga che introduce una sottosezione (es. "Parcheggio" dentro Valdina,
+   vedi Dipendente.sottosezione e _raggruppa_per_sottosezione in
+   app/routers/calendario.py): staccata dagli altri dipendenti della stessa
+   sede con un margine sopra e un bordo colorato, ma resta una riga della
+   stessa tabella, quindi nella stessa pagina. */
+.tabella-calendario .riga-sottosezione td {
+    background: var(--accent-soft);
+    border-top: 2px solid var(--accent);
+    color: var(--accent-hover);
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: left;
+    padding: 0.35rem 0.65rem;
+}
+
+.tabella-stampa .riga-sottosezione td {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.4rem;
+}
+
 /* --- Statistiche: intestazione a due righe raggruppate + colonna dipendente fissa --- */
 
 .scroll-statistiche {

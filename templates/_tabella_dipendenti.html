@@ -1,6 +1,6 @@
 <table class="tabella" id="tabella-dipendenti">
     <thead>
-        <tr><th>Cognome</th><th>Nome</th><th>Sede riferimento</th><th>Contratto</th><th>Ore sett.</th><th>Ordine</th><th>Ferie annuali</th><th>Attivo</th><th></th></tr>
+        <tr><th>Cognome</th><th>Nome</th><th>Sede riferimento</th><th>Sottosezione</th><th>Contratto</th><th>Ore sett.</th><th>Ordine</th><th>Ferie annuali</th><th>Attivo</th><th></th></tr>
     </thead>
     <tbody>
         {% for d in dipendenti %}
@@ -8,6 +8,7 @@
             <td><span class="avatar" style="background:{{ colore_avatar(d.cognome + d.nome) }}">{{ iniziali(d.nome, d.cognome) }}</span>{{ d.cognome }}</td>
             <td>{{ d.nome }}</td>
             <td>{{ d.sede_riferimento.nome if d.sede_riferimento else "—" }}</td>
+            <td>{{ d.sottosezione or "—" }}</td>
             <td>{{ d.tipo_contratto or "—" }}</td>
             <td>{{ d.ore_settimanali_contrattuali }}</td>
             <td>{{ d.ordine_visualizzazione }}</td>
@@ -34,6 +35,7 @@
                             <label>Ferie annuali <input type="number" name="giorni_ferie_annuali" value="{{ d.giorni_ferie_annuali }}" min="0" style="width: 4rem;"></label>
                             <label>Ore settimanali <input type="number" name="ore_settimanali_contrattuali" value="{{ d.ore_settimanali_contrattuali }}" min="1" max="48" step="0.5" style="width: 4rem;"></label>
                             <label>Costo orario € <input type="number" name="costo_orario" value="{{ d.costo_orario if d.costo_orario is not none else '' }}" min="0" step="0.01" placeholder="facoltativo" style="width: 5rem;"></label>
+                            <input type="text" name="sottosezione" value="{{ d.sottosezione or '' }}" placeholder="Sottosezione (facoltativo)">
                             <label><input type="checkbox" name="attivo" {% if d.attivo %}checked{% endif %}> attivo</label>
                             <button type="submit">Salva</button>
                         </form>
