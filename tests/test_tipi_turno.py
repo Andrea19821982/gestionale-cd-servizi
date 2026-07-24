@@ -72,6 +72,28 @@ def test_non_elimina_tipo_turno_usato_nel_pattern(client, crea_utente, db):
     assert db.get(TipoTurno, tipo.id) is not None
 
 
+def test_elimina_tipo_turno_con_apostrofo_non_rompe_il_javascript_di_conferma(client, crea_utente, db):
+    """L'etichetta viene inserita nel messaggio di confirm() JS del pulsante
+    Elimina racchiudendola tra apici singoli scritti a mano nel template
+    (\\'{{ t.etichetta }}\\'): se l'etichetta contiene a sua volta un
+    apostrofo (es. "Turno dell'Alba"), l'autoescape HTML di Jinja lo
+    trasforma in &#39; nell'attributo onsubmit. Il browser però decodifica
+    le entità HTML dell'attributo PRIMA di interpretarlo come JavaScript,
+    quindi quell'apostrofo torna a essere un carattere ' letterale non
+    escapato per JS: la stringa passata a confirm() si interrompe a metà,
+    lo script successivo diventa sintatticamente invalido e la richiesta di
+    conferma prima di un'eliminazione irreversibile viene saltata in
+    silenzio."""
+    _login_admin(client, crea_utente)
+    tipo = _crea_tipo_turno(db, etichetta="Turno dell'Alba")
+
+    r = client.get("/tipi-turno")
+    assert r.status_code == 200
+    form_elimina = r.text.split(f'/tipi-turno/{tipo.id}/elimina')[1].split("</form>")[0]
+    assert "&#39;" not in form_elimina
+    assert "&#x27;" not in form_elimina
+
+
 def test_elimina_tipo_turno_richiede_amministratore(client, crea_utente):
     crea_utente("gestore_tt_test", "passwordsegreta", "gestore_turni")
     login(client, "gestore_tt_test", "passwordsegreta")
