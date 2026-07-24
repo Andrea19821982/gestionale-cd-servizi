@@ -1,3 +1,4 @@
+import secrets
 import threading
 from datetime import date, datetime, timedelta
 
@@ -27,9 +28,23 @@ def verify_password(password: str, password_hash: str) -> bool:
     return pwd_context.verify(password, password_hash)
 
 
+# Hash "fittizio" con cui confrontare la password quando lo username non
+# esiste: bcrypt è apposta lento (decine/centinaia di ms), quindi se si
+# saltasse la verifica per uno username inesistente la risposta arriverebbe
+# sempre più veloce di quella per uno username esistente con password
+# sbagliata. Quella differenza di tempo misurabile è un side-channel che
+# permetterebbe di scoprire quali username esistono senza nemmeno provare a
+# indovinarne la password (enumerazione utenti): eseguendo comunque il
+# confronto, con un hash qualsiasi, il tempo di risposta resta lo stesso in
+# entrambi i casi.
+_HASH_FITTIZIO_PER_TEMPO_COSTANTE = hash_password(secrets.token_hex(32))
+
+
 def autentica(db: Session, username: str, password: str) -> Utente | None:
     utente = db.query(Utente).filter(Utente.username == username, Utente.attivo == True).first()  # noqa: E712
-    if utente is None or not verify_password(password, utente.password_hash):
+    hash_da_verificare = utente.password_hash if utente is not None else _HASH_FITTIZIO_PER_TEMPO_COSTANTE
+    password_corretta = verify_password(password, hash_da_verificare)
+    if utente is None or not password_corretta:
         return None
     return utente
 

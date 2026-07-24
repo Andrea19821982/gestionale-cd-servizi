@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+from app import auth
 from app.models import Assenza, DelegaApprovazione, Dipendente, Sede
 from tests.conftest import login
 
@@ -47,6 +48,28 @@ def test_amministratore_puo_creare_sede(client, crea_utente):
     assert r.status_code == 303
     r2 = client.get("/sedi")
     assert "Sede Fittizia" in r2.text
+
+
+def test_autentica_verifica_password_anche_con_username_inesistente(db, monkeypatch):
+    """autentica() faceva short-circuit su "utente is None" senza mai
+    chiamare verify_password per uno username che non esiste: verify_password
+    usa bcrypt, apposta lento (decine/centinaia di ms), quindi un username
+    esistente con password sbagliata impiega sempre più tempo a rispondere
+    di uno che non esiste affatto. Questa differenza di tempo misurabile è
+    un side-channel che permette di scoprire quali username esistono senza
+    nemmeno provare a indovinarne la password (enumerazione utenti)."""
+    chiamate = []
+    originale = auth.verify_password
+
+    def verify_password_spia(password, password_hash):
+        chiamate.append(password_hash)
+        return originale(password, password_hash)
+
+    monkeypatch.setattr(auth, "verify_password", verify_password_spia)
+
+    risultato = auth.autentica(db, "username_sicuramente_inesistente", "qualunque")
+    assert risultato is None
+    assert len(chiamate) == 1, "verify_password deve essere chiamata comunque, per non far trapelare col tempo di risposta quali username esistono"
 
 
 def test_login_rifiuta_next_verso_un_sito_esterno(client, crea_utente):
