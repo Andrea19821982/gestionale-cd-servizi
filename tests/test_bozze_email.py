@@ -139,6 +139,38 @@ def test_conferma_bozza_sostituzione_crea_sostituzione(client, crea_utente, db):
     assert sostituzione.sede_arrivo_id == sede.id
 
 
+def test_conferma_bozza_sostituzione_oraria_rifiutata_se_esiste_gia_giorno_intero(client, crea_utente, db):
+    """Stessa regola della route manuale /sostituzioni/nuova (vedi
+    test_sostituzioni.py): confermare una bozza non deve poter creare una
+    sostituzione oraria in conflitto con una sostituzione già esistente per
+    l'intera giornata dello stesso dipendente."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    assente = _crea_dipendente(db, "Rossi", "Mario", sede)
+    sostituto_1 = _crea_dipendente(db, "Verdi", "Luca", sede)
+    sostituto_2 = _crea_dipendente(db, "Bianchi", "Anna", sede)
+    db.add(Sostituzione(
+        data=date(2026, 8, 10), dipendente_partente_id=assente.id, sede_partenza_id=sede.id,
+        dipendente_sostituto_id=sostituto_1.id, sede_arrivo_id=sede.id,
+    ))
+    db.commit()
+    bozza = _crea_bozza_sostituzione(db, assente, sostituto_2)
+
+    r = client.post(
+        f"/bozze-email/{bozza.id}/conferma",
+        data={
+            "dipendente_id": assente.id,
+            "dipendente_sostituto_id": sostituto_2.id,
+            "data_inizio": "2026-08-10",
+            "ora_inizio": "09:00",
+            "ora_fine": "11:00",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    assert db.query(Sostituzione).filter_by(dipendente_sostituto_id=sostituto_2.id).count() == 0
+
+
 def test_scarta_bozza_non_crea_nulla(client, crea_utente, db):
     _login_admin(client, crea_utente)
     sede = _crea_sede(db)

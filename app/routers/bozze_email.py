@@ -22,7 +22,7 @@ from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import Assenza, BozzaEmail, Dipendente, Sostituzione, Utente
 from app.routers.assenze import _copri_giorni_con_assenza, _si_sovrappone
-from app.routers.sostituzioni import _esiste_gia_sostituzione_giorno_intero
+from app.routers.sostituzioni import _sostituzione_in_conflitto
 from app.templates import templates
 from app.utils import fk_opzionale_o_400, ottieni_o_404
 
@@ -434,10 +434,10 @@ def conferma_bozza_email(
             )
         if inizio_ora is not None and fine_ora <= inizio_ora:
             raise HTTPException(status_code=400, detail="L'ora fine deve essere successiva all'ora inizio.")
-        if inizio_ora is None and _esiste_gia_sostituzione_giorno_intero(db, dipendente_id, inizio):
+        if _sostituzione_in_conflitto(db, dipendente_id, inizio, inizio_ora, fine_ora):
             raise HTTPException(
                 status_code=400,
-                detail="Esiste già una sostituzione per l'intera giornata per questo dipendente in questa data.",
+                detail="Esiste già una sostituzione per questo dipendente in questa data che si sovrappone all'orario indicato.",
             )
 
         sostituzione = Sostituzione(

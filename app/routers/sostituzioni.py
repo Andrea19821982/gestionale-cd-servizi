@@ -32,17 +32,35 @@ def _ora_opzionale_o_400(valore: str) -> time | None:
         raise HTTPException(status_code=400, detail=f"Orario non valido: {valore!r}")
 
 
-def _esiste_gia_sostituzione_giorno_intero(db: Session, dipendente_partente_id: int, data_sost: date) -> bool:
-    return (
+def _sostituzione_in_conflitto(
+    db: Session,
+    dipendente_partente_id: int,
+    data_sost: date,
+    inizio: time | None,
+    fine: time | None,
+) -> bool:
+    """Controlla se per lo stesso dipendente, nello stesso giorno, esiste già
+    una sostituzione che si sovrappone a quella che si vuole creare (None,None
+    = intera giornata). Un'intera giornata è in conflitto con qualunque altra
+    sostituzione di quel giorno (copre già tutte le ore, chiunque sia
+    l'altro sostituto); due sostituzioni orarie sono in conflitto solo se le
+    loro fasce si sovrappongono davvero (09-11 e 11-13 non si toccano, quindi
+    vanno bene entrambe): altrimenti due sostituti diversi finirebbero per
+    coprire contemporaneamente lo stesso dipendente nella stessa fascia."""
+    esistenti = (
         db.query(Sostituzione)
         .filter(
             Sostituzione.dipendente_partente_id == dipendente_partente_id,
             Sostituzione.data == data_sost,
-            Sostituzione.ora_inizio.is_(None),
         )
-        .first()
-        is not None
+        .all()
     )
+    for esistente in esistenti:
+        if inizio is None or esistente.ora_inizio is None:
+            return True
+        if esistente.ora_inizio < fine and esistente.ora_fine > inizio:
+            return True
+    return False
 
 
 @router.get("/sostituzioni")
@@ -119,10 +137,10 @@ def crea_sostituzione(
     if inizio is not None and fine <= inizio:
         raise HTTPException(status_code=400, detail="L'ora fine deve essere successiva all'ora inizio.")
 
-    if inizio is None and _esiste_gia_sostituzione_giorno_intero(db, dipendente_partente_id, data_sost):
+    if _sostituzione_in_conflitto(db, dipendente_partente_id, data_sost, inizio, fine):
         raise HTTPException(
             status_code=400,
-            detail="Esiste già una sostituzione per l'intera giornata per questo dipendente in questa data.",
+            detail="Esiste già una sostituzione per questo dipendente in questa data che si sovrappone all'orario indicato.",
         )
 
     sostituzione = Sostituzione(

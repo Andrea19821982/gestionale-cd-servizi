@@ -129,6 +129,147 @@ def test_doppia_sostituzione_giorno_intero_rifiutata(client, crea_utente, db):
     assert r2.status_code == 400
 
 
+def test_sostituzione_oraria_rifiutata_se_esiste_gia_giorno_intero(client, crea_utente, db):
+    """Se il dipendente è già sostituito per l'intera giornata, non ha senso
+    (ed è contraddittorio: chi lo sostituisce davvero in quelle ore?)
+    aggiungere anche una sostituzione oraria per lo stesso giorno."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    partente = Dipendente(cognome="GiaIntero", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto_1 = Dipendente(cognome="Sost1", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto_2 = Dipendente(cognome="Sost2", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([partente, sostituto_1, sostituto_2])
+    db.commit()
+    db.refresh(partente)
+    db.refresh(sostituto_1)
+    db.refresh(sostituto_2)
+
+    dati_base = {
+        "dipendente_partente_id": partente.id,
+        "sede_partenza_id": sede.id,
+        "sede_arrivo_id": sede.id,
+        "data": "2026-08-10",
+    }
+    r1 = client.post(
+        "/sostituzioni/nuova",
+        data={**dati_base, "dipendente_sostituto_id": sostituto_1.id},
+        follow_redirects=False,
+    )
+    assert r1.status_code == 303
+
+    r2 = client.post(
+        "/sostituzioni/nuova",
+        data={**dati_base, "dipendente_sostituto_id": sostituto_2.id, "ora_inizio": "09:00", "ora_fine": "11:00"},
+    )
+    assert r2.status_code == 400
+
+
+def test_sostituzione_giorno_intero_rifiutata_se_esiste_gia_oraria(client, crea_utente, db):
+    """Stesso controllo nel verso opposto: se esiste già una sostituzione
+    oraria per quel giorno, non si può aggiungere una sostituzione per
+    l'intera giornata con un altro sostituto."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    partente = Dipendente(cognome="GiaOraria", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto_1 = Dipendente(cognome="Sost1", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto_2 = Dipendente(cognome="Sost2", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([partente, sostituto_1, sostituto_2])
+    db.commit()
+    db.refresh(partente)
+    db.refresh(sostituto_1)
+    db.refresh(sostituto_2)
+
+    dati_base = {
+        "dipendente_partente_id": partente.id,
+        "sede_partenza_id": sede.id,
+        "sede_arrivo_id": sede.id,
+        "data": "2026-08-10",
+    }
+    r1 = client.post(
+        "/sostituzioni/nuova",
+        data={**dati_base, "dipendente_sostituto_id": sostituto_1.id, "ora_inizio": "09:00", "ora_fine": "11:00"},
+        follow_redirects=False,
+    )
+    assert r1.status_code == 303
+
+    r2 = client.post(
+        "/sostituzioni/nuova",
+        data={**dati_base, "dipendente_sostituto_id": sostituto_2.id},
+    )
+    assert r2.status_code == 400
+
+
+def test_sostituzioni_orarie_sovrapposte_rifiutate(client, crea_utente, db):
+    """Due sostituzioni orarie per lo stesso dipendente nello stesso giorno,
+    con fasce orarie che si sovrappongono (09-11 e 10-12), sono
+    contraddittorie: due sostituti diversi non possono coprire la stessa ora."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    partente = Dipendente(cognome="Sovrapposta", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto_1 = Dipendente(cognome="Sost1", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto_2 = Dipendente(cognome="Sost2", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([partente, sostituto_1, sostituto_2])
+    db.commit()
+    db.refresh(partente)
+    db.refresh(sostituto_1)
+    db.refresh(sostituto_2)
+
+    dati_base = {
+        "dipendente_partente_id": partente.id,
+        "sede_partenza_id": sede.id,
+        "sede_arrivo_id": sede.id,
+        "data": "2026-08-10",
+    }
+    r1 = client.post(
+        "/sostituzioni/nuova",
+        data={**dati_base, "dipendente_sostituto_id": sostituto_1.id, "ora_inizio": "09:00", "ora_fine": "11:00"},
+        follow_redirects=False,
+    )
+    assert r1.status_code == 303
+
+    r2 = client.post(
+        "/sostituzioni/nuova",
+        data={**dati_base, "dipendente_sostituto_id": sostituto_2.id, "ora_inizio": "10:00", "ora_fine": "12:00"},
+    )
+    assert r2.status_code == 400
+
+
+def test_sostituzioni_orarie_non_sovrapposte_accettate(client, crea_utente, db):
+    """Due sostituzioni orarie per lo stesso dipendente nello stesso giorno,
+    ma su fasce orarie diverse e non sovrapposte (09-11 e 11-13), restano
+    valide: sostituti diversi possono coprire ore diverse dello stesso giorno."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    partente = Dipendente(cognome="NonSovrapposta", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto_1 = Dipendente(cognome="Sost1", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto_2 = Dipendente(cognome="Sost2", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([partente, sostituto_1, sostituto_2])
+    db.commit()
+    db.refresh(partente)
+    db.refresh(sostituto_1)
+    db.refresh(sostituto_2)
+
+    dati_base = {
+        "dipendente_partente_id": partente.id,
+        "sede_partenza_id": sede.id,
+        "sede_arrivo_id": sede.id,
+        "data": "2026-08-10",
+    }
+    r1 = client.post(
+        "/sostituzioni/nuova",
+        data={**dati_base, "dipendente_sostituto_id": sostituto_1.id, "ora_inizio": "09:00", "ora_fine": "11:00"},
+        follow_redirects=False,
+    )
+    assert r1.status_code == 303
+
+    r2 = client.post(
+        "/sostituzioni/nuova",
+        data={**dati_base, "dipendente_sostituto_id": sostituto_2.id, "ora_inizio": "11:00", "ora_fine": "13:00"},
+        follow_redirects=False,
+    )
+    assert r2.status_code == 303
+
+
 def test_orario_incompleto_rifiutato(client, crea_utente, db):
     _login_admin(client, crea_utente)
     sede = _crea_sede(db)
