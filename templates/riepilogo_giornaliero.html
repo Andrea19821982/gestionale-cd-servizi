@@ -26,12 +26,18 @@
 
 <h2>Anteprima di domani ({{ domani }})</h2>
 {% for blocco in blocchi_anteprima %}
-<div class="riquadro" style="margin-bottom: 0.75rem;">
-    <strong>{{ blocco.sede.nome }}</strong> — {{ blocco.presenti }} presenti su {{ blocco.totale }}
-    {% if blocco.copertura_minima > 0 %}
-    <p style="margin:0.25rem 0;">
-        {% if blocco.sotto_minimo %}<span class="badge badge-danger-testo">Sotto il minimo</span>{% else %}<span class="badge badge-ok-testo">Minimo rispettato</span>{% endif %}
-        — richiesti {{ blocco.copertura_minima }} ({{ blocco.sede.copertura_minima_ordinaria }} ordinaria{% if blocco.eventi_oggi %} + {{ blocco.copertura_minima - blocco.sede.copertura_minima_ordinaria }} per eventi{% endif %})
+<div class="riquadro{% if blocco.sotto_minimo %} blocco-copertura-carente{% endif %}{% if blocco.nome_sottosezione %} blocco-copertura-comparto{% endif %}" style="margin-bottom: 0.75rem;">
+    <strong>{{ blocco.nome_visualizzato }}</strong> — {{ blocco.presenti }} presenti su {{ blocco.totale }}
+    {% if blocco.copertura_minima_mattina > 0 or blocco.copertura_minima_pomeriggio > 0 %}
+    <p class="copertura-fasce" style="margin:0.25rem 0;">
+        <span class="copertura-fascia{% if blocco.sotto_minimo_mattina %} copertura-fascia-carente{% endif %}">
+            Mattina: <strong>{{ blocco.presenti_mattina }}</strong>/{{ blocco.copertura_minima_mattina }}
+            {% if blocco.sotto_minimo_mattina %}<span class="badge badge-danger-testo">Sotto il minimo</span>{% elif blocco.copertura_minima_mattina > 0 %}<span class="badge badge-ok-testo">OK</span>{% endif %}
+        </span>
+        <span class="copertura-fascia{% if blocco.sotto_minimo_pomeriggio %} copertura-fascia-carente{% endif %}">
+            Pomeriggio: <strong>{{ blocco.presenti_pomeriggio }}</strong>/{{ blocco.copertura_minima_pomeriggio }}
+            {% if blocco.sotto_minimo_pomeriggio %}<span class="badge badge-danger-testo">Sotto il minimo</span>{% elif blocco.copertura_minima_pomeriggio > 0 %}<span class="badge badge-ok-testo">OK</span>{% endif %}
+        </span>
     </p>
     {% endif %}
     {% if blocco.righe %}

@@ -14,12 +14,20 @@
             <td style="padding:24px;">
               <h1 style="margin:0 0 16px; font-size:16px; color:#1f2430;">Presidi del {{ data_riepilogo.strftime("%d/%m/%Y") }}</h1>
               {% for blocco in blocchi %}
-              <h2 style="margin:20px 0 8px; font-size:14px; color:#1f2430;">{{ blocco.sede.nome }} ({{ blocco.presenti }} presenti su {{ blocco.totale }})</h2>
-              {% if blocco.copertura_minima > 0 %}
-              <p style="font-size:13px; margin:0 0 8px; {% if blocco.sotto_minimo %}color:#d64545; font-weight:700;{% else %}color:#1f8a3d;{% endif %}">
+              <div style="margin:20px 0 8px;{% if blocco.nome_sottosezione %} padding-left:12px; border-left:3px dashed #c6cbd4;{% endif %}">
+              <h2 style="margin:0 0 8px; font-size:14px; color:#1f2430;">{{ blocco.nome_visualizzato }} ({{ blocco.presenti }} presenti su {{ blocco.totale }})</h2>
+              {% if blocco.copertura_minima_mattina > 0 or blocco.copertura_minima_pomeriggio > 0 %}
+              <p style="font-size:13px; margin:0 0 4px; {% if blocco.sotto_minimo %}color:#d64545; font-weight:700;{% else %}color:#1f8a3d;{% endif %}">
                 {% if blocco.sotto_minimo %}⚠️ Sotto il minimo richiesto{% else %}✅ Minimo rispettato{% endif %}
-                — copertura minima richiesta: {{ blocco.copertura_minima }}
-                ({{ blocco.sede.copertura_minima_ordinaria }} ordinaria{% if blocco.eventi_oggi %} + {{ blocco.copertura_minima - blocco.sede.copertura_minima_ordinaria }} per eventi{% endif %})
+              </p>
+              <p style="font-size:13px; margin:0 0 8px;">
+                <span style="{% if blocco.sotto_minimo_mattina %}color:#d64545; font-weight:700;{% else %}color:#1f8a3d;{% endif %}">
+                  Mattina: {{ blocco.presenti_mattina }}/{{ blocco.copertura_minima_mattina }}
+                </span>
+                &nbsp;&nbsp;
+                <span style="{% if blocco.sotto_minimo_pomeriggio %}color:#d64545; font-weight:700;{% else %}color:#1f8a3d;{% endif %}">
+                  Pomeriggio: {{ blocco.presenti_pomeriggio }}/{{ blocco.copertura_minima_pomeriggio }}
+                </span>
                 {% if blocco.eventi_oggi %} — {% for e in blocco.eventi_oggi %}{{ e.sala.nome }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
               </p>
               {% endif %}
@@ -50,6 +58,7 @@
                 {% for s in blocco.sostituti_in_arrivo %}{{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }} (al posto di {{ s.dipendente_partente.cognome }} {{ s.dipendente_partente.nome }}){% if not loop.last %}, {% endif %}{% endfor %}
               </p>
               {% endif %}
+              </div>
               {% endfor %}
             </td>
           </tr>

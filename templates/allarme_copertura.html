@@ -27,8 +27,18 @@
 <h2>Palazzi sotto il minimo per domani ({{ domani }})</h2>
 {% if blocchi_anteprima %}
 {% for blocco in blocchi_anteprima %}
-<div class="riquadro" style="margin-bottom: 0.75rem;">
-    <strong>{{ blocco.sede.nome }}</strong> — {{ blocco.presenti }} presenti su {{ blocco.copertura_minima }} richiesti
+<div class="riquadro blocco-copertura-carente{% if blocco.nome_sottosezione %} blocco-copertura-comparto{% endif %}" style="margin-bottom: 0.75rem;">
+    <strong>{{ blocco.nome_visualizzato }}</strong> — {{ blocco.presenti }} presenti
+    <p class="copertura-fasce" style="margin:0.25rem 0;">
+        <span class="copertura-fascia{% if blocco.sotto_minimo_mattina %} copertura-fascia-carente{% endif %}">
+            Mattina: <strong>{{ blocco.presenti_mattina }}</strong>/{{ blocco.copertura_minima_mattina }}
+            {% if blocco.sotto_minimo_mattina %}<span class="badge badge-danger-testo">Sotto il minimo</span>{% elif blocco.copertura_minima_mattina > 0 %}<span class="badge badge-ok-testo">OK</span>{% endif %}
+        </span>
+        <span class="copertura-fascia{% if blocco.sotto_minimo_pomeriggio %} copertura-fascia-carente{% endif %}">
+            Pomeriggio: <strong>{{ blocco.presenti_pomeriggio }}</strong>/{{ blocco.copertura_minima_pomeriggio }}
+            {% if blocco.sotto_minimo_pomeriggio %}<span class="badge badge-danger-testo">Sotto il minimo</span>{% elif blocco.copertura_minima_pomeriggio > 0 %}<span class="badge badge-ok-testo">OK</span>{% endif %}
+        </span>
+    </p>
     {% if blocco.eventi_oggi %}
     <p class="muted">Eventi in corso: {% for e in blocco.eventi_oggi %}{{ e.sala.nome }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
     {% endif %}

@@ -1,8 +1,10 @@
 """Preavviso interno ai gestori (non al referente Camera dei Deputati, vedi
-invece app/riepilogo_giornaliero.py) se domani un palazzo risulterà sotto la
-copertura minima configurata (vedi Sede.copertura_minima_ordinaria e
-Sala.copertura_minima_aggiuntiva): dà ancora tempo per organizzare una
-sostituzione prima del cutoff delle 20:00 del riepilogo giornaliero."""
+invece app/riepilogo_giornaliero.py) se domani un palazzo (o un comparto a
+copertura propria) risulterà sotto la copertura minima configurata, per
+mattina o pomeriggio (vedi Sede.copertura_minima_mattina/pomeriggio,
+SottosezioneCopertura e Sala.copertura_minima_aggiuntiva): dà ancora tempo
+per organizzare una sostituzione prima del cutoff delle 20:00 del riepilogo
+giornaliero."""
 
 import logging
 from datetime import date, datetime, time, timedelta
