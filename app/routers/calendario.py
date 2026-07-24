@@ -68,7 +68,10 @@ def _assegnazione_esistente(db: Session, dipendente_id: int, data_obj: date) -> 
 def _sostituzioni_cella(db: Session, dipendente_partente_id: int, data_obj: date) -> list[Sostituzione]:
     return (
         db.query(Sostituzione)
-        .options(joinedload(Sostituzione.dipendente_sostituto).joinedload(Dipendente.sede_riferimento))
+        .options(
+            joinedload(Sostituzione.dipendente_sostituto).joinedload(Dipendente.sede_riferimento),
+            joinedload(Sostituzione.sede_arrivo),
+        )
         .filter(
             Sostituzione.dipendente_partente_id == dipendente_partente_id,
             Sostituzione.data == data_obj,
@@ -119,7 +122,10 @@ def _dati_calendario_sede(db: Session, sede: Sede, anno: int, mese: int, numero_
 
         righe_sost = (
             db.query(Sostituzione)
-            .options(joinedload(Sostituzione.dipendente_sostituto).joinedload(Dipendente.sede_riferimento))
+            .options(
+                joinedload(Sostituzione.dipendente_sostituto).joinedload(Dipendente.sede_riferimento),
+                joinedload(Sostituzione.sede_arrivo),
+            )
             .filter(
                 Sostituzione.dipendente_partente_id.in_(id_dipendenti),
                 Sostituzione.data >= data_inizio,

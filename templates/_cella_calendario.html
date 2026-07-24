@@ -45,9 +45,12 @@
     {% elif assegnazione and assegnazione.origine == "assenza" %}
     <span class="badge badge-assenza">ASS</span>
     {% endif %}
-    {% if parziali %}
-    <span class="badge badge-sostituzione-oraria" title="{% for s in parziali %}{{ s.dipendente_sostituto.cognome }} {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}{% if not loop.last %}, {% endif %}{% endfor %}">S</span>
-    {% endif %}
+    {% for s in parziali %}
+    <span class="badge badge-sostituzione-oraria" style="background-color: {{ s.sede_arrivo.colore_hex if s.sede_arrivo else '#888888' }}"
+          title="Sostituito da {{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }} presso {{ s.sede_arrivo.nome if s.sede_arrivo else '?' }}">
+        S {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}
+    </span>
+    {% endfor %}
     {% else %}
     {% if ns.intera %}
     <div class="badge-sostituzione" style="background-color: {{ colore_sostituto }}"
@@ -62,8 +65,11 @@
         <span class="cella-turno-orario">{{ orario_turno(assegnazione.tipo_turno) }}</span>
     </div>
     {% endif %}
-    {% if parziali %}
-    <span class="badge badge-sostituzione-oraria" title="{% for s in parziali %}{{ s.dipendente_sostituto.cognome }} {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}{% if not loop.last %}, {% endif %}{% endfor %}">S</span>
-    {% endif %}
+    {% for s in parziali %}
+    <span class="badge badge-sostituzione-oraria" style="background-color: {{ s.sede_arrivo.colore_hex if s.sede_arrivo else '#888888' }}"
+          title="Sostituito da {{ s.dipendente_sostituto.cognome }} {{ s.dipendente_sostituto.nome }} presso {{ s.sede_arrivo.nome if s.sede_arrivo else '?' }}">
+        S {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}
+    </span>
+    {% endfor %}
     {% endif %}
 </td>
