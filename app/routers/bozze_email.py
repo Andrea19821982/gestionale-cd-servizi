@@ -21,7 +21,7 @@ from app.email_ingest import controlla_posta
 from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import Assenza, BozzaEmail, Dipendente, Sostituzione, Utente
-from app.routers.assenze import _copri_giorni_con_assenza, _si_sovrappone
+from app.routers.assenze import _copri_giorni_con_assenza, _malattia, _si_sovrappone
 from app.routers.sostituzioni import _sostituzione_in_conflitto
 from app.templates import templates
 from app.utils import fk_opzionale_o_400, ottieni_o_404
@@ -393,22 +393,26 @@ def conferma_bozza_email(
                 detail="Il dipendente ha già un'assenza (in attesa o approvata) che si sovrappone a questo periodo.",
             )
 
+        approvazione_automatica = _malattia(tipo_assenza)
         assenza = Assenza(
             dipendente_id=dipendente_id,
             data_inizio=inizio,
             data_fine=fine,
             tipo_assenza=tipo_assenza,
-            stato="richiesta",
+            stato="approvata" if approvazione_automatica else "richiesta",
             note=note.strip() or None,
             creato_da=utente.id,
         )
+        if approvazione_automatica:
+            assenza.deciso_il = datetime.now()
         db.add(assenza)
         db.flush()
         _copri_giorni_con_assenza(db, dipendente, inizio, fine)
         registra_modifica(
             db, utente.id, "assenze", assenza.id, "creazione",
             f"da email (bozza {bozza.id}): dipendente_id={dipendente_id}, "
-            f"{inizio.isoformat()}..{fine.isoformat()}, tipo={tipo_assenza}",
+            f"{inizio.isoformat()}..{fine.isoformat()}, tipo={tipo_assenza}, "
+            f"stato={'approvata' if approvazione_automatica else 'richiesta'}",
         )
         bozza.record_creato_tabella = "assenze"
         bozza.record_creato_id = assenza.id

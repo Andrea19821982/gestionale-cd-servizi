@@ -4,7 +4,7 @@ storico, in sola lettura — niente dati sugli altri colleghi (privacy) e
 nessun pulsante di modifica."""
 
 from calendar import monthrange
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -17,7 +17,7 @@ from app.email_service import invia_notifica_asincrona
 from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, Sostituzione, Utente
-from app.routers.assenze import _copri_giorni_con_assenza, _data_o_400, _si_sovrappone
+from app.routers.assenze import _copri_giorni_con_assenza, _data_o_400, _malattia, _si_sovrappone
 from app.routers.calendario import NOMI_MESE, _anno_mese_validi_o_oggi, _giorni_del_mese, _mese_precedente, _mese_successivo
 from app.routers.statistiche import _ferie_annuali_effettive, _giorni_ferie_usati_nell_anno, _ore_lavorate_nel_mese
 from app.templates import templates
@@ -151,10 +151,12 @@ def richiedi_assenza(
 ):
     """Un dipendente può richiedere da sé un'assenza per il proprio account:
     stesso flusso di /assenze/nuova gestito dall'amministrativo (stato
-    "richiesta", copre subito il calendario in attesa di una decisione),
-    ma qui il dipendente_id non arriva mai dal form — è sempre e solo
-    quello collegato all'utente autenticato (vedi _dipendente_del_richiedente),
-    così nessuno può richiedere un'assenza per conto di un collega."""
+    "richiesta", copre subito il calendario in attesa di una decisione,
+    tranne per "Malattia" che non richiede approvazione e nasce già
+    approvata, vedi _malattia), ma qui il dipendente_id non arriva mai dal
+    form — è sempre e solo quello collegato all'utente autenticato (vedi
+    _dipendente_del_richiedente), così nessuno può richiedere un'assenza
+    per conto di un collega."""
     dipendente = _dipendente_del_richiedente(db, utente)
 
     inizio = _data_o_400(data_inizio)
@@ -170,22 +172,25 @@ def richiedi_assenza(
             detail="Hai già un'assenza (in attesa o approvata) che si sovrappone a questo periodo.",
         )
 
+    approvazione_automatica = _malattia(tipo_assenza)
     assenza = Assenza(
         dipendente_id=dipendente.id,
         data_inizio=inizio,
         data_fine=fine,
         tipo_assenza=tipo_assenza,
-        stato="richiesta",
+        stato="approvata" if approvazione_automatica else "richiesta",
         note=note.strip() or None,
         creato_da=utente.id,
     )
+    if approvazione_automatica:
+        assenza.deciso_il = datetime.now()
     db.add(assenza)
     db.flush()
     _copri_giorni_con_assenza(db, dipendente, inizio, fine)
     registra_modifica(
         db, utente.id, "assenze", assenza.id, "creazione",
         f"dipendente_id={dipendente.id}, {inizio.isoformat()}..{fine.isoformat()}, tipo={tipo_assenza}, "
-        "stato=richiesta (richiesta dal dipendente in area personale)",
+        f"stato={'approvata' if approvazione_automatica else 'richiesta'} (richiesta dal dipendente in area personale)",
     )
     db.commit()
 
@@ -197,10 +202,13 @@ def richiedi_assenza(
             "tipo_assenza": tipo_assenza,
             "data_inizio": inizio.isoformat(),
             "data_fine": fine.isoformat(),
-            "esito": "Richiesta dal dipendente, in attesa di approvazione",
+            "esito": "Approvata automaticamente (malattia)" if approvazione_automatica else "Richiesta dal dipendente, in attesa di approvazione",
             "note": assenza.note,
             "registrato_da": f"{dipendente.cognome} {dipendente.nome} (richiesta da sé in area personale)",
         },
     )
-    imposta_flash(request, "Richiesta di assenza inviata: resterà in attesa di approvazione.", tipo="ok")
+    if approvazione_automatica:
+        imposta_flash(request, "Assenza per malattia registrata e approvata automaticamente.", tipo="ok")
+    else:
+        imposta_flash(request, "Richiesta di assenza inviata: resterà in attesa di approvazione.", tipo="ok")
     return RedirectResponse("/area-personale", status_code=303)
