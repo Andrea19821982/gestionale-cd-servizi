@@ -10,6 +10,7 @@ Uso in sviluppo:
 import socket
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 
@@ -33,6 +34,37 @@ from PIL import Image
 from app.database import init_db
 
 PORTA = 8420
+
+
+def _server_gia_in_ascolto() -> bool:
+    """True se qualcosa è già in ascolto su localhost:PORTA: prima di
+    avviare un secondo server sulla stessa porta (che fallirebbe subito nel
+    bind e lascerebbe un'icona fantasma nella system tray, senza aprire
+    nulla — vedi main() sotto), controlla se il doppio clic sul
+    collegamento è arrivato mentre il server è già acceso da prima."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.5)
+    try:
+        s.connect(("127.0.0.1", PORTA))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+
+def _attendi_e_apri_browser() -> None:
+    """Apre il browser sul calendario appena il server è pronto a
+    rispondere: uvicorn impiega qualche secondo ad avviarsi, aprire subito
+    rischierebbe di mostrare "impossibile raggiungere il sito" invece del
+    calendario. Gira in un thread separato per non bloccare l'avvio
+    dell'icona nella system tray."""
+    scadenza = time.monotonic() + 15
+    while time.monotonic() < scadenza:
+        if _server_gia_in_ascolto():
+            webbrowser.open(f"http://localhost:{PORTA}")
+            return
+        time.sleep(0.3)
 
 
 def indirizzo_lan() -> str:
@@ -88,9 +120,21 @@ def _scrivi_indirizzo_su_file(ip: str) -> None:
 
 
 def main():
+    if _server_gia_in_ascolto():
+        # Il server è già acceso su questo PC (avviato in precedenza e
+        # lasciato attivo, come da istruzioni di installa_server.ps1):
+        # riavviare l'eseguibile non deve tentare una seconda istanza sulla
+        # stessa porta (fallirebbe subito e lascerebbe un'icona fantasma
+        # nella system tray, senza aprire nulla — questo è esattamente
+        # perché prima il doppio clic sul collegamento sembrava non fare
+        # niente). Basta aprire il browser su quello già in esecuzione.
+        webbrowser.open(f"http://localhost:{PORTA}")
+        return
+
     init_db()
     server_thread = ThreadServer()
     server_thread.start()
+    threading.Thread(target=_attendi_e_apri_browser, daemon=True).start()
 
     ip = indirizzo_lan()
     _scrivi_indirizzo_su_file(ip)
