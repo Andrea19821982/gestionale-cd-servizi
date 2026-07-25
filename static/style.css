@@ -118,7 +118,11 @@ a { color: var(--accent); }
     padding: 0 1.5rem;
 }
 
-.container-calendario {
+/* Pagine con tabelle larghe (calendario, copertura, anagrafica): usano tutto
+   lo schermo invece dei 1150px di .container. Su una tabella a dieci colonne
+   quel limite obbligava a scorrere in orizzontale per arrivare ai comandi
+   dell'ultima colonna, che sono proprio quelli che si usano di più. */
+.container-largo {
     max-width: 100%;
     margin: 1.5rem 1rem;
     padding: 0 0.5rem;
@@ -382,6 +386,18 @@ details[open] > summary.btn {
     background: var(--accent-soft);
     border-color: var(--accent);
     color: var(--accent);
+}
+
+/* Avatar e cognome sempre affiancati e centrati fra loro. Erano due elementi
+   inline: appena la colonna si stringeva, il cognome andava a capo FINENDO
+   SOTTO l'avatar, sfasato di 24px rispetto al suo centro — è il
+   disallineamento che si vedeva sui cognomi lunghi. Con flex restano sulla
+   stessa riga a qualunque larghezza. Il padding a destra stacca la colonna
+   dal nome, che altrimenti gli finisce addosso. */
+.cella-persona {
+    display: flex;
+    align-items: center;
+    padding-right: 1.5rem;
 }
 
 /* Più azioni nella stessa cella di tabella. Niente flex-wrap: nella tabella
