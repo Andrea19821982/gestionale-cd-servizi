@@ -43,7 +43,7 @@
         {{ ns.intera.dipendente_sostituto.cognome }}
     </div>
     {% elif assegnazione and assegnazione.origine == "assenza" %}
-    <span class="badge badge-assenza">ASS</span>
+    <span class="badge badge-assenza">ASSENTE</span>
     {% endif %}
     {% for s in parziali %}
     <span class="badge badge-sostituzione-oraria" style="background-color: {{ s.sede_arrivo.colore_hex if s.sede_arrivo else '#888888' }}"

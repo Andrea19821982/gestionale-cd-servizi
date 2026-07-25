@@ -76,6 +76,32 @@ def test_calendario_richiede_login(client):
     assert r.headers["location"].startswith("/login")
 
 
+def test_assenza_mostra_assente_per_esteso_non_abbreviato(client, crea_utente, db):
+    """Sia nella vista modificabile (amministratore/gestore turni) sia in
+    quella di sola lettura, un'assenza deve mostrare la parola per intero
+    "ASSENTE", non l'abbreviazione "ASS" usata in precedenza nella vista
+    modificabile."""
+    from app.models import AssegnazioneGiornaliera
+
+    crea_utente("admin_ass_test", "passwordsegreta", "amministratore")
+    login(client, "admin_ass_test", "passwordsegreta")
+    sede = _crea_sede(db, "Sede Assenza Test")
+    dip = Dipendente(cognome="Assente", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip.id, data=date(2026, 7, 10), sede_effettiva_id=sede.id,
+        tipo_turno_id=None, origine="assenza",
+    ))
+    db.commit()
+
+    r = client.get(f"/calendario?sede_id={sede.id}&anno=2026&mese=7")
+    assert r.status_code == 200
+    assert ">ASSENTE<" in r.text
+    assert ">ASS<" not in r.text
+
+
 def test_raggruppa_per_sottosezione_ordina_senza_gruppo_prima_poi_i_gruppi():
     from app.routers.calendario import _raggruppa_per_sottosezione
 

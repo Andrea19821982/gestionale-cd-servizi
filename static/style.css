@@ -957,9 +957,21 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 }
 
 .tabella-stampa .badge-sostituzione,
-.tabella-stampa .badge-sostituzione-oraria {
+.tabella-stampa .badge-sostituzione-oraria,
+.tabella-stampa .badge-assenza {
     max-width: 100%;
     font-size: 0.46rem;
+}
+
+/* .badge-assenza è inline di default (va bene a schermo, dove la colonna è
+   larga abbastanza): in stampa, con colonne strette quanto un ventunesimo
+   della pagina, "ASSENTE" a quella dimensione ancora sfora se resta su una
+   sola riga. display:block lo lascia andare a capo dentro la larghezza
+   della colonna invece di sforare in quella accanto. */
+.tabella-stampa .badge-assenza {
+    display: block;
+    padding: 0.05rem 0.1rem;
+    word-break: break-word;
 }
 
 /* Una sede con molti dipendenti supera l'altezza di un foglio A4
