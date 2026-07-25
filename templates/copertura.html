@@ -15,6 +15,11 @@
     <div class="riquadro blocco-copertura{% if blocco.presenti == 0 and blocco.totale > 0 %} blocco-copertura-vuoto{% endif %}{% if blocco.sotto_minimo %} blocco-copertura-carente{% endif %}{% if blocco.nome_sottosezione %} blocco-copertura-comparto{% endif %}">
         <h2 style="margin-top:0;">{{ blocco.nome_visualizzato }}</h2>
         <p class="muted">{{ blocco.presenti }} presenti su {{ blocco.totale }} dipendenti di riferimento</p>
+        {% if blocco.presenti_non_classificati > 0 and (blocco.copertura_minima_mattina > 0 or blocco.copertura_minima_pomeriggio > 0) %}
+        <p class="badge badge-warn-testo" style="display:inline-block; white-space:normal; text-align:left;">
+            ⚠️ {{ blocco.presenti_non_classificati }} present{{ "e" if blocco.presenti_non_classificati == 1 else "i" }} con un tipo di turno non ancora classificato Mattina/Pomeriggio: non {{ "conta" if blocco.presenti_non_classificati == 1 else "contano" }} per il minimo qui sotto, anche se {{ "è" if blocco.presenti_non_classificati == 1 else "sono" }} davvero presenti. Classifica il tipo di turno in <a href="/tipi-turno">Tipi turno</a> per farl{{ "o" if blocco.presenti_non_classificati == 1 else "i" }} contare.
+        </p>
+        {% endif %}
         {% if blocco.copertura_minima_mattina > 0 or blocco.copertura_minima_pomeriggio > 0 %}
         <p class="copertura-fasce">
             <span class="copertura-fascia{% if blocco.sotto_minimo_mattina %} copertura-fascia-carente{% endif %}">

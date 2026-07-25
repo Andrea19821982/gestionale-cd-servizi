@@ -198,6 +198,60 @@ def test_turno_senza_fascia_classificata_non_conta_per_nessun_minimo(db):
     assert blocco["presenti"] == 1
     assert blocco["presenti_mattina"] == 0
     assert blocco["sotto_minimo_mattina"] is True
+    # Il conteggio di quanti presenti restano fuori solo per questo motivo
+    # deve essere esposto: senza saperlo, l'avviso "sotto il minimo" sembra
+    # sbagliato a chi guarda (le persone ci sono, il turno non è ancora
+    # classificato) — vedi l'avviso mostrato in copertura.html.
+    assert blocco["presenti_non_classificati"] == 1
+
+
+def test_pagina_copertura_avvisa_se_turno_non_classificato_influenza_il_minimo(client, crea_utente, db):
+    """Senza questo avviso, un minimo mattina/pomeriggio configurato ma con
+    i turni reali ancora tutti non classificati risulta sempre "sotto il
+    minimo" anche a organico pieno, senza che sia chiaro perché: l'avviso
+    deve comparire quando la carenza può dipendere da questo."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Avviso Fascia")
+    sede.copertura_minima_mattina = 1
+    tipo = TipoTurno(etichetta="Non Classificato Avviso", ora_inizio=time(9, 0), ora_fine=time(13, 0), fascia=None)
+    db.add(tipo)
+    dip = Dipendente(cognome="Avviso", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    db.refresh(tipo)
+    oggi = date.today()
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.commit()
+
+    r = client.get(f"/copertura?data={oggi.isoformat()}")
+    assert r.status_code == 200
+    assert "non ancora classificato" in r.text
+    assert "/tipi-turno" in r.text
+
+
+def test_pagina_copertura_non_avvisa_se_tutti_i_turni_sono_classificati(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Senza Avviso")
+    sede.copertura_minima_mattina = 1
+    tipo = TipoTurno(etichetta="Classificato Avviso", ora_inizio=time(9, 0), ora_fine=time(13, 0), fascia="mattina")
+    db.add(tipo)
+    dip = Dipendente(cognome="SenzaAvviso", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    db.refresh(tipo)
+    oggi = date.today()
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.commit()
+
+    r = client.get(f"/copertura?data={oggi.isoformat()}")
+    assert r.status_code == 200
+    assert "non ancora classificato" not in r.text
 
 
 def test_suggerisce_dipendenti_non_pianificati_in_altre_sedi(db):

@@ -53,14 +53,23 @@ def _presenti_per_fascia(righe: list[dict]) -> dict[str, int]:
     (fascia=None, vedi TipoTurno) non entra in nessuna delle due fasce: la
     persona compare comunque come "presente" nell'elenco, semplicemente non
     concorre al minimo di nessuna fascia finché il turno non viene
-    classificato in Tipi turno."""
+    classificato in Tipi turno. "non_classificati" conta quante di queste
+    persone presenti restano fuori dal conteggio per questo motivo: senza
+    saperlo, un minimo mattina/pomeriggio configurato ma con i turni reali
+    ancora tutti non classificati risulterebbe sempre "sotto il minimo"
+    anche a organico pieno, in modo silenzioso e fuorviante — vedi
+    l'avviso in copertura.html quando questo numero non è zero."""
     conteggio = {"mattina": 0, "pomeriggio": 0}
+    non_classificati = 0
     for riga in righe:
         if riga["stato"] != "presente":
             continue
         fascia = riga["assegnazione"].tipo_turno.fascia
         if fascia in conteggio:
             conteggio[fascia] += 1
+        else:
+            non_classificati += 1
+    conteggio["non_classificati"] = non_classificati
     return conteggio
 
 
@@ -102,6 +111,7 @@ def _costruisci_blocco(
         "eventi_oggi": eventi_sede,
         "presenti_mattina": presenti_per_fascia["mattina"],
         "presenti_pomeriggio": presenti_per_fascia["pomeriggio"],
+        "presenti_non_classificati": presenti_per_fascia["non_classificati"],
         "copertura_minima_mattina": richiesti_mattina,
         "copertura_minima_pomeriggio": richiesti_pomeriggio,
         "sotto_minimo_mattina": sotto_minimo_mattina,
