@@ -12,7 +12,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import email_config
+from app import email_config, impostazioni_allarme_copertura
 from app.database import SessionLocal
 from app.email_service import _invia_ora
 from app.models import AllarmeCoperturaInviato
@@ -49,7 +49,7 @@ def controlla_e_segnala_carenza(db: Session, forza: bool = False, inviato_da: in
     forza=True, non rimanda nulla se è già stato segnalato oggi per lo stesso
     giorno. Non manda nulla se nessun palazzo è carente. Restituisce True
     solo se ha inviato davvero."""
-    if not email_config.allarme_copertura_configurato():
+    if not impostazioni_allarme_copertura.allarme_copertura_configurato(db):
         return False
 
     domani = date.today() + timedelta(days=1)
@@ -61,10 +61,11 @@ def controlla_e_segnala_carenza(db: Session, forza: bool = False, inviato_da: in
     if gia_inviato is not None and not forza:
         return False
 
-    nomi_palazzi = ", ".join(blocco["sede"].nome for blocco in carenti)
+    destinatari = impostazioni_allarme_copertura.destinatari_effettivi(db)
+    nomi_palazzi = ", ".join(blocco["nome_visualizzato"] for blocco in carenti)
     corpo_html = genera_html_allarme(carenti, domani)
     oggetto = f"Attenzione: copertura sotto il minimo per domani {domani.strftime('%d/%m/%Y')} — {nomi_palazzi}"
-    riuscito = _invia_ora(oggetto, corpo_html, destinatari=email_config.ALLARME_COPERTURA_DESTINATARI)
+    riuscito = _invia_ora(oggetto, corpo_html, destinatari=destinatari)
     if not riuscito:
         return False
 
@@ -73,14 +74,14 @@ def controlla_e_segnala_carenza(db: Session, forza: bool = False, inviato_da: in
             # Reinvio manuale forzato di un giorno già segnalato: aggiorna la
             # riga esistente invece di violare l'unicità su data_riferimento.
             gia_inviato.inviato_il = datetime.now()
-            gia_inviato.destinatari = ", ".join(email_config.ALLARME_COPERTURA_DESTINATARI)
+            gia_inviato.destinatari = ", ".join(destinatari)
             gia_inviato.palazzi_carenti = nomi_palazzi
             gia_inviato.manuale = True
             gia_inviato.inviato_da = inviato_da
         else:
             db.add(AllarmeCoperturaInviato(
                 data_riferimento=domani,
-                destinatari=", ".join(email_config.ALLARME_COPERTURA_DESTINATARI),
+                destinatari=", ".join(destinatari),
                 palazzi_carenti=nomi_palazzi,
                 manuale=inviato_da is not None,
                 inviato_da=inviato_da,

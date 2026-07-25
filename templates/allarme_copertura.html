@@ -5,7 +5,7 @@
 <p class="muted">Ogni giorno, dalle {{ ora_configurata }}, il programma controlla se domani un palazzo risulterà sotto la copertura minima configurata (vedi Sedi e Sale) e avvisa i gestori — un preavviso interno, diverso dal riepilogo che va al referente della Camera dei Deputati, pensato per lasciare ancora tempo di organizzare una sostituzione.</p>
 
 {% if not configurato %}
-<p class="badge badge-danger-testo" style="display:inline-block;">⚠️ Non configurato: mancano SMTP e/o i destinatari in app/email_config_locale.py.</p>
+<p class="badge badge-danger-testo" style="display:inline-block;">⚠️ Non configurato: manca SMTP in app/email_config_locale.py e/o nessun destinatario è stato impostato.</p>
 {% elif not abilitato %}
 <p class="badge badge-warn-testo" style="display:inline-block;">⏸️ Controllo automatico disattivato (ALLARME_COPERTURA_ABILITATO = False): puoi comunque controllare a mano qui sotto.</p>
 {% else %}
@@ -18,6 +18,22 @@
         <tr><th>Domani ({{ domani }})</th><td>{{ "Già segnalato" if gia_inviato_domani else "Non ancora segnalato" }}</td></tr>
     </tbody>
 </table>
+
+{% if utente.ruolo == "amministratore" %}
+<details style="margin-bottom: 1.5rem;">
+    <summary><strong>⚙️ Destinatari dell'allarme</strong> <span class="muted">— solo amministratore</span></summary>
+    <div class="riquadro">
+        <p class="muted">Fino a 3 indirizzi che ricevono l'allarme quando un palazzo risulta sotto la copertura minima per domani. Un campo lasciato vuoto viene semplicemente ignorato. Se lasci tutti e tre i campi vuoti, si usa la lista scritta in app/email_config_locale.py (se presente).</p>
+        <form method="post" action="/allarme-copertura/destinatari" class="form-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+            <label>Indirizzo 1 <input type="email" name="email_1" value="{{ email_1 }}" placeholder="facoltativo"></label>
+            <label>Indirizzo 2 <input type="email" name="email_2" value="{{ email_2 }}" placeholder="facoltativo"></label>
+            <label>Indirizzo 3 <input type="email" name="email_3" value="{{ email_3 }}" placeholder="facoltativo"></label>
+            <button type="submit">Salva</button>
+        </form>
+    </div>
+</details>
+{% endif %}
 
 <form method="post" action="/allarme-copertura/invia-ora">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">

@@ -392,6 +392,25 @@ class ImpostazioneImap(Base):
     aggiornato_da: Mapped[int | None] = mapped_column(ForeignKey("utenti.id"), nullable=True)
 
 
+class ImpostazioneAllarmeCopertura(Base):
+    """Destinatari dell'allarme interno di carenza copertura (vedi
+    app/allarme_copertura.py), modificabili SOLO dall'amministratore dalla
+    pagina /allarme-copertura senza dover editare app/email_config_locale.py
+    a mano. Una sola riga (id=1, vedi app/impostazioni_allarme_copertura.py):
+    se manca o tutti e tre i campi sono vuoti, si ricade sulla lista statica
+    ALLARME_COPERTURA_DESTINATARI di app/email_config.py come prima. Tre
+    campi fissi invece di una lista libera perché così richiesto (fino a 3
+    destinatari), non un limite tecnico del modello sottostante."""
+    __tablename__ = "impostazioni_allarme_copertura"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email_1: Mapped[str | None] = mapped_column(String, nullable=True)
+    email_2: Mapped[str | None] = mapped_column(String, nullable=True)
+    email_3: Mapped[str | None] = mapped_column(String, nullable=True)
+    aggiornato_il: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
+    aggiornato_da: Mapped[int | None] = mapped_column(ForeignKey("utenti.id"), nullable=True)
+
+
 class LogModifica(Base):
     __tablename__ = "log_modifiche"
     __table_args__ = (

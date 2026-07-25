@@ -1,6 +1,7 @@
 import logging
 import threading
 from contextlib import asynccontextmanager
+from datetime import date, timedelta
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
@@ -8,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import email_config
+from app.allarme_copertura import blocchi_carenti
 from app.allarme_copertura import controlla_e_invia_se_dovuto as controlla_e_invia_allarme_copertura
 from app.auth import NonAutenticato, puo_approvare_assenze
 from app.backup import controlla_e_backup_se_dovuto
@@ -126,6 +128,7 @@ async def calcola_richieste_pendenti(request: Request, call_next):
     richiesta: qui si aggiorna solo cosa viene mostrato nel menu."""
     request.state.richieste_pendenti = 0
     request.state.bozze_email_pendenti = 0
+    request.state.palazzi_carenti = []
     request.state.flash = request.session.pop("flash", None)
     utente_id = request.session.get("utente_id")
     if utente_id is not None:
@@ -140,6 +143,10 @@ async def calcola_richieste_pendenti(request: Request, call_next):
                     request.state.richieste_pendenti = db.query(Assenza).filter(Assenza.stato == "richiesta").count()
                 if utente.ruolo in ("amministratore", "gestore_turni"):
                     request.state.bozze_email_pendenti = db.query(BozzaEmail).filter(BozzaEmail.stato == "da_confermare").count()
+                    domani = date.today() + timedelta(days=1)
+                    request.state.palazzi_carenti = [
+                        blocco["nome_visualizzato"] for blocco in blocchi_carenti(db, domani)
+                    ]
         finally:
             next(gen, None)
     return await call_next(request)

@@ -170,3 +170,77 @@ def test_controlla_e_invia_se_dovuto_rispetta_orario_configurato(db, monkeypatch
 
     assert allarme_copertura.controlla_e_invia_se_dovuto() is False
     assert db.query(AllarmeCoperturaInviato).count() == 0
+
+
+def _login_gestore(client, crea_utente):
+    crea_utente("gestore_test", "passwordsegreta", "gestore_turni")
+    login(client, "gestore_test", "passwordsegreta")
+
+
+def test_destinatari_da_interfaccia_hanno_precedenza_sul_file(db, monkeypatch):
+    from app import impostazioni_allarme_copertura
+
+    monkeypatch.setattr(email_config, "ALLARME_COPERTURA_DESTINATARI", ["file@esempio.it"])
+    impostazioni_allarme_copertura.salva_destinatari(db, 1, "uno@esempio.it", "due@esempio.it", "")
+
+    assert impostazioni_allarme_copertura.destinatari_effettivi(db) == ["uno@esempio.it", "due@esempio.it"]
+
+
+def test_destinatari_ricade_sul_file_se_i_tre_campi_sono_vuoti(db, monkeypatch):
+    from app import impostazioni_allarme_copertura
+
+    monkeypatch.setattr(email_config, "ALLARME_COPERTURA_DESTINATARI", ["file@esempio.it"])
+    impostazioni_allarme_copertura.salva_destinatari(db, 1, "", "", "")
+
+    assert impostazioni_allarme_copertura.destinatari_effettivi(db) == ["file@esempio.it"]
+
+
+def test_imposta_destinatari_via_http_solo_amministratore(client, crea_utente, db):
+    _login_gestore(client, crea_utente)
+    r = client.post(
+        "/allarme-copertura/destinatari",
+        data={"email_1": "a@esempio.it", "email_2": "", "email_3": ""},
+        follow_redirects=False,
+    )
+    assert r.status_code == 403
+
+
+def test_imposta_destinatari_via_http_salva_e_si_riflette_nella_pagina(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    r = client.post(
+        "/allarme-copertura/destinatari",
+        data={"email_1": "primo@esempio.it", "email_2": "secondo@esempio.it", "email_3": ""},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    r2 = client.get("/allarme-copertura")
+    assert "primo@esempio.it" in r2.text
+    assert "secondo@esempio.it" in r2.text
+
+
+def test_pagina_allarme_copertura_sezione_destinatari_solo_amministratore(client, crea_utente, db):
+    _login_gestore(client, crea_utente)
+    r = client.get("/allarme-copertura")
+    assert r.status_code == 200
+    assert "Destinatari dell'allarme" not in r.text
+
+
+def test_banner_carenza_compare_per_gestore_e_ammin_non_per_consultazione(client, crea_utente, db):
+    _crea_sede(db, copertura_minima_ordinaria=3)
+
+    crea_utente("consultazione_carenza", "passwordsegreta", "consultazione")
+    login(client, "consultazione_carenza", "passwordsegreta")
+    r = client.get("/calendario")
+    assert "Copertura sotto il minimo" not in r.text
+
+    _login_gestore(client, crea_utente)
+    r2 = client.get("/calendario")
+    assert "Copertura sotto il minimo domani" in r2.text
+
+
+def test_banner_carenza_assente_se_copertura_sufficiente(client, crea_utente, db):
+    _crea_sede(db, copertura_minima_ordinaria=0)
+    _login_admin(client, crea_utente)
+    r = client.get("/calendario")
+    assert "Copertura sotto il minimo" not in r.text

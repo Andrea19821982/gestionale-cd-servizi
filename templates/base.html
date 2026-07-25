@@ -55,6 +55,12 @@
         <a href="/bozze-email">📥 {{ bozze_pendenti }} bozz{{ "a" if bozze_pendenti == 1 else "e" }} da email in attesa di conferma</a>
     </div>
     {% endif %}
+    {% set carenti = palazzi_carenti(request) %}
+    {% if carenti %}
+    <div class="banner-notifica banner-notifica-carenza">
+        <a href="/allarme-copertura">🚨 Copertura sotto il minimo domani: {{ carenti | join(", ") }}</a>
+    </div>
+    {% endif %}
     <main class="container {% block container_extra %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>

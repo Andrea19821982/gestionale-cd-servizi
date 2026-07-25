@@ -34,6 +34,16 @@ def _bozze_email_pendenti(request: Request) -> int:
     return getattr(request.state, "bozze_email_pendenti", 0)
 
 
+def _palazzi_carenti(request: Request) -> list[str]:
+    """Nomi dei palazzi/comparti sotto la copertura minima per domani (vedi
+    app/allarme_copertura.py::blocchi_carenti), calcolato dallo stesso
+    middleware di _richieste_pendenti sopra: un promemoria a monitor,
+    indipendente dall'email dell'allarme di copertura, che chi gestisce i
+    turni non deve arrivare a controllare la pagina Copertura per accorgersi
+    di una carenza."""
+    return getattr(request.state, "palazzi_carenti", [])
+
+
 def _csrf_token(request: Request) -> str:
     """Token CSRF della richiesta corrente (vedi app/csrf.py e il middleware
     gestisci_csrf in main.py), da mettere in un campo nascosto in ogni form
@@ -118,6 +128,7 @@ def _classe_nav_attiva(request: Request, prefisso: str) -> str:
 templates.env.globals["versione_statico"] = _versione_statico
 templates.env.globals["richieste_pendenti"] = _richieste_pendenti
 templates.env.globals["bozze_email_pendenti"] = _bozze_email_pendenti
+templates.env.globals["palazzi_carenti"] = _palazzi_carenti
 templates.env.globals["csrf_token"] = _csrf_token
 templates.env.globals["flash"] = _flash
 templates.env.globals["classe_nav_attiva"] = _classe_nav_attiva

@@ -567,6 +567,16 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 
 .banner-notifica a:hover { text-decoration: underline; }
 
+/* Carenza di copertura per domani: più urgente di una semplice richiesta
+   in attesa (le altre due usano il colore neutro di avviso sopra), quindi
+   in rosso invece che nel giallo/arancio di default. */
+.banner-notifica-carenza {
+    background: var(--danger-soft);
+    border-bottom: 1px solid var(--danger);
+}
+
+.banner-notifica-carenza a { color: var(--danger); }
+
 .muted { color: var(--muted); font-size: 0.85rem; }
 
 .nav-logout {
