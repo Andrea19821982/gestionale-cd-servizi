@@ -15,10 +15,12 @@
             <td>{{ d.giorni_ferie_annuali }}</td>
             <td>{{ "Sì" if d.attivo else "No" }}</td>
             <td>
-                <a href="/dipendenti/{{ d.id }}/storico">Storico</a>
-                {% if utente.ruolo in ("amministratore", "gestore_turni") %}
-                &nbsp;·&nbsp;<a href="/dipendenti/{{ d.id }}/modifica">Modifica</a>
-                {% endif %}
+                <div class="azioni-riga">
+                    <a class="btn btn-secondary" href="/dipendenti/{{ d.id }}/storico">Storico</a>
+                    {% if utente.ruolo in ("amministratore", "gestore_turni") %}
+                    <a class="btn btn-secondary" href="/dipendenti/{{ d.id }}/modifica">Modifica</a>
+                    {% endif %}
+                </div>
             </td>
         </tr>
         {% endfor %}

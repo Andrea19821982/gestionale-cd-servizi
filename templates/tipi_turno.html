@@ -17,7 +17,7 @@
             <td>
                 {% if utente.ruolo == "amministratore" %}
                 <details>
-                    <summary>Modifica</summary>
+                    <summary class="btn btn-secondary">Modifica</summary>
                     <div class="riquadro">
                         <form method="post" action="/tipi-turno/{{ t.id }}/modifica" class="form-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">

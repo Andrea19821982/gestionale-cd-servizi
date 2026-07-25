@@ -323,12 +323,21 @@ input:focus, select:focus, textarea:focus {
 
 /* --- Pulsanti --- */
 
+/* .btn veste da pulsante anche elementi che pulsanti non sono: i link di
+   azione nelle tabelle e i <summary> che aprono i form di modifica. Da qui
+   display/line-height/text-decoration, che su <button> sarebbero superflui
+   ma senza i quali un <a> risulta più basso e sottolineato. */
 button, .btn {
+    display: inline-block;
     padding: 0.48rem 1rem;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: var(--accent);
     color: white;
+    text-decoration: none;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1.25;
     cursor: pointer;
     font-weight: 600;
     font-size: 0.85rem;
@@ -337,9 +346,9 @@ button, .btn {
     transition: background 0.12s ease, transform 0.05s ease, box-shadow 0.12s ease;
 }
 
-button:hover { background: var(--accent-hover); }
-button:active { transform: translateY(1px); }
-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:hover, .btn:hover { background: var(--accent-hover); }
+button:active, .btn:active { transform: translateY(1px); }
+button:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 button:disabled {
     background: #cdd3dc;
@@ -348,16 +357,42 @@ button:disabled {
     box-shadow: none;
 }
 
-button.btn-secondary {
+.btn-secondary {
     background: var(--panel);
     color: var(--text);
     border-color: var(--border-strong);
 }
 
-button.btn-secondary:hover { background: #f4f6f9; }
+.btn-secondary:hover { background: #f4f6f9; color: var(--text); }
 
-button.btn-danger { background: var(--danger); }
-button.btn-danger:hover { background: #c22b39; }
+.btn-danger { background: var(--danger); }
+.btn-danger:hover { background: #c22b39; }
+
+/* Il <summary> di un <details> è un list-item: senza togliere il marcatore
+   resterebbe il triangolino nero dentro al pulsante. */
+summary.btn {
+    list-style: none;
+}
+
+summary.btn::-webkit-details-marker { display: none; }
+
+/* Riquadro aperto: il pulsante resta premuto, così si vede a colpo d'occhio
+   quale riga si sta modificando quando la tabella è lunga. */
+details[open] > summary.btn {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Più azioni nella stessa cella di tabella. Niente flex-wrap: nella tabella
+   dipendenti la colonna è stretta e i due comandi si impilerebbero, portando
+   ogni riga da 68 a 81 px. Restando su una riga sola è la colonna ad
+   allargarsi quanto serve, che su una tabella già larga costa molto meno. */
+.azioni-riga {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
 
 /* Pulsanti "pericolosi" riconosciuti per testo, senza dover toccare ogni
    template: un colpo d'occhio in più per azioni che cancellano/rifiutano. */
