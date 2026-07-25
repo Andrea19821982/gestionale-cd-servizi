@@ -8,6 +8,7 @@ turni.db-shm
 .venv/
 build/
 dist/
+installer/
 client_config.json
 app/email_config_locale.py
 secret_key.txt

@@ -19,9 +19,9 @@ from app.paths import cartella_dati, cartella_risorse
 # Impacchettato con console=False (niente finestra di console): sys.stdout
 # e sys.stderr sono None, e uvicorn va in crash appena prova a configurare
 # il logging (controlla stdout.isatty()). Li rediriggiamo su un file di
-# log accanto all'eseguibile, prima di importare uvicorn/pystray, così
-# anche eventuali altri controlli su stdout/stderr durante l'import non
-# falliscono allo stesso modo.
+# log nella cartella dati (vedi app/paths.py), prima di importare
+# uvicorn/pystray, così anche eventuali altri controlli su stdout/stderr
+# durante l'import non falliscono allo stesso modo.
 if sys.stdout is None or sys.stderr is None:
     _log = open(cartella_dati() / "log.txt", "a", encoding="utf-8", buffering=1)
     sys.stdout = _log
@@ -105,7 +105,7 @@ def _carica_icona() -> Image.Image:
 
 
 def _scrivi_indirizzo_su_file(ip: str) -> None:
-    """Scrive l'indirizzo accanto all'eseguibile, in un file di testo
+    """Scrive l'indirizzo nella cartella dati, in un file di testo
     semplice: comodo da aprire e copiare per comunicarlo ai colleghi senza
     dover leggere la console o aprire il menu della system tray."""
     try:

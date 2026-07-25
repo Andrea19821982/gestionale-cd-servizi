@@ -1,7 +1,9 @@
 """Eseguibile client: apre una finestra simile a un programma nativo,
 puntata all'indirizzo del server. Al primo avvio chiede l'indirizzo del
-server e lo salva in un file di configurazione locale accanto
-all'eseguibile. Pensato per essere impacchettato con PyInstaller come
+server e lo salva in un file di configurazione sotto
+%LOCALAPPDATA%\\CD-Servizi (vedi app/paths.py: fuori dalla cartella del
+programma, così un aggiornamento non lo cancella e non va richiesto di
+nuovo). Pensato per essere impacchettato con PyInstaller come
 CalendarioTurni.exe, uno per ogni PC dell'ufficio.
 
 Uso in sviluppo:
@@ -17,18 +19,14 @@ from pathlib import Path
 
 import webview
 
+from app.paths import cartella_dati_client
+
 NOME_FILE_CONFIG = "client_config.json"
 TITOLO_FINESTRA = "Calendario Turni"
 
 
-def _cartella_eseguibile() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
-
-
 def _percorso_config() -> Path:
-    return _cartella_eseguibile() / NOME_FILE_CONFIG
+    return cartella_dati_client() / NOME_FILE_CONFIG
 
 
 def leggi_indirizzo_server() -> str | None:

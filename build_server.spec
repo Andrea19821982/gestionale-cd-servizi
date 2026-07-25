@@ -51,6 +51,7 @@ exe = EXE(
     upx=False,
     console=False,
     icon='assets/icon.ico',
+    version='versione_server.txt',
 )
 coll = COLLECT(
     exe,
