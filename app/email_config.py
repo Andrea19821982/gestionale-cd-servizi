@@ -51,6 +51,15 @@ def notifiche_configurate() -> bool:
     return bool(SMTP_HOST and SMTP_UTENTE and SMTP_PASSWORD and DESTINATARI_NOTIFICHE)
 
 
+def smtp_configurato() -> bool:
+    """True se il server SMTP è pronto per un invio a un destinatario scelto
+    al momento (a differenza di notifiche_configurate(), che richiede anche
+    una lista statica di destinatari fissa): usata per l'invio dei moduli
+    assenze/sostituzioni ai singoli dipendenti da /bozze-email, dove il
+    destinatario è l'indirizzo del dipendente scelto, non una lista fissa."""
+    return bool(SMTP_HOST and SMTP_UTENTE and SMTP_PASSWORD)
+
+
 # --- Lettura automatica delle email di assenza/sostituzione (IMAP) ---
 # Vedi docs/06-formato-email-dipendenti.md per il formato che i dipendenti
 # devono usare per scrivere a questa casella. Le email vengono lette e

@@ -218,6 +218,46 @@ def test_pagina_modifica_dipendente_inesistente_da_404(client, crea_utente):
     assert r.status_code == 404
 
 
+def test_salvare_email_dipendente(client, crea_utente, db):
+    from app.models import Dipendente
+
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+    dip = Dipendente(cognome="Email", nome="Test", attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.post(
+        f"/dipendenti/{dip.id}/modifica",
+        data={"cognome": "Email", "nome": "Test", "email": "email.test@esempio.it"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    db.refresh(dip)
+    assert dip.email == "email.test@esempio.it"
+
+    r = client.get(f"/dipendenti/{dip.id}/modifica")
+    assert 'value="email.test@esempio.it"' in r.text
+
+
+def test_email_dipendente_non_valida_da_400(client, crea_utente, db):
+    from app.models import Dipendente
+
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+    dip = Dipendente(cognome="Email", nome="NonValida", attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.post(
+        f"/dipendenti/{dip.id}/modifica",
+        data={"cognome": "Email", "nome": "NonValida", "email": "non-e-una-email"},
+    )
+    assert r.status_code == 400
+
+
 def test_salvare_anagrafica_torna_alla_pagina_di_modifica(client, crea_utente, db):
     from app.models import Dipendente
 

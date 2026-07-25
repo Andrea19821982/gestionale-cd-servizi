@@ -38,6 +38,21 @@ def test_analizza_assenza_correttamente_interpretata(db):
     assert risultato["errore_parsing"] is None
 
 
+def test_analizza_assenza_accetta_etichetta_nome_e_cognome_come_alias_di_nome(db):
+    """Il modulo Word ufficiale (static/documenti/Procedura_Segnalazione_
+    Assenze_CD-Servizi.docx) usa "Nome e Cognome:" come etichetta del campo
+    da compilare, non solo "Nome:" come nella guida testuale storica:
+    entrambe le etichette devono essere lette allo stesso modo."""
+    sede = _crea_sede(db)
+    dip = _crea_dipendente(db, "Rossi", "Mario", sede)
+
+    corpo = "Nome e Cognome: Rossi Mario\nTipo: Ferie\nDal: 10/08/2026\nAl: 12/08/2026\n"
+    risultato = analizza_email(db, "ASSENZA", corpo)
+
+    assert risultato["dipendente_id"] == dip.id
+    assert risultato["errore_parsing"] is None
+
+
 def test_analizza_sostituzione_correttamente_interpretata(db):
     sede = _crea_sede(db)
     assente = _crea_dipendente(db, "Rossi", "Mario", sede)

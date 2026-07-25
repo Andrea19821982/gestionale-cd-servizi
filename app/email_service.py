@@ -7,8 +7,10 @@ qualunque errore SMTP viene solo registrato nei log, mai propagato."""
 import logging
 import smtplib
 import threading
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from pathlib import Path
 
 from app import email_config
 from app.templates import templates
@@ -52,6 +54,47 @@ def _invia_ora(oggetto: str, corpo_html: str, destinatari: list[str] | None = No
         # l'assenza/sostituzione restano comunque registrate correttamente.
         logger.exception("Invio notifica email fallito (oggetto=%r)", oggetto)
         return False
+
+
+def invia_email_con_allegato(oggetto: str, corpo_testo: str, destinatario: str, percorso_allegato: Path) -> str | None:
+    """Invio SINCRONO (a differenza di invia_notifica_asincrona sotto) con un
+    file allegato a un singolo destinatario: usata per inoltrare i moduli
+    assenze/sostituzioni (vedi /bozze-email/invia-procedura). Chi preme il
+    pulsante "Invia" deve sapere subito se ogni invio è riuscito o no, non
+    scoprirlo dopo da un log. Restituisce None se l'invio è riuscito,
+    altrimenti un messaggio d'errore leggibile."""
+    messaggio = MIMEMultipart()
+    messaggio["Subject"] = oggetto
+    messaggio["From"] = email_config.SMTP_MITTENTE or email_config.SMTP_UTENTE
+    messaggio["To"] = destinatario
+    messaggio.attach(MIMEText(corpo_testo, "plain", "utf-8"))
+
+    with open(percorso_allegato, "rb") as f:
+        allegato = MIMEApplication(
+            f.read(), _subtype="vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    allegato.add_header("Content-Disposition", "attachment", filename=percorso_allegato.name)
+    messaggio.attach(allegato)
+
+    try:
+        classe_smtp = smtplib.SMTP_SSL if email_config.SMTP_USA_SSL else smtplib.SMTP
+        with classe_smtp(
+            email_config.SMTP_HOST,
+            email_config.SMTP_PORTA,
+            timeout=email_config.SMTP_TIMEOUT_SECONDI,
+        ) as server:
+            if not email_config.SMTP_USA_SSL:
+                server.starttls()
+            server.login(email_config.SMTP_UTENTE, email_config.SMTP_PASSWORD)
+            server.sendmail(
+                email_config.SMTP_MITTENTE or email_config.SMTP_UTENTE,
+                [destinatario],
+                messaggio.as_string(),
+            )
+        return None
+    except Exception as errore:
+        logger.exception("Invio email con allegato fallito (destinatario=%r, oggetto=%r)", destinatario, oggetto)
+        return str(errore)
 
 
 def invia_notifica_asincrona(oggetto: str, template_nome: str, contesto: dict) -> None:

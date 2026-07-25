@@ -29,6 +29,9 @@
             <label>Sottosezione
                 <input type="text" name="sottosezione" value="{{ dipendente.sottosezione or '' }}" placeholder="facoltativo, es. Parcheggio">
             </label>
+            <label>Email
+                <input type="email" name="email" value="{{ dipendente.email or '' }}" placeholder="facoltativo, per inviare i moduli assenze/sostituzioni">
+            </label>
             <label>Tipo di contratto
                 <input type="text" name="tipo_contratto" value="{{ dipendente.tipo_contratto or '' }}" list="suggerimenti-contratto" placeholder="facoltativo">
                 <datalist id="suggerimenti-contratto">

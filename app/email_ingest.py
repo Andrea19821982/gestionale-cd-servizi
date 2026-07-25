@@ -63,6 +63,21 @@ def _ora_o_none(testo: str) -> time | None:
         return None
 
 
+def _campo(campi: dict[str, str], *etichette: str) -> str:
+    """Prima etichetta tra quelle indicate che compare nel corpo email, es.
+    _campo(campi, "nome", "nome e cognome"): il modulo Word ufficiale (vedi
+    static/documenti/Procedura_Segnalazione_Assenze_CD-Servizi.docx) usa
+    "Nome e Cognome:" come etichetta del campo da compilare, mentre la guida
+    testuale storica (genera_testo_email_dipendenti) usa solo "Nome:" —
+    entrambe devono essere lette allo stesso modo, senza costringere chi
+    scrive l'email a indovinare quale delle due si aspetta il programma."""
+    for etichetta in etichette:
+        valore = campi.get(etichetta)
+        if valore:
+            return valore
+    return ""
+
+
 def _trova_dipendente(db: Session, testo: str) -> tuple[Dipendente | None, str | None]:
     """Cerca un dipendente attivo il cui "cognome nome" o "nome cognome"
     corrisponda al testo (case-insensitive, spazi tolleranti). Se non trova
@@ -115,7 +130,7 @@ def analizza_email(db: Session, oggetto: str, corpo: str) -> dict:
     }
 
     if tipo == "assenza":
-        dipendente, errore = _trova_dipendente(db, campi.get("nome", ""))
+        dipendente, errore = _trova_dipendente(db, _campo(campi, "nome", "nome e cognome"))
         if errore:
             avvisi.append(errore)
         risultato["dipendente_id"] = dipendente.id if dipendente else None

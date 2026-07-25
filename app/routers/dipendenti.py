@@ -37,6 +37,16 @@ def _ore_settimanali_o_400(valore: float) -> float:
     return valore
 
 
+def _email_o_400(valore: str) -> str | None:
+    valore = (valore or "").strip()
+    if not valore:
+        return None
+    utente, _, dominio = valore.partition("@")
+    if not utente or "." not in dominio or dominio.startswith(".") or dominio.endswith("."):
+        raise HTTPException(status_code=400, detail=f"Indirizzo email non valido: {valore!r}")
+    return valore
+
+
 @router.get("/dipendenti")
 def elenco_dipendenti(
     request: Request,
@@ -75,6 +85,7 @@ def crea_dipendente(
     ore_settimanali_contrattuali: float = Form(40.0),
     costo_orario: str = Form(""),
     sottosezione: str = Form(""),
+    email: str = Form(""),
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
     _csrf: None = Depends(richiedi_csrf_valido),
@@ -89,6 +100,7 @@ def crea_dipendente(
         ore_settimanali_contrattuali=_ore_settimanali_o_400(ore_settimanali_contrattuali),
         costo_orario=_costo_orario_o_400(costo_orario),
         sottosezione=sottosezione.strip() or None,
+        email=_email_o_400(email),
         attivo=True,
     )
     db.add(dipendente)
@@ -145,6 +157,7 @@ def modifica_dipendente(
     ore_settimanali_contrattuali: float = Form(40.0),
     costo_orario: str = Form(""),
     sottosezione: str = Form(""),
+    email: str = Form(""),
     attivo: str = Form(None),
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
@@ -161,6 +174,7 @@ def modifica_dipendente(
     dipendente.ore_settimanali_contrattuali = _ore_settimanali_o_400(ore_settimanali_contrattuali)
     dipendente.costo_orario = _costo_orario_o_400(costo_orario)
     dipendente.sottosezione = sottosezione.strip() or None
+    dipendente.email = _email_o_400(email)
     dipendente.attivo = checkbox_a_bool(attivo)
     registra_modifica(
         db, utente.id, "dipendenti", dipendente.id, "modifica",

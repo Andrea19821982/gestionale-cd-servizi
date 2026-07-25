@@ -29,7 +29,10 @@ Al: 12/08/2026
 Note: 
 ```
 
-- **Nome**: cognome e nome esattamente come noti in azienda.
+- **Nome** (anche scritto "Nome e Cognome" nel modulo Word ufficiale, vedi
+  `static/documenti/Procedura_Segnalazione_Assenze_CD-Servizi.docx` —
+  entrambe le etichette sono lette allo stesso modo): cognome e nome
+  esattamente come noti in azienda.
 - **Tipo**: Ferie, Malattia o Permesso (o altra dicitura breve).
 - **Dal / Al**: data di inizio e fine assenza, formato `gg/mm/aaaa`. Per un
   solo giorno, ripetere la stessa data in entrambi i campi.

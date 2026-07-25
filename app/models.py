@@ -110,6 +110,10 @@ class Dipendente(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     cognome: Mapped[str] = mapped_column(String, nullable=False)
     nome: Mapped[str] = mapped_column(String, nullable=False)
+    # Indirizzo email personale del dipendente: facoltativo (molti dipendenti
+    # potrebbero non averlo mai compilato), usato solo per inoltrare loro i
+    # moduli di segnalazione assenze/sostituzioni (vedi /bozze-email).
+    email: Mapped[str | None] = mapped_column(String, nullable=True)
     sede_riferimento_id: Mapped[int | None] = mapped_column(
         ForeignKey("sedi.id"), nullable=True
     )

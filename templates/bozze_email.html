@@ -5,17 +5,46 @@
 <p class="muted">Assenze e sostituzioni interpretate automaticamente dalle email dei dipendenti (vedi <code>docs/06-formato-email-dipendenti.md</code>). Non toccano il calendario finché non le confermi qui sotto: controlla i dati prima di confermare, soprattutto se c'è un avviso.</p>
 
 <details style="margin-bottom: 1.5rem;" open>
-    <summary><strong>📄 Moduli PDF pronti da inoltrare</strong> <span class="muted">— uno per le assenze, uno per le sostituzioni</span></summary>
+    <summary><strong>📄 Moduli ufficiali da inoltrare ai dipendenti</strong> <span class="muted">— uno per le assenze, uno per le sostituzioni (Word)</span></summary>
     <div class="riquadro">
         {% if not indirizzo_email %}
-        <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato: compilalo qui sotto in "Casella email per le richieste dei dipendenti", nei moduli qui sotto resta un segnaposto da completare a mano prima di inoltrarli.</p>
+        <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato: compilalo qui sotto in "Casella email per le richieste dei dipendenti".</p>
         {% endif %}
-        <p class="muted">Ognuno dei due contiene il modulo da compilare e le istruzioni per farlo correttamente: aprili, stampali o salvali come PDF (pulsante "Stampa / Salva come PDF" nella pagina che si apre) e inoltrali ai dipendenti separatamente, secondo cosa devono segnalare.</p>
+        <p class="muted">Scaricali e inoltrali manualmente, oppure inviali direttamente da qui ai dipendenti che hanno un indirizzo email impostato in anagrafica.</p>
         <p>
-            <a href="/bozze-email/modulo-assenza-stampa" target="_blank">📄 PDF — Modulo assenze</a>
+            <a href="/bozze-email/procedura-assenze">📄 Scarica modulo assenze (.docx)</a>
             &nbsp;·&nbsp;
-            <a href="/bozze-email/modulo-sostituzione-stampa" target="_blank">📄 PDF — Modulo sostituzioni</a>
+            <a href="/bozze-email/procedura-sostituzioni">📄 Scarica modulo sostituzioni (.docx)</a>
         </p>
+
+        {% if not smtp_configurato %}
+        <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ Il server per l'invio email non è configurato sul programma: l'invio diretto qui sotto non è disponibile, ma puoi comunque scaricare e inoltrare i moduli a mano.</p>
+        {% else %}
+        <h3>Invia direttamente ai dipendenti</h3>
+        {% if dipendenti_senza_email_count > 0 %}
+        <p class="muted">⚠️ {{ dipendenti_senza_email_count }} dipendent{{ "e" if dipendenti_senza_email_count == 1 else "i" }} attiv{{ "o" if dipendenti_senza_email_count == 1 else "i" }} non ha{{ "" if dipendenti_senza_email_count == 1 else "nno" }} un'email in anagrafica e non compaiono qui sotto: impostala da <a href="/dipendenti">Dipendenti → Modifica</a>.</p>
+        {% endif %}
+        {% if not dipendenti_con_email %}
+        <p class="muted">Nessun dipendente attivo ha ancora un'email impostata in anagrafica.</p>
+        {% else %}
+        <form method="post" action="/bozze-email/invia-procedura">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+            <div style="max-height: 12rem; overflow-y: auto; border: 1px solid var(--bordo, #ccc); padding: 0.5rem; margin-bottom: 0.5rem;">
+                <label style="display:block; font-weight:bold;">
+                    <input type="checkbox" onclick="document.querySelectorAll('.checkbox-dipendente-procedura').forEach(c => c.checked = this.checked)"> Seleziona tutti
+                </label>
+                {% for d in dipendenti_con_email %}
+                <label style="display:block;">
+                    <input type="checkbox" class="checkbox-dipendente-procedura" name="dipendente_id" value="{{ d.id }}"> {{ d.cognome }} {{ d.nome }} <span class="muted">({{ d.email }})</span>
+                </label>
+                {% endfor %}
+            </div>
+            <button type="submit" name="tipo" value="assenza">📧 Invia modulo assenze ai selezionati</button>
+            &nbsp;
+            <button type="submit" name="tipo" value="sostituzione">📧 Invia modulo sostituzioni ai selezionati</button>
+        </form>
+        {% endif %}
+        {% endif %}
     </div>
 </details>
 

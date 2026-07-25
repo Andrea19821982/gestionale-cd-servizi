@@ -10,10 +10,10 @@ mano, non un percorso parallelo con regole diverse."""
 from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 
-from app import impostazioni_email
+from app import email_config, email_service, impostazioni_email
 from app.auth import RUOLI_SCRITTURA_ANAGRAFICA, RUOLI_SCRITTURA_OPERATIVO, richiedi_ruolo
 from app.csrf import richiedi_csrf_valido
 from app.database import get_db
@@ -21,12 +21,27 @@ from app.email_ingest import controlla_posta
 from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import Assenza, BozzaEmail, Dipendente, Sostituzione, Utente
+from app.paths import cartella_risorse
 from app.routers.assenze import _copri_giorni_con_assenza, _malattia, _si_sovrappone
 from app.routers.sostituzioni import _sostituzione_in_conflitto
 from app.templates import templates
 from app.utils import fk_opzionale_o_400, ottieni_o_404
 
 router = APIRouter()
+
+# I due moduli ufficiali (Word) preparati per i dipendenti: scaricabili da
+# /bozze-email e allegabili all'invio diretto (vedi invia_procedura sotto).
+# Sostituiscono, come contenuto mostrato in evidenza sulla pagina, i vecchi
+# moduli generati automaticamente in PDF (genera_modulo_assenza/sostituzione
+# più sotto restano comunque disponibili come funzioni/route per compatibilità
+# con chi ci fosse già arrivato con un link diretto).
+_NOME_FILE_PROCEDURA_ASSENZE = "Procedura_Segnalazione_Assenze_CD-Servizi.docx"
+_NOME_FILE_PROCEDURA_SOSTITUZIONI = "Procedura_Segnalazione_Sostituzioni_CD-Servizi.docx"
+_TIPO_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _percorso_procedura(nome_file: str):
+    return cartella_risorse() / "static" / "documenti" / nome_file
 
 
 def genera_testo_email_dipendenti(indirizzo: str) -> str:
@@ -246,6 +261,8 @@ def elenco_bozze_email(
         .all()
     )
 
+    dipendenti_con_email = [d for d in dipendenti if d.email]
+
     cfg = impostazioni_email.imap_effettivo(db)
     return templates.TemplateResponse(
         request,
@@ -253,6 +270,9 @@ def elenco_bozze_email(
         {
             "bozze": bozze,
             "dipendenti": dipendenti,
+            "dipendenti_con_email": dipendenti_con_email,
+            "dipendenti_senza_email_count": len(dipendenti) - len(dipendenti_con_email),
+            "smtp_configurato": email_config.smtp_configurato(),
             "stato_filtro": stato,
             "utente": utente,
             "indirizzo_email": cfg.utente,
@@ -264,6 +284,101 @@ def elenco_bozze_email(
             "imap_password_impostata": bool(cfg.password),
         },
     )
+
+
+@router.get("/bozze-email/procedura-assenze")
+def scarica_procedura_assenze(
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
+):
+    return FileResponse(
+        _percorso_procedura(_NOME_FILE_PROCEDURA_ASSENZE),
+        media_type=_TIPO_MIME_DOCX,
+        filename=_NOME_FILE_PROCEDURA_ASSENZE,
+    )
+
+
+@router.get("/bozze-email/procedura-sostituzioni")
+def scarica_procedura_sostituzioni(
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
+):
+    return FileResponse(
+        _percorso_procedura(_NOME_FILE_PROCEDURA_SOSTITUZIONI),
+        media_type=_TIPO_MIME_DOCX,
+        filename=_NOME_FILE_PROCEDURA_SOSTITUZIONI,
+    )
+
+
+@router.post("/bozze-email/invia-procedura")
+def invia_procedura(
+    request: Request,
+    tipo: str = Form(...),
+    dipendente_id: list[int] = Form([]),
+    db: Session = Depends(get_db),
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
+    _csrf: None = Depends(richiedi_csrf_valido),
+):
+    """Invia il modulo Word (assenze o sostituzioni) per email a ciascun
+    dipendente selezionato, uno per uno (mai in copia agli altri: gli
+    indirizzi dei colleghi non sono affari loro). Sincrono: chi preme
+    "Invia" aspetta il risultato e vede subito quanti invii sono andati a
+    buon fine, invece di scoprirlo dopo da un log."""
+    if tipo not in ("assenza", "sostituzione"):
+        raise HTTPException(status_code=400, detail="Tipo di procedura non valido.")
+    if not email_config.smtp_configurato():
+        imposta_flash(
+            request,
+            "Il server SMTP per l'invio non è configurato (vedi app/email_config.py sul server).",
+            tipo="errore",
+        )
+        return RedirectResponse("/bozze-email", status_code=303)
+
+    if tipo == "assenza":
+        nome_file = _NOME_FILE_PROCEDURA_ASSENZE
+        oggetto = "Procedura per segnalare assenze (ferie, malattia, permessi)"
+        corpo = (
+            "Ciao,\n\nin allegato trovi il modulo con le istruzioni per segnalare via email "
+            "ferie, malattie e permessi. Segui il formato indicato: il programma legge la tua "
+            "email in automatico e prepara la richiesta, che un amministrativo controlla e "
+            "conferma prima che diventi effettiva sul calendario.\n\nGrazie della collaborazione!"
+        )
+    else:
+        nome_file = _NOME_FILE_PROCEDURA_SOSTITUZIONI
+        oggetto = "Procedura per segnalare sostituzioni"
+        corpo = (
+            "Ciao,\n\nin allegato trovi il modulo con le istruzioni per segnalare via email una "
+            "sostituzione. Segui il formato indicato: il programma legge la tua email in "
+            "automatico e prepara la richiesta, che un amministrativo controlla e conferma prima "
+            "che diventi effettiva sul calendario.\n\nGrazie della collaborazione!"
+        )
+
+    dipendenti = (
+        db.query(Dipendente)
+        .filter(Dipendente.id.in_(dipendente_id), Dipendente.email.isnot(None))
+        .all()
+        if dipendente_id else []
+    )
+    if not dipendenti:
+        imposta_flash(request, "Nessun dipendente selezionato (con email impostata).", tipo="errore")
+        return RedirectResponse("/bozze-email", status_code=303)
+
+    percorso_allegato = _percorso_procedura(nome_file)
+    falliti = []
+    for dipendente in dipendenti:
+        errore = email_service.invia_email_con_allegato(oggetto, corpo, dipendente.email, percorso_allegato)
+        if errore:
+            falliti.append(f"{dipendente.cognome} {dipendente.nome} ({errore})")
+
+    riusciti = len(dipendenti) - len(falliti)
+
+    if falliti:
+        imposta_flash(
+            request,
+            f"Inviato a {riusciti} di {len(dipendenti)} dipendenti. Falliti: {'; '.join(falliti)}",
+            tipo="avviso" if riusciti else "errore",
+        )
+    else:
+        imposta_flash(request, f"Modulo inviato a {riusciti} dipendenti.", tipo="ok")
+    return RedirectResponse("/bozze-email", status_code=303)
 
 
 @router.post("/bozze-email/controlla-ora")

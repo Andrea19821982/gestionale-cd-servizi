@@ -281,3 +281,152 @@ def test_pagina_bozze_email_avvisa_se_indirizzo_non_configurato(client, crea_ute
 
     assert r.status_code == 200
     assert "non è ancora configurato" in r.text
+
+
+def _configura_smtp_finto(monkeypatch):
+    monkeypatch.setattr(email_config, "SMTP_HOST", "smtp.esempio.it")
+    monkeypatch.setattr(email_config, "SMTP_UTENTE", "turni@esempio.it")
+    monkeypatch.setattr(email_config, "SMTP_PASSWORD", "segreta")
+
+
+def test_scarica_procedura_assenze_restituisce_il_docx(client, crea_utente):
+    _login_admin(client, crea_utente)
+    r = client.get("/bozze-email/procedura-assenze")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
+def test_scarica_procedura_sostituzioni_restituisce_il_docx(client, crea_utente):
+    _login_admin(client, crea_utente)
+    r = client.get("/bozze-email/procedura-sostituzioni")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
+def test_pagina_bozze_email_mostra_dipendenti_con_email_per_invio(client, crea_utente, db, monkeypatch):
+    _configura_smtp_finto(monkeypatch)
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = _crea_dipendente(db, "ConEmail", "Test", sede)
+    dip.email = "conemail@esempio.it"
+    db.commit()
+    _crea_dipendente(db, "SenzaEmail", "Test", sede)
+
+    r = client.get("/bozze-email")
+    assert r.status_code == 200
+    assert "conemail@esempio.it" in r.text
+    assert "1 dipendente" in r.text  # avviso sul dipendente senza email
+
+
+def test_invia_procedura_senza_smtp_configurato_mostra_errore(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = _crea_dipendente(db, "ConEmail", "Test", sede)
+    dip.email = "conemail@esempio.it"
+    db.commit()
+
+    r = client.post(
+        "/bozze-email/invia-procedura",
+        data={"tipo": "assenza", "dipendente_id": [dip.id]},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "non è configurato" in r.text
+
+
+def test_invia_procedura_assenze_invia_a_ciascun_dipendente_selezionato(client, crea_utente, db, monkeypatch):
+    import app.routers.bozze_email as bozze_email_module
+
+    _configura_smtp_finto(monkeypatch)
+    chiamate = []
+    monkeypatch.setattr(
+        bozze_email_module.email_service,
+        "invia_email_con_allegato",
+        lambda oggetto, corpo, destinatario, percorso: chiamate.append((oggetto, destinatario, percorso)) or None,
+    )
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip1 = _crea_dipendente(db, "Uno", "Test", sede)
+    dip1.email = "uno@esempio.it"
+    dip2 = _crea_dipendente(db, "Due", "Test", sede)
+    dip2.email = "due@esempio.it"
+    db.commit()
+
+    r = client.post(
+        "/bozze-email/invia-procedura",
+        data={"tipo": "assenza", "dipendente_id": [dip1.id, dip2.id]},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert len(chiamate) == 2
+    destinatari = {c[1] for c in chiamate}
+    assert destinatari == {"uno@esempio.it", "due@esempio.it"}
+    assert all(str(c[2]).endswith("Procedura_Segnalazione_Assenze_CD-Servizi.docx") for c in chiamate)
+    assert "inviato a 2 dipendenti" in r.text.lower()
+
+
+def test_invia_procedura_sostituzioni_usa_il_file_corretto(client, crea_utente, db, monkeypatch):
+    import app.routers.bozze_email as bozze_email_module
+
+    _configura_smtp_finto(monkeypatch)
+    chiamate = []
+    monkeypatch.setattr(
+        bozze_email_module.email_service,
+        "invia_email_con_allegato",
+        lambda oggetto, corpo, destinatario, percorso: chiamate.append(percorso) or None,
+    )
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = _crea_dipendente(db, "Uno", "Test", sede)
+    dip.email = "uno@esempio.it"
+    db.commit()
+
+    r = client.post(
+        "/bozze-email/invia-procedura",
+        data={"tipo": "sostituzione", "dipendente_id": [dip.id]},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert str(chiamate[0]).endswith("Procedura_Segnalazione_Sostituzioni_CD-Servizi.docx")
+
+
+def test_invia_procedura_segnala_i_falliti(client, crea_utente, db, monkeypatch):
+    import app.routers.bozze_email as bozze_email_module
+
+    _configura_smtp_finto(monkeypatch)
+    monkeypatch.setattr(
+        bozze_email_module.email_service,
+        "invia_email_con_allegato",
+        lambda oggetto, corpo, destinatario, percorso: "connessione rifiutata (simulata)",
+    )
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = _crea_dipendente(db, "Fallisce", "Test", sede)
+    dip.email = "fallisce@esempio.it"
+    db.commit()
+
+    r = client.post(
+        "/bozze-email/invia-procedura",
+        data={"tipo": "assenza", "dipendente_id": [dip.id]},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "Fallisce Test" in r.text
+    assert "connessione rifiutata (simulata)" in r.text
+
+
+def test_invia_procedura_senza_dipendenti_selezionati_mostra_errore(client, crea_utente, monkeypatch):
+    _configura_smtp_finto(monkeypatch)
+    _login_admin(client, crea_utente)
+
+    r = client.post(
+        "/bozze-email/invia-procedura",
+        data={"tipo": "assenza"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "Nessun dipendente selezionato" in r.text

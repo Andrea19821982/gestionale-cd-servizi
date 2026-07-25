@@ -70,6 +70,10 @@ def _migra_schema():
             conn.execute(text("ALTER TABLE tipi_turno ADD COLUMN fascia TEXT"))
             conn.commit()
 
+        if "email" not in colonne_dipendenti:
+            conn.execute(text("ALTER TABLE dipendenti ADD COLUMN email TEXT"))
+            conn.commit()
+
 
 def init_db():
     from app import models  # noqa: F401  (registra i modelli su Base)
