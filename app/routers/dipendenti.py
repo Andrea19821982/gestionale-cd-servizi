@@ -51,10 +51,6 @@ def elenco_dipendenti(
         Dipendente.ordine_visualizzazione, Dipendente.cognome, Dipendente.nome
     ).all()
     sedi = db.query(Sede).filter(Sede.attivo == True).order_by(Sede.nome).all()  # noqa: E712
-    tipi_turno = db.query(TipoTurno).order_by(TipoTurno.ora_inizio).all()
-    pattern_per_dipendente = {
-        p.dipendente_id: p for p in db.query(PatternTurno).all()
-    }
     return templates.TemplateResponse(
         request,
         "dipendenti.html",
@@ -63,8 +59,6 @@ def elenco_dipendenti(
             "sedi": sedi,
             "solo_attivi": solo_attivi,
             "utente": utente,
-            "tipi_turno": tipi_turno,
-            "pattern_per_dipendente": pattern_per_dipendente,
         },
     )
 
@@ -105,6 +99,37 @@ def crea_dipendente(
     )
     db.commit()
     return RedirectResponse("/dipendenti", status_code=303)
+
+
+@router.get("/dipendenti/{dipendente_id}/modifica")
+def modifica_dipendente_form(
+    request: Request,
+    dipendente_id: int,
+    db: Session = Depends(get_db),
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
+):
+    """Pagina intera dedicata alla modifica (non più un pannello a comparsa
+    dentro la riga della tabella /dipendenti: con tutti i campi di anagrafica
+    più il pattern turno, in un riquadro stretto dentro la tabella non c'era
+    mai spazio a sufficienza per non far andare tutto a capo su una colonna
+    stretta, anche allargando il riquadro stesso — qui ha semplicemente
+    tutta la pagina a disposizione, stesso approccio già usato per
+    /tipi-turno e le altre pagine di anagrafica)."""
+    dipendente = ottieni_o_404(db, Dipendente, dipendente_id)
+    sedi = db.query(Sede).filter(Sede.attivo == True).order_by(Sede.nome).all()  # noqa: E712
+    tipi_turno = db.query(TipoTurno).order_by(TipoTurno.ora_inizio).all()
+    pattern = db.get(PatternTurno, dipendente_id)
+    return templates.TemplateResponse(
+        request,
+        "dipendente_modifica.html",
+        {
+            "dipendente": dipendente,
+            "sedi": sedi,
+            "tipi_turno": tipi_turno,
+            "pattern": pattern,
+            "utente": utente,
+        },
+    )
 
 
 @router.post("/dipendenti/{dipendente_id}/modifica")
@@ -157,8 +182,10 @@ def modifica_dipendente(
                 f"disattivare anche quello da Utenti.",
                 tipo="avviso",
             )
+    else:
+        imposta_flash(request, "Anagrafica aggiornata.", tipo="ok")
 
-    return RedirectResponse("/dipendenti", status_code=303)
+    return RedirectResponse(f"/dipendenti/{dipendente_id}/modifica", status_code=303)
 
 
 @router.post("/dipendenti/{dipendente_id}/pattern")
@@ -194,7 +221,8 @@ def imposta_pattern_turno(
         f"turno_settimana_dispari_id={dispari}, turno_settimana_pari_id={pari}",
     )
     db.commit()
-    return RedirectResponse("/dipendenti", status_code=303)
+    imposta_flash(request, "Pattern turno aggiornato.", tipo="ok")
+    return RedirectResponse(f"/dipendenti/{dipendente_id}/modifica", status_code=303)
 
 
 @router.get("/dipendenti/{dipendente_id}/storico")

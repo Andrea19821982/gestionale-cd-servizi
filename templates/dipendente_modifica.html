@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Modifica {{ dipendente.cognome }} {{ dipendente.nome }}{% endblock %}
+{% block content %}
+<h1 style="display:flex; align-items:center;"><span class="avatar avatar-lg" style="background:{{ colore_avatar(dipendente.cognome + dipendente.nome) }}">{{ iniziali(dipendente.nome, dipendente.cognome) }}</span>Modifica {{ dipendente.cognome }} {{ dipendente.nome }}</h1>
+<p>
+    <a href="/dipendenti">&larr; torna all'anagrafica</a>
+    &nbsp;·&nbsp;
+    <a href="/dipendenti/{{ dipendente.id }}/storico">Vedi storico</a>
+</p>
+
+<div class="riquadro griglia-modifica-dipendente">
+    <form method="post" action="/dipendenti/{{ dipendente.id }}/modifica">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <div class="campi-modifica-dipendente">
+            <label>Cognome
+                <input type="text" name="cognome" value="{{ dipendente.cognome }}" required>
+            </label>
+            <label>Nome
+                <input type="text" name="nome" value="{{ dipendente.nome }}" required>
+            </label>
+            <label>Sede di riferimento
+                <select name="sede_riferimento_id">
+                    <option value="">— nessuna —</option>
+                    {% for s in sedi %}
+                    <option value="{{ s.id }}" {% if dipendente.sede_riferimento_id == s.id %}selected{% endif %}>{{ s.nome }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Sottosezione
+                <input type="text" name="sottosezione" value="{{ dipendente.sottosezione or '' }}" placeholder="facoltativo, es. Parcheggio">
+            </label>
+            <label>Tipo di contratto
+                <input type="text" name="tipo_contratto" value="{{ dipendente.tipo_contratto or '' }}" list="suggerimenti-contratto" placeholder="facoltativo">
+                <datalist id="suggerimenti-contratto">
+                    <option value="Tempo indeterminato full-time">
+                    <option value="Tempo determinato">
+                    <option value="Part-time orizzontale">
+                    <option value="Part-time verticale">
+                    <option value="Apprendistato">
+                </datalist>
+            </label>
+            <label>Ore settimanali contrattuali
+                <input type="number" name="ore_settimanali_contrattuali" value="{{ dipendente.ore_settimanali_contrattuali }}" min="1" max="48" step="0.5" required>
+            </label>
+            <label>Ferie annuali (giorni)
+                <input type="number" name="giorni_ferie_annuali" value="{{ dipendente.giorni_ferie_annuali }}" min="0" required>
+            </label>
+            <label>Costo orario €
+                <input type="number" name="costo_orario" value="{{ dipendente.costo_orario if dipendente.costo_orario is not none else '' }}" min="0" step="0.01" placeholder="facoltativo">
+            </label>
+            <label>Ordine visualizzazione
+                <input type="number" name="ordine_visualizzazione" value="{{ dipendente.ordine_visualizzazione }}" required>
+            </label>
+            <label class="campo-checkbox">
+                <input type="checkbox" name="attivo" {% if dipendente.attivo %}checked{% endif %}> Attivo
+            </label>
+        </div>
+        <button type="submit">Salva anagrafica</button>
+    </form>
+</div>
+
+<h2>Pattern turno</h2>
+<p class="muted">Il turno assegnato in automatico nelle settimane dispari/pari quando generi il calendario dal pattern (vedi "Genera dal pattern" in Calendario).</p>
+<div class="riquadro">
+    <form method="post" action="/dipendenti/{{ dipendente.id }}/pattern" class="form-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <label>Turno settimana dispari
+            <select name="turno_settimana_dispari_id">
+                <option value="">— nessuno —</option>
+                {% for t in tipi_turno %}
+                <option value="{{ t.id }}" {% if pattern and pattern.turno_settimana_dispari_id == t.id %}selected{% endif %}>{{ t.etichetta }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Turno settimana pari
+            <select name="turno_settimana_pari_id">
+                <option value="">— nessuno —</option>
+                {% for t in tipi_turno %}
+                <option value="{{ t.id }}" {% if pattern and pattern.turno_settimana_pari_id == t.id %}selected{% endif %}>{{ t.etichetta }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit">Salva pattern</button>
+    </form>
+</div>
+{% endblock %}

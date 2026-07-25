@@ -139,8 +139,8 @@ def test_storico_dipendente_mostra_costo_orario_zero_non_trattino(client, crea_u
 
 
 def test_form_modifica_precompila_costo_orario_zero(client, crea_utente, db):
-    """Il form 'Modifica' in _tabella_dipendenti.html deve precompilare il
-    campo costo_orario con "0" quando il valore salvato è 0.0, non lasciarlo
+    """La pagina /dipendenti/{id}/modifica deve precompilare il campo
+    costo_orario con "0" quando il valore salvato è 0.0, non lasciarlo
     vuoto: altrimenti chi apre il form per cambiare un altro campo (es. il
     nome) e salva senza toccare costo_orario finirebbe per azzerarlo
     silenziosamente a "nessun costo impostato" (None) invece di 0."""
@@ -153,11 +153,88 @@ def test_form_modifica_precompila_costo_orario_zero(client, crea_utente, db):
     db.commit()
     db.refresh(dip)
 
+    r = client.get(f"/dipendenti/{dip.id}/modifica")
+    assert r.status_code == 200
+    campo_costo = r.text.split('name="costo_orario"')[1].split(">")[0]
+    assert 'value="0.0"' in campo_costo or 'value="0"' in campo_costo
+
+
+def test_pagina_dipendenti_non_ha_piu_form_inline_ma_link_a_pagina_dedicata(client, crea_utente, db):
+    """La modifica non è più un pannello a comparsa dentro la riga della
+    tabella (mai abbastanza spazio per il form con tutti i campi): ora è un
+    link a una pagina intera dedicata."""
+    from app.models import Dipendente
+
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+    dip = Dipendente(cognome="Link", nome="Modifica", attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
     r = client.get("/dipendenti")
     assert r.status_code == 200
-    riquadro = r.text.split(f'/dipendenti/{dip.id}/modifica')[1].split("</form>")[0]
-    campo_costo = riquadro.split('name="costo_orario"')[1].split(">")[0]
-    assert 'value="0.0"' in campo_costo or 'value="0"' in campo_costo
+    assert f'href="/dipendenti/{dip.id}/modifica"' in r.text
+    assert "<details>" not in r.text
+
+
+def test_pagina_modifica_dipendente_mostra_tutti_i_campi(client, crea_utente, db):
+    from app.models import Dipendente
+
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+    dip = Dipendente(cognome="Pagina", nome="Intera", attivo=True, sottosezione="Parcheggio")
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.get(f"/dipendenti/{dip.id}/modifica")
+    assert r.status_code == 200
+    assert 'value="Pagina"' in r.text
+    assert 'value="Intera"' in r.text
+    assert 'value="Parcheggio"' in r.text
+    assert "Pattern turno" in r.text
+
+
+def test_pagina_modifica_dipendente_richiede_ruolo_operativo(client, crea_utente, db):
+    from app.models import Dipendente
+
+    crea_utente("consultazione_test", "passwordsegreta", "consultazione")
+    login(client, "consultazione_test", "passwordsegreta")
+    dip = Dipendente(cognome="Negato", nome="Test", attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.get(f"/dipendenti/{dip.id}/modifica")
+    assert r.status_code == 403
+
+
+def test_pagina_modifica_dipendente_inesistente_da_404(client, crea_utente):
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+
+    r = client.get("/dipendenti/9999/modifica")
+    assert r.status_code == 404
+
+
+def test_salvare_anagrafica_torna_alla_pagina_di_modifica(client, crea_utente, db):
+    from app.models import Dipendente
+
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+    dip = Dipendente(cognome="Redirect", nome="Test", attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.post(
+        f"/dipendenti/{dip.id}/modifica",
+        data={"cognome": "Redirect", "nome": "Test", "sede_riferimento_id": "", "ordine_visualizzazione": 0},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == f"/dipendenti/{dip.id}/modifica"
 
 
 def test_disattivare_dipendente_con_account_collegato_mostra_avviso(client, crea_utente, db):
