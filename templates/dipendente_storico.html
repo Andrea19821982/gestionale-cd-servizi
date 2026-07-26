@@ -11,7 +11,7 @@
         <tr><th>Tipo di contratto</th><td>{{ dipendente.tipo_contratto or "—" }}</td></tr>
         <tr><th>Ore settimanali contrattuali</th><td>{{ dipendente.ore_settimanali_contrattuali }} ore{% if dipendente.ore_settimanali_contrattuali < 40 %} (part-time){% endif %}</td></tr>
         <tr><th>Ferie annuali</th><td>{{ ferie_annuali_effettive }} giorni{% if dipendente.ore_settimanali_contrattuali < 40 %} (prorate dal part-time, {{ dipendente.giorni_ferie_annuali }} a tempo pieno){% endif %}</td></tr>
-        <tr><th>Costo orario</th><td>{{ ("%.2f"|format(dipendente.costo_orario) ~ " €/ora") if dipendente.costo_orario is not none else "—" }}</td></tr>
+        {% if puo_vedere_dati_sensibili(utente) %}<tr><th>Costo orario</th><td>{{ ("%.2f"|format(dipendente.costo_orario) ~ " €/ora") if dipendente.costo_orario is not none else "—" }}</td></tr>{% endif %}
         <tr><th>Ordine visualizzazione</th><td>{{ dipendente.ordine_visualizzazione }}</td></tr>
         <tr><th>Attivo</th><td>{{ "Sì" if dipendente.attivo else "No" }}</td></tr>
         <tr>
@@ -30,7 +30,7 @@
 {% if assenze %}
 <table class="tabella">
     <thead>
-        <tr><th>Tipo</th><th>Dal</th><th>Al</th><th>Stato</th><th>Note</th><th>Allegato</th><th>Registrata il</th></tr>
+        <tr><th>Tipo</th><th>Dal</th><th>Al</th><th>Stato</th><th>Note</th>{% if puo_vedere_dati_sensibili(utente) %}<th>Allegato</th>{% endif %}<th>Registrata il</th></tr>
     </thead>
     <tbody>
         {% for a in assenze %}
@@ -44,7 +44,7 @@
                 {% else %}<span class="badge badge-warn-testo">In attesa</span>{% endif %}
             </td>
             <td>{{ a.note or "" }}</td>
-            <td>{% if a.allegato_path %}<a href="/assenze/{{ a.id }}/allegato" target="_blank">📎</a>{% else %}—{% endif %}</td>
+            {% if puo_vedere_dati_sensibili(utente) %}<td>{% if a.allegato_path %}<a href="/assenze/{{ a.id }}/allegato" target="_blank">📎</a>{% else %}—{% endif %}</td>{% endif %}
             <td>{{ a.creato_il.strftime("%d/%m/%Y %H:%M") }}</td>
         </tr>
         {% endfor %}

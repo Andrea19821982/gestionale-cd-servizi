@@ -49,6 +49,12 @@ def allarme_copertura_configurato(db: Session) -> bool:
 
 
 def salva_destinatari(db: Session, utente_id: int, email_1: str, email_2: str, email_3: str) -> None:
+    """NON fa commit: lo fa il chiamante, come per registra_modifica (vedi
+    app/logging_service.py). Stessa storia di
+    impostazioni_email.salva_impostazioni: committando qui dentro, la riga di
+    log che il router aggiungeva subito dopo restava in una transazione mai
+    chiusa e spariva, lasciando senza traccia chi avesse cambiato i
+    destinatari degli allarmi di copertura."""
     riga = _riga(db)
     if riga is None:
         riga = ImpostazioneAllarmeCopertura(id=1)
@@ -58,4 +64,3 @@ def salva_destinatari(db: Session, utente_id: int, email_1: str, email_2: str, e
     riga.email_3 = email_3.strip() or None
     riga.aggiornato_il = datetime.now()
     riga.aggiornato_da = utente_id
-    db.commit()

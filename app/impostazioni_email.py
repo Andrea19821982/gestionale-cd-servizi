@@ -51,7 +51,14 @@ def salva_impostazioni(
     cartella: str,
 ) -> None:
     """Password vuota = non toccare quella già salvata (evita di dover
-    riscrivere la password ogni volta che si cambia solo un altro campo)."""
+    riscrivere la password ogni volta che si cambia solo un altro campo).
+
+    NON fa commit: lo fa il chiamante, come per registra_modifica (vedi
+    app/logging_service.py). Prima committava qui dentro, e il router che
+    registrava la modifica nel log SUBITO DOPO si ritrovava la riga di log
+    in una transazione che non veniva mai chiusa: veniva scartata alla
+    chiusura della sessione, quindi il cambio della casella email non
+    risultava a nessuno pur sembrando tracciato."""
     riga = _riga(db)
     if riga is None:
         riga = ImpostazioneImap(id=1)
@@ -64,4 +71,3 @@ def salva_impostazioni(
     riga.cartella = cartella.strip() or "INBOX"
     riga.aggiornato_il = datetime.now()
     riga.aggiornato_da = utente_id
-    db.commit()

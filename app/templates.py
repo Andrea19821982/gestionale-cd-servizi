@@ -1,6 +1,7 @@
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
+from app.auth import RUOLI_SCRITTURA_OPERATIVO
 from app.paths import cartella_risorse
 
 _RISORSE_DIR = cartella_risorse()
@@ -114,6 +115,19 @@ def _orario_turno(tipo_turno) -> str:
     return f"{_orario_breve(tipo_turno.ora_inizio)}-{_orario_breve(tipo_turno.ora_fine)}"
 
 
+def _puo_vedere_dati_sensibili(utente) -> bool:
+    """Se l'utente può vedere certificati medici e costo orario.
+
+    Serve a non ripetere la tupla dei ruoli dentro ai template: scritta a
+    mano in tre punti diversi, al primo cambio di RUOLI_SCRITTURA_OPERATIVO
+    una delle copie sarebbe rimasta indietro, e il disallineamento qui vuol
+    dire un link a un certificato medico mostrato a chi non deve vederlo.
+    La rotta che serve davvero il file (assenze.py::scarica_allegato_assenza)
+    fa comunque il proprio controllo: questo nasconde il link, non protegge
+    il dato."""
+    return utente is not None and utente.ruolo in RUOLI_SCRITTURA_OPERATIVO
+
+
 def _classe_nav_attiva(request: Request, prefisso: str) -> str:
     """Evidenzia nella barra di navigazione (base.html) il link della
     sezione in cui ci si trova: confronta per prefisso, non per uguaglianza
@@ -132,6 +146,7 @@ templates.env.globals["palazzi_carenti"] = _palazzi_carenti
 templates.env.globals["csrf_token"] = _csrf_token
 templates.env.globals["flash"] = _flash
 templates.env.globals["classe_nav_attiva"] = _classe_nav_attiva
+templates.env.globals["puo_vedere_dati_sensibili"] = _puo_vedere_dati_sensibili
 templates.env.globals["iniziali"] = _iniziali
 templates.env.globals["colore_avatar"] = _colore_avatar
 templates.env.globals["colore_sequenziale"] = _colore_sequenziale

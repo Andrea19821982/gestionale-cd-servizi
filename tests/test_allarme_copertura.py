@@ -182,6 +182,7 @@ def test_destinatari_da_interfaccia_hanno_precedenza_sul_file(db, monkeypatch):
 
     monkeypatch.setattr(email_config, "ALLARME_COPERTURA_DESTINATARI", ["file@esempio.it"])
     impostazioni_allarme_copertura.salva_destinatari(db, 1, "uno@esempio.it", "due@esempio.it", "")
+    db.commit()  # salva_destinatari non committa: lo fa il chiamante
 
     assert impostazioni_allarme_copertura.destinatari_effettivi(db) == ["uno@esempio.it", "due@esempio.it"]
 
@@ -191,6 +192,7 @@ def test_destinatari_ricade_sul_file_se_i_tre_campi_sono_vuoti(db, monkeypatch):
 
     monkeypatch.setattr(email_config, "ALLARME_COPERTURA_DESTINATARI", ["file@esempio.it"])
     impostazioni_allarme_copertura.salva_destinatari(db, 1, "", "", "")
+    db.commit()  # salva_destinatari non committa: lo fa il chiamante
 
     assert impostazioni_allarme_copertura.destinatari_effettivi(db) == ["file@esempio.it"]
 
@@ -244,3 +246,23 @@ def test_banner_carenza_assente_se_copertura_sufficiente(client, crea_utente, db
     _login_admin(client, crea_utente)
     r = client.get("/calendario")
     assert "Copertura sotto il minimo" not in r.text
+
+
+def test_cambiare_i_destinatari_finisce_nel_registro_delle_modifiche(client, crea_utente, db):
+    """Chi riceve gli allarmi di copertura è una decisione che fra sei mesi
+    si vorrà poter ricostruire. Il router chiamava registra_modifica dopo
+    salva_destinatari, che però committava già al suo interno: la riga di
+    log restava in una transazione mai chiusa e spariva alla chiusura della
+    sessione, quindi il registro sembrava funzionare e invece era vuoto."""
+    from app.models import LogModifica
+
+    _login_admin(client, crea_utente)
+    client.post(
+        "/allarme-copertura/destinatari",
+        data={"email_1": "tracciato@esempio.it", "email_2": "", "email_3": ""},
+        follow_redirects=False,
+    )
+
+    righe = db.query(LogModifica).filter_by(tabella="impostazioni_allarme_copertura").all()
+    assert len(righe) == 1
+    assert "tracciato@esempio.it" in righe[0].dettaglio

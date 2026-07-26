@@ -29,6 +29,7 @@ def test_salva_impostazioni_ha_precedenza_su_email_config(db, monkeypatch):
         db, utente_id=1, host="imap.db.it", porta=993, utente="turni@db.it",
         password="segreta-db", cartella="INBOX",
     )
+    db.commit()  # salva_impostazioni non committa: lo fa il chiamante
 
     cfg = impostazioni_email.imap_effettivo(db)
     assert cfg.host == "imap.db.it"
@@ -41,11 +42,13 @@ def test_salva_impostazioni_con_password_vuota_non_cancella_quella_esistente(db)
         db, utente_id=1, host="imap.db.it", porta=993, utente="turni@db.it",
         password="segreta-db", cartella="INBOX",
     )
+    db.commit()  # salva_impostazioni non committa: lo fa il chiamante
 
     impostazioni_email.salva_impostazioni(
         db, utente_id=1, host="imap.db.it", porta=993, utente="turni@db.it",
         password="", cartella="INBOX",
     )
+    db.commit()
 
     riga = db.get(ImpostazioneImap, 1)
     assert riga.password == "segreta-db"

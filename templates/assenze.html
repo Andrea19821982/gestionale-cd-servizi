@@ -30,7 +30,7 @@
             <th>Al</th>
             <th>Stato</th>
             <th>Note</th>
-            <th>Allegato</th>
+            {% if puo_vedere_dati_sensibili(utente) %}<th>Allegato</th>{% endif %}
             <th>Registrata il</th>
             <th></th>
         </tr>
@@ -48,7 +48,7 @@
                 {% else %}<span class="badge badge-warn-testo">In attesa di approvazione</span>{% endif %}
             </td>
             <td>{{ a.note or "" }}</td>
-            <td>{% if a.allegato_path %}<a href="/assenze/{{ a.id }}/allegato" target="_blank">📎 {{ a.allegato_nome }}</a>{% else %}—{% endif %}</td>
+            {% if puo_vedere_dati_sensibili(utente) %}<td>{% if a.allegato_path %}<a href="/assenze/{{ a.id }}/allegato" target="_blank">📎 {{ a.allegato_nome }}</a>{% else %}—{% endif %}</td>{% endif %}
             <td>{{ a.creato_il.strftime("%d/%m/%Y %H:%M") }}</td>
             <td>
                 {% if a.stato == "richiesta" and puo_approvare %}

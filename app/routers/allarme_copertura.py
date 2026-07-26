@@ -76,6 +76,7 @@ def imposta_destinatari_allarme_copertura(
         db, utente.id, "impostazioni_allarme_copertura", 1, "modifica",
         f"email_1={email_1.strip()}, email_2={email_2.strip()}, email_3={email_3.strip()}",
     )
+    db.commit()  # impostazione e riga di log insieme, o nessuna delle due
     imposta_flash(request, "Destinatari dell'allarme di copertura aggiornati.", tipo="ok")
     return RedirectResponse("/allarme-copertura", status_code=303)
 

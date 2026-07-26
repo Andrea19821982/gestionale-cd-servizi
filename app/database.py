@@ -74,6 +74,18 @@ def _migra_schema():
             conn.execute(text("ALTER TABLE dipendenti ADD COLUMN email TEXT"))
             conn.commit()
 
+        # Memoria del turno che un'assenza ha sovrascritto, per poterlo
+        # restituire se l'assenza viene rifiutata o cancellata (vedi
+        # app/routers/assenze.py::_copri_giorni_con_assenza). Nullable
+        # senza default: sulle righe già esistenti "nessuna memoria" è
+        # esattamente lo stato giusto, e il ripristino si limita a non
+        # scattare per le assenze approvate prima di questo aggiornamento.
+        colonne_assegnazioni = {r[1] for r in conn.execute(text("PRAGMA table_info(assegnazioni_giornaliere)"))}
+        if "tipo_turno_precedente_id" not in colonne_assegnazioni:
+            conn.execute(text("ALTER TABLE assegnazioni_giornaliere ADD COLUMN tipo_turno_precedente_id INTEGER REFERENCES tipi_turno(id)"))
+            conn.execute(text("ALTER TABLE assegnazioni_giornaliere ADD COLUMN origine_precedente TEXT"))
+            conn.commit()
+
 
 def init_db():
     from app import models  # noqa: F401  (registra i modelli su Base)

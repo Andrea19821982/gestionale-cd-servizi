@@ -449,3 +449,120 @@ def test_log_modifiche_creazione_e_cancellazione_assenza(client, crea_utente, db
     client.post(f"/assenze/{assenza.id}/elimina")
     log_cancellazione = db.query(LogModifica).filter_by(tabella="assenze", azione="cancellazione").first()
     assert log_cancellazione is not None
+
+
+def _dipendente_con_turno_pianificato(client, crea_utente, db, giorno=date(2026, 8, 12)):
+    """Scenario di partenza dei test qui sotto: un dipendente con un turno
+    già assegnato a mano nel giorno che l'assenza andrà a coprire."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Ripristino")
+    tipo = _crea_tipo_turno(db, "Mattina Ripristino")
+    dip = Dipendente(cognome="Ripristino", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip.id, data=giorno, sede_effettiva_id=sede.id,
+        tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.commit()
+    return dip, tipo, giorno
+
+
+def _crea_assenza(client, dip, giorno):
+    client.post(
+        "/assenze/nuova",
+        data={
+            "dipendente_id": dip.id,
+            "data_inizio": giorno.isoformat(),
+            "data_fine": giorno.isoformat(),
+            "tipo_assenza": "Ferie",
+        },
+        follow_redirects=False,
+    )
+
+
+def _assegnazione(db, dip, giorno):
+    return (
+        db.query(AssegnazioneGiornaliera)
+        .filter_by(dipendente_id=dip.id, data=giorno)
+        .first()
+    )
+
+
+def test_rifiutare_un_assenza_restituisce_il_turno_che_era_pianificato(client, crea_utente, db):
+    """Il caso che prima distruggeva dati: si registrano le ferie di chi
+    aveva già turni assegnati a mano, il responsabile le rifiuta, e i turni
+    erano persi per sempre — nemmeno il registro delle modifiche li
+    conservava, quindi nessuno poteva ricostruirli."""
+    dip, tipo, giorno = _dipendente_con_turno_pianificato(client, crea_utente, db)
+    _crea_assenza(client, dip, giorno)
+
+    db.expire_all()
+    coperta = _assegnazione(db, dip, giorno)
+    assert coperta.origine == "assenza"
+    assert coperta.tipo_turno_id is None  # l'assenza prevale, come previsto
+
+    assenza = db.query(Assenza).filter_by(dipendente_id=dip.id).first()
+    client.post(f"/assenze/{assenza.id}/rifiuta", follow_redirects=False)
+
+    db.expire_all()
+    ripristinata = _assegnazione(db, dip, giorno)
+    assert ripristinata is not None, "la cella non deve sparire: c'era un turno"
+    assert ripristinata.tipo_turno_id == tipo.id
+    assert ripristinata.origine == "manuale"
+    assert ripristinata.origine_precedente is None  # memoria consumata
+
+
+def test_cancellare_un_assenza_restituisce_il_turno_che_era_pianificato(client, crea_utente, db):
+    dip, tipo, giorno = _dipendente_con_turno_pianificato(client, crea_utente, db)
+    _crea_assenza(client, dip, giorno)
+    assenza = db.query(Assenza).filter_by(dipendente_id=dip.id).first()
+
+    client.post(f"/assenze/{assenza.id}/elimina", follow_redirects=False)
+
+    db.expire_all()
+    ripristinata = _assegnazione(db, dip, giorno)
+    assert ripristinata is not None
+    assert ripristinata.tipo_turno_id == tipo.id
+    assert ripristinata.origine == "manuale"
+
+
+def test_cella_creata_dall_assenza_viene_rimossa_e_non_lascia_un_turno_vuoto(client, crea_utente, db):
+    """Il contraltare: dove non c'era nessun turno, l'assenza ha creato lei
+    la cella e al rifiuto va tolta, non lasciata come giornata vuota."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Senza Turno")
+    dip = Dipendente(cognome="SenzaTurno", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    giorno = date(2026, 8, 20)
+
+    _crea_assenza(client, dip, giorno)
+    assenza = db.query(Assenza).filter_by(dipendente_id=dip.id).first()
+    client.post(f"/assenze/{assenza.id}/rifiuta", follow_redirects=False)
+
+    db.expire_all()
+    assert _assegnazione(db, dip, giorno) is None
+
+
+def test_due_assenze_sovrapposte_non_perdono_la_memoria_del_turno_vero(client, crea_utente, db):
+    """Se una seconda assenza copre un giorno già coperto dalla prima, non
+    deve registrare come "precedente" il vuoto lasciato dalla prima: quello
+    cancellerebbe la memoria del turno vero, che è ciò che va restituito."""
+    dip, tipo, giorno = _dipendente_con_turno_pianificato(client, crea_utente, db)
+    _crea_assenza(client, dip, giorno)
+
+    # Seconda copertura dello stesso giorno, simulata chiamando
+    # direttamente la funzione: via HTTP il controllo di sovrapposizione la
+    # rifiuterebbe, ma la protezione deve reggere comunque.
+    from app.routers.assenze import _copri_giorni_con_assenza
+
+    db.expire_all()
+    _copri_giorni_con_assenza(db, db.get(Dipendente, dip.id), giorno, giorno)
+    db.commit()
+
+    riga = _assegnazione(db, dip, giorno)
+    assert riga.tipo_turno_precedente_id == tipo.id
+    assert riga.origine_precedente == "manuale"

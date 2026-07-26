@@ -193,7 +193,21 @@ class AssegnazioneGiornaliera(Base):
     origine: Mapped[str] = mapped_column(String, nullable=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    tipo_turno: Mapped[TipoTurno | None] = relationship()
+    # Cosa c'era prima che un'assenza coprisse questo giorno. Un'assenza
+    # approvata sovrascrive il turno — essere assenti prevale su quanto
+    # pianificato — ma se poi viene rifiutata o cancellata il turno di prima
+    # va restituito. Senza queste due colonne veniva perso per sempre,
+    # insieme al lavoro di chi aveva pianificato la copertura a mano, e
+    # nemmeno il registro delle modifiche lo conservava. Restano NULL su
+    # tutte le righe che nessuna assenza ha mai toccato.
+    tipo_turno_precedente_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tipi_turno.id"), nullable=True
+    )
+    origine_precedente: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # foreign_keys esplicito: con due colonne che puntano entrambe a
+    # tipi_turno, SQLAlchemy non può indovinare da sola quale usare.
+    tipo_turno: Mapped[TipoTurno | None] = relationship(foreign_keys=[tipo_turno_id])
     sede_effettiva: Mapped[Sede] = relationship()
 
 

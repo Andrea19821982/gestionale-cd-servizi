@@ -466,6 +466,7 @@ def imposta_imap(
         db, utente.id, "impostazioni_imap", 1, "modifica",
         f"host={host.strip()}, utente={imap_utente.strip()}, cartella={cartella.strip()}",
     )
+    db.commit()  # impostazione e riga di log insieme, o nessuna delle due
     imposta_flash(request, "Configurazione della casella email aggiornata.", tipo="ok")
     return RedirectResponse("/bozze-email", status_code=303)
 

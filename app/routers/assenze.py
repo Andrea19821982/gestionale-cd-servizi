@@ -68,7 +68,15 @@ def _si_sovrappone(db: Session, dipendente_id: int, inizio: date, fine: date, es
 def _copri_giorni_con_assenza(db: Session, dipendente: Dipendente, inizio: date, fine: date) -> None:
     """L'assenza approvata disattiva il turno nei giorni che copre:
     sovrascrive qualunque assegnazione ci fosse (pattern o manuale), perché
-    essere assenti prevale su quanto pianificato."""
+    essere assenti prevale su quanto pianificato.
+
+    Prima di sovrascrivere mette da parte il turno che c'era, così un
+    eventuale rifiuto o una cancellazione possono restituirlo (vedi
+    _scopri_giorni_assenza). Il salvataggio avviene solo se non c'è già un
+    valore messo da parte: due assenze che si accavallano sullo stesso
+    giorno non devono far diventare "precedente" il vuoto lasciato dalla
+    prima, cancellando la memoria del turno vero.
+    """
     giorno = inizio
     while giorno <= fine:
         esistente = (
@@ -85,6 +93,9 @@ def _copri_giorni_con_assenza(db: Session, dipendente: Dipendente, inizio: date,
                 origine="assenza",
             ))
         else:
+            if esistente.origine != "assenza" and esistente.origine_precedente is None:
+                esistente.tipo_turno_precedente_id = esistente.tipo_turno_id
+                esistente.origine_precedente = esistente.origine
             esistente.tipo_turno_id = None
             esistente.sede_effettiva_id = dipendente.sede_riferimento_id
             esistente.origine = "assenza"
@@ -94,7 +105,15 @@ def _copri_giorni_con_assenza(db: Session, dipendente: Dipendente, inizio: date,
 def _scopri_giorni_assenza(db: Session, dipendente_id: int, inizio: date, fine: date) -> None:
     """Usata sia al rifiuto sia alla cancellazione: libera le celle che
     l'assenza aveva coperto (solo quelle con origine=assenza: non tocca
-    eventuali altre assegnazioni non collegate a questa assenza)."""
+    eventuali altre assegnazioni non collegate a questa assenza).
+
+    Dove l'assenza aveva sovrascritto un turno già pianificato, quel turno
+    viene rimesso com'era invece di cancellare la cella: rifiutare una
+    richiesta di ferie non deve cancellare due settimane di turni assegnati
+    a mano, che nessuno saprebbe più ricostruire. Le celle create dall'
+    assenza stessa (nessun turno prima) restano da cancellare, perché lì
+    non c'è niente da restituire.
+    """
     righe = (
         db.query(AssegnazioneGiornaliera)
         .filter(
@@ -106,7 +125,13 @@ def _scopri_giorni_assenza(db: Session, dipendente_id: int, inizio: date, fine: 
         .all()
     )
     for riga in righe:
-        db.delete(riga)
+        if riga.origine_precedente is not None:
+            riga.tipo_turno_id = riga.tipo_turno_precedente_id
+            riga.origine = riga.origine_precedente
+            riga.tipo_turno_precedente_id = None
+            riga.origine_precedente = None
+        else:
+            db.delete(riga)
 
 
 @router.get("/assenze")
@@ -318,15 +343,32 @@ def rifiuta_assenza(
 def scarica_allegato_assenza(
     assenza_id: int,
     db: Session = Depends(get_db),
-    utente: Utente = Depends(richiedi_ruolo(*RUOLI_LETTURA)),
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
 ):
+    """Gli allegati delle assenze sono quasi sempre certificati medici: dati
+    sanitari, categoria particolare per il GDPR. Per questo qui NON si usa
+    RUOLI_LETTURA come nelle altre pagine di consultazione.
+
+    Il ruolo "consultazione" viene dato a chi deve solo guardare il
+    calendario — un referente di palazzo, il centralino — e con RUOLI_LETTURA
+    gli bastava cambiare il numero nell'indirizzo (/assenze/1/allegato,
+    /assenze/2/allegato, ...) per scaricarsi l'archivio dei certificati di
+    tutti, cosa che nessuno aveva deciso di concedergli. Qui devono arrivare
+    solo i ruoli che le assenze le gestiscono davvero.
+    """
     assenza = ottieni_o_404(db, Assenza, assenza_id)
     if not assenza.allegato_path:
         raise HTTPException(status_code=404, detail="Questa assenza non ha nessun allegato.")
     percorso = CARTELLA_ALLEGATI / assenza.allegato_path
     if not percorso.is_file():
         raise HTTPException(status_code=404, detail="File allegato non trovato sul disco.")
-    return FileResponse(percorso, filename=assenza.allegato_nome or percorso.name)
+    return FileResponse(
+        percorso,
+        filename=assenza.allegato_nome or percorso.name,
+        # I PC dell'ufficio sono condivisi: senza no-store il certificato
+        # resta nella cache del browser e se lo ritrova chi si siede dopo.
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 @router.post("/assenze/{assenza_id}/elimina")
