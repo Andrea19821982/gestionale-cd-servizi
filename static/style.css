@@ -714,6 +714,25 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
         var(--bg);
 }
 
+/* Ancorato alla finestra (fixed), non al riquadro di login: .login-container
+   eredita anche .container, che aggiunge un margine verticale di 1.75rem
+   sopra e sotto. Con position:absolute il credito si sarebbe posizionato
+   relativo a quel margine e finiva parzialmente sotto il bordo dello
+   schermo, invece che ancorato dove si vede davvero. */
+.login-container .credito-autore {
+    position: fixed;
+    bottom: 1.25rem;
+    left: 0;
+    right: 0;
+}
+
+.credito-autore {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin: 1.25rem 0 0;
+}
+
 .login-box {
     background: var(--panel);
     border: 1px solid var(--border);
