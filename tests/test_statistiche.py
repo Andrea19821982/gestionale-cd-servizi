@@ -355,3 +355,42 @@ def test_disattivato_senza_ore_nel_mese_non_compare(client, crea_utente, db):
     r = client.get("/statistiche?anno=2026&mese=8")
 
     assert "Andato" not in r.text
+
+
+def test_ore_di_un_turno_a_cavallo_di_mezzanotte(client, crea_utente, db):
+    """22:00-06:00 sono 8 ore, non -16. È una riga di aritmetica su cui si
+    basa il calcolo delle ore e quindi la paga, e nessun test la esercitava:
+    un turno notturno non era mai comparso in nessuno scenario di prova. Se
+    quel confronto si rompesse in un refactor, le ore di chi fa le notti
+    diventerebbero sbagliate in silenzio."""
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+
+    sede = Sede(nome="Sede Notturna", colore_hex="#222244", attivo=True)
+    db.add(sede)
+    db.commit()
+    db.refresh(sede)
+    notte = TipoTurno(etichetta="Notte", ora_inizio=time(22, 0), ora_fine=time(6, 0))
+    db.add(notte)
+    db.commit()
+    db.refresh(notte)
+    dip = Dipendente(
+        cognome="Nottambulo", nome="Test", sede_riferimento_id=sede.id,
+        attivo=True, costo_orario=10.0,
+    )
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    for giorno in (5, 6, 7):
+        db.add(AssegnazioneGiornaliera(
+            dipendente_id=dip.id, data=date(2026, 9, giorno),
+            sede_effettiva_id=sede.id, tipo_turno_id=notte.id, origine="manuale",
+        ))
+    db.commit()
+
+    # 3 notti da 8 ore = 24 ore, che a 10 €/ora fanno 240 €.
+    statistiche = client.get("/statistiche?anno=2026&mese=9").text
+    assert "24.0" in statistiche
+
+    report = client.get("/report?anno=2026&mese=9").text
+    assert "240.00" in report

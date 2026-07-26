@@ -45,6 +45,17 @@ DESTINATARI_NOTIFICHE: list[str] = []
 # programma resti bloccato a lungo se il server di posta non risponde.
 SMTP_TIMEOUT_SECONDI = 10
 
+# Stessa protezione per la lettura della posta in arrivo, dove serve anche di
+# più: il polling gira in un thread di sfondo, e senza timeout un server che
+# accetta la connessione ma poi non risponde (provider in difficoltà, firewall
+# che inghiotte i pacchetti) lo lascia bloccato a tempo indeterminato. Non
+# solleva nessuna eccezione, quindi il try/except attorno al ciclo non scatta:
+# la lettura automatica delle richieste dei dipendenti smette di funzionare in
+# silenzio, fino al riavvio del programma — che su quel PC può essere fra
+# settimane. Più generoso di quello SMTP perché scaricare i messaggi è più
+# lento che spedirne uno.
+IMAP_TIMEOUT_SECONDI = 30
+
 
 def notifiche_configurate() -> bool:
     """True solo se tutti i dati necessari per inviare sono stati compilati."""

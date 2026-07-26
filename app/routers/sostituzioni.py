@@ -8,6 +8,7 @@ from app.auth import RUOLI_LETTURA, RUOLI_SCRITTURA_OPERATIVO, richiedi_ruolo
 from app.csrf import richiedi_csrf_valido
 from app.database import get_db
 from app.email_service import invia_notifica_asincrona
+from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import Dipendente, Sede, Sostituzione, Utente
 from app.routers.assenze import _si_sovrappone
@@ -159,6 +160,7 @@ def elenco_sostituzioni(
 
 @router.post("/sostituzioni/nuova")
 def crea_sostituzione(
+    request: Request,
     dipendente_partente_id: int = Form(...),
     sede_partenza_id: int = Form(...),
     dipendente_sostituto_id: int = Form(...),
@@ -235,11 +237,19 @@ def crea_sostituzione(
             "registrato_da": utente.username,
         },
     )
+    imposta_flash(
+        request,
+        f"Sostituzione registrata: {dipendente_sostituto.cognome} {dipendente_sostituto.nome} "
+        f"sostituisce {dipendente_partente.cognome} {dipendente_partente.nome} "
+        f"il {data_sost.strftime('%d/%m/%Y')} ({orario}).",
+        tipo="ok",
+    )
     return RedirectResponse("/sostituzioni", status_code=303)
 
 
 @router.post("/sostituzioni/{sostituzione_id}/elimina")
 def elimina_sostituzione(
+    request: Request,
     sostituzione_id: int,
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
@@ -253,4 +263,5 @@ def elimina_sostituzione(
     db.delete(sostituzione)
     registra_modifica(db, utente.id, "sostituzioni", sostituzione_id, "cancellazione", dettaglio)
     db.commit()
+    imposta_flash(request, "Sostituzione eliminata.", tipo="ok")
     return RedirectResponse("/sostituzioni", status_code=303)

@@ -437,10 +437,21 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     padding: 0.05rem 0.4rem;
 }
 
-.badge-ok-testo { background: var(--ok); }
-.badge-warn-testo { background: var(--warn); }
+/* Contrasto: sono le etichette che si guardano di fretta — "In attesa",
+   "Assente", "Sotto il minimo" — spesso su monitor da ufficio con luce
+   diretta, e col bianco di .badge erano sotto la soglia di leggibilità di
+   4.5:1. Bianco su ambra dava 2.15:1, su verde 2.54:1, su rosso 3.76:1.
+
+   Sui due fondi chiari si passa a un testo scuro (ambra 6.63:1, verde
+   5.22:1). Sul rosso il testo scuro spegnerebbe il colpo d'occhio
+   dell'allarme, quindi si tiene il bianco e si scurisce il fondo del solo
+   badge: 5.74:1, e a distanza resta rosso come prima. La variabile
+   --danger non si tocca, perché la usano anche bordi e pulsanti dove il
+   problema non si pone. */
+.badge-ok-testo { background: var(--ok); color: #05372a; }
+.badge-warn-testo { background: var(--warn); color: #3d2600; }
 .badge-muted { background: var(--muted); }
-.badge-danger-testo { background: var(--danger); }
+.badge-danger-testo { background: #c81e1e; }
 
 .badge-sostituzione {
     display: block;
@@ -883,6 +894,16 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     cursor: pointer;
 }
 
+/* La tendina è invisibile (opacity: 0) e con lei sparisce anche il suo
+   contorno di focus: navigando con Tab non si vedeva su quale cella si
+   fosse, e il rischio è cambiare il turno del giorno o della persona
+   sbagliata. Il contorno va quindi disegnato sul riquadro visibile, che nel
+   markup è il fratello immediato della tendina. */
+.select-cella-overlay:focus-visible + .cella-turno-display {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
 .cella-turno-display {
     display: flex;
     flex-direction: column;
@@ -910,6 +931,34 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 }
 
 .cella-turno-display.vuota .cella-turno-codice { color: var(--muted); font-weight: 600; }
+
+/* Legenda dei colori del calendario. Il bordo della cella porta
+   un'informazione che prima si scopriva solo passando il mouse su ogni
+   singola cella, una per una: inservibile sulla pagina più densa del
+   programma, e impossibile su uno schermo condiviso in riunione. */
+.legenda-calendario {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    margin: 0 0 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.legenda-voce { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.legenda-bordo {
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    background: var(--panel);
+}
+
+.legenda-bordo.origine-manuale { border-color: var(--warn); }
+.legenda-bordo.origine-sostituzione { border-color: var(--accent); }
+.legenda-bordo.origine-assenza { border-color: var(--danger); }
 
 .cella-turno-display.origine-manuale { border-color: var(--warn); border-width: 2px; }
 .cella-turno-display.origine-sostituzione { border-color: var(--accent); border-width: 2px; }

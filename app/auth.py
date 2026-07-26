@@ -108,12 +108,18 @@ def get_utente_corrente(request: Request, db: Session = Depends(get_db)) -> Uten
 
 
 def richiedi_ruolo(*ruoli_ammessi: str):
-    def dependency(utente: Utente = Depends(get_utente_corrente)) -> Utente:
+    def verifica_ruolo(utente: Utente = Depends(get_utente_corrente)) -> Utente:
         if utente.ruolo not in ruoli_ammessi:
             raise HTTPException(status_code=403, detail="Permesso negato per questo ruolo.")
         return utente
 
-    return dependency
+    # Il nome conta: è quello che compare nei traceback, ed è come
+    # tests/test_permessi_rotte.py riconosce, scorrendo tutte le rotte
+    # dell'applicazione, quali abbiano davvero un controllo di ruolo.
+    # Chiamandosi "dependency" com'era prima, questa closure era
+    # indistinguibile da qualunque altra e quel test non poteva funzionare.
+    verifica_ruolo.__name__ = f"verifica_ruolo({', '.join(ruoli_ammessi)})"
+    return verifica_ruolo
 
 
 def puo_approvare_assenze(db: Session, utente: Utente) -> bool:

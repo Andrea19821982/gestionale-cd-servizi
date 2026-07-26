@@ -20,7 +20,7 @@ from email.header import decode_header
 
 from sqlalchemy.orm import Session
 
-from app import impostazioni_email
+from app import email_config, impostazioni_email
 from app.database import SessionLocal
 from app.models import BozzaEmail, Dipendente
 
@@ -266,7 +266,10 @@ def controlla_posta() -> int:
         cfg = impostazioni_email.imap_effettivo(db)
         if not (cfg.host and cfg.utente and cfg.password):
             return 0
-        with imaplib.IMAP4_SSL(cfg.host, cfg.porta) as imap:
+        # timeout: vedi email_config.IMAP_TIMEOUT_SECONDI. Senza, un server
+        # che non risponde blocca questo thread per sempre e la lettura
+        # automatica muore in silenzio.
+        with imaplib.IMAP4_SSL(cfg.host, cfg.porta, timeout=email_config.IMAP_TIMEOUT_SECONDI) as imap:
             imap.login(cfg.utente, cfg.password)
             imap.select(cfg.cartella)
             stato, dati = imap.search(None, "UNSEEN")

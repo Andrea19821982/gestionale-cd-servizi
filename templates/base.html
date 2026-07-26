@@ -103,6 +103,22 @@
             document.body.addEventListener('htmx:sendError', function () {
                 mostra('Server non raggiungibile: controlla che il PC che fa da server sia acceso.');
             });
+
+            // Doppio clic sul pulsante di invio = due POST prima che la
+            // pagina navighi via, quindi un'assenza o un dipendente
+            // duplicato da ripulire a mano. Capita con il trackpad, o
+            // quando la rete dell'ufficio risponde con un attimo di
+            // ritardo. I form con conferma sono esclusi: lì è il dialogo
+            // del browser a bloccare il secondo clic, e disabilitare il
+            // pulsante prima che l'utente scelga "Annulla" lo lascerebbe
+            // spento su una pagina ancora da usare.
+            document.addEventListener('submit', function (e) {
+                var form = e.target;
+                if (form.hasAttribute('onsubmit') || form.hasAttribute('hx-post')) return;
+                var pulsante = form.querySelector('button[type="submit"], button:not([type])');
+                if (!pulsante) return;
+                setTimeout(function () { pulsante.disabled = true; }, 0);
+            });
         })();
     </script>
 </body>

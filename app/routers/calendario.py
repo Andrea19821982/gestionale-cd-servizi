@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.auth import RUOLI_LETTURA, RUOLI_SCRITTURA_OPERATIVO, richiedi_ruolo
 from app.csrf import richiedi_csrf_valido
 from app.database import get_db
+from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import AssegnazioneGiornaliera, Dipendente, PatternTurno, Sede, Sostituzione, TipoTurno, Utente
 from app.templates import templates
@@ -229,6 +230,7 @@ def vista_calendario(
 
 @router.post("/calendario/genera")
 def genera_da_pattern(
+    request: Request,
     sede_id: int = Form(...),
     anno: int = Form(...),
     mese: int = Form(...),
@@ -289,6 +291,18 @@ def genera_da_pattern(
         # frattempo: non è un errore da mostrare all'utente, il risultato
         # a schermo (ricaricato dal redirect) è comunque corretto.
         db.rollback()
+    # Senza questo riscontro il pulsante sembra non fare niente quando il
+    # pattern non è impostato o le celle sono già piene, e non si capisce se
+    # ripetere il clic o se manca una configurazione a monte.
+    if creati:
+        imposta_flash(request, f"Generate {creati} celle dal pattern.", tipo="ok")
+    else:
+        imposta_flash(
+            request,
+            "Nessuna cella da generare: i giorni del mese sono già assegnati, "
+            "oppure i dipendenti di questa sede non hanno un pattern turno impostato.",
+            tipo="avviso",
+        )
     return RedirectResponse(f"/calendario?sede_id={sede_id}&anno={anno}&mese={mese}", status_code=303)
 
 

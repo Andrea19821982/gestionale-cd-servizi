@@ -11,6 +11,7 @@ from app.auth import RUOLI_LETTURA, RUOLI_SCRITTURA_OPERATIVO, puo_approvare_ass
 from app.csrf import richiedi_csrf_valido
 from app.database import get_db
 from app.email_service import invia_notifica_asincrona
+from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, Utente
 from app.paths import cartella_dati
@@ -177,6 +178,7 @@ def elenco_assenze(
 
 @router.post("/assenze/nuova")
 def crea_assenza(
+    request: Request,
     dipendente_id: int = Form(...),
     data_inizio: str = Form(...),
     data_fine: str = Form(...),
@@ -255,11 +257,19 @@ def crea_assenza(
             "registrato_da": utente.username,
         },
     )
+    imposta_flash(
+        request,
+        f"Assenza registrata per {dipendente.cognome} {dipendente.nome} "
+        f"dal {inizio.strftime('%d/%m/%Y')} al {fine.strftime('%d/%m/%Y')}"
+        + (" (approvata automaticamente)." if approvazione_automatica else ", in attesa di approvazione."),
+        tipo="ok",
+    )
     return RedirectResponse("/assenze", status_code=303)
 
 
 @router.post("/assenze/{assenza_id}/approva")
 def approva_assenza(
+    request: Request,
     assenza_id: int,
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_approvatore),
@@ -295,11 +305,13 @@ def approva_assenza(
             "registrato_da": utente.username,
         },
     )
+    imposta_flash(request, "Richiesta approvata.", tipo="ok")
     return RedirectResponse("/assenze", status_code=303)
 
 
 @router.post("/assenze/{assenza_id}/rifiuta")
 def rifiuta_assenza(
+    request: Request,
     assenza_id: int,
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_approvatore),
@@ -335,6 +347,11 @@ def rifiuta_assenza(
             "note": assenza.note,
             "registrato_da": utente.username,
         },
+    )
+    imposta_flash(
+        request,
+        "Richiesta rifiutata: i turni che erano stati sostituiti dall'assenza sono stati ripristinati.",
+        tipo="ok",
     )
     return RedirectResponse("/assenze", status_code=303)
 
@@ -373,6 +390,7 @@ def scarica_allegato_assenza(
 
 @router.post("/assenze/{assenza_id}/elimina")
 def elimina_assenza(
+    request: Request,
     assenza_id: int,
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_OPERATIVO)),
@@ -389,4 +407,5 @@ def elimina_assenza(
         f"dipendente_id={dipendente_id}, {inizio.isoformat()}..{fine.isoformat()}",
     )
     db.commit()
+    imposta_flash(request, "Assenza eliminata.", tipo="ok")
     return RedirectResponse("/assenze", status_code=303)

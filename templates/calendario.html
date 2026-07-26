@@ -46,10 +46,16 @@
 {% endif %}
 
 {% if not sede_corrente %}
-<p class="muted">Nessuna sede attiva configurata.</p>
+<p class="muted">Nessuna sede attiva configurata. <a href="/sedi">Aggiungine una</a>.</p>
 {% elif not dipendenti %}
-<p class="muted">Nessun dipendente attivo assegnato a {{ sede_corrente.nome }}.</p>
+<p class="muted">Nessun dipendente attivo assegnato a {{ sede_corrente.nome }}. <a href="/dipendenti">Assegnane uno in Dipendenti</a>.</p>
 {% else %}
+<p class="legenda-calendario">
+    <span class="legenda-voce"><span class="legenda-bordo origine-manuale"></span>assegnato a mano</span>
+    <span class="legenda-voce"><span class="legenda-bordo origine-sostituzione"></span>sostituzione</span>
+    <span class="legenda-voce"><span class="legenda-bordo origine-assenza"></span>assenza</span>
+    <span class="legenda-voce muted">nessun bordo: generato dal pattern</span>
+</p>
 <div class="scroll-calendario">
 <table class="tabella tabella-calendario">
     <thead>

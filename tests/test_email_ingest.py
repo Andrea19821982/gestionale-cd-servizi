@@ -200,7 +200,7 @@ def test_controlla_posta_crea_bozze_da_email_pertinenti(db, monkeypatch):
     fake = _FakeImap(messaggi)
 
     import app.email_ingest as email_ingest
-    monkeypatch.setattr(email_ingest.imaplib, "IMAP4_SSL", lambda host, porta: fake)
+    monkeypatch.setattr(email_ingest.imaplib, "IMAP4_SSL", lambda host, porta, timeout=None: fake)
     monkeypatch.setattr(email_ingest, "SessionLocal", lambda: db)
     # Evita che il "with" chiuda la sessione di test condivisa.
     db.close = lambda: None
@@ -233,7 +233,7 @@ def test_se_il_commit_della_bozza_fallisce_lemail_non_viene_segnata_letta(db, mo
     fake = _FakeImap(messaggi)
 
     import app.email_ingest as email_ingest
-    monkeypatch.setattr(email_ingest.imaplib, "IMAP4_SSL", lambda host, porta: fake)
+    monkeypatch.setattr(email_ingest.imaplib, "IMAP4_SSL", lambda host, porta, timeout=None: fake)
     monkeypatch.setattr(email_ingest, "SessionLocal", lambda: db)
     db.close = lambda: None
 

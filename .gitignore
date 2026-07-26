@@ -16,6 +16,7 @@ allegati/
 backup/
 indirizzo_server.txt
 log.txt
+calendario_turni.log*
 
 # Script di aggiornamento da chiavetta USB: consegnati sempre come file
 # sciolti insieme al .bundle, mai gestiti da Git — altrimenti la prima

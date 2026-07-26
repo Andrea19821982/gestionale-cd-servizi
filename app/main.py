@@ -19,10 +19,10 @@ from app.config import SECRET_KEY
 from app.csrf import DURATA_COOKIE_SECONDI, NOME_COOKIE_CSRF, genera_token
 from app.database import get_db, init_db
 from app.email_ingest import controlla_posta
+from app.logging_service import configura_logging
 from app.models import Assenza, BozzaEmail, Utente
 from app.paths import cartella_risorse
 from app.riepilogo_giornaliero import controlla_e_invia_se_dovuto
-from app.templates import templates
 from app.routers import (
     allarme_copertura,
     area_personale,
@@ -42,6 +42,7 @@ from app.routers import (
     tipi_turno,
     utenti,
 )
+from app.templates import templates
 
 logger = logging.getLogger("calendario_turni.main")
 
@@ -87,6 +88,10 @@ def _ciclo_backup():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Per prima cosa: i cicli di sfondo avviati qui sotto registrano i loro
+    # errori con logger.exception, e senza configurazione finirebbero su
+    # stderr senza orario né provenienza (vedi configura_logging).
+    configura_logging()
     init_db()
     # Sempre avviato (come gli altri cicli periodici sotto): la
     # configurazione IMAP può arrivare anche da /bozze-email dopo l'avvio
