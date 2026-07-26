@@ -4,8 +4,10 @@ from contextlib import asynccontextmanager
 from datetime import date, timedelta
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import email_config
@@ -20,6 +22,7 @@ from app.email_ingest import controlla_posta
 from app.models import Assenza, BozzaEmail, Utente
 from app.paths import cartella_risorse
 from app.riepilogo_giornaliero import controlla_e_invia_se_dovuto
+from app.templates import templates
 from app.routers import (
     allarme_copertura,
     area_personale,
@@ -106,6 +109,50 @@ app.mount("/static", StaticFiles(directory=str(cartella_risorse() / "static")), 
 @app.exception_handler(NonAutenticato)
 def gestisci_non_autenticato(request: Request, exc: NonAutenticato):
     return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
+
+
+TITOLI_ERRORE = {
+    400: "Non è stato possibile salvare",
+    403: "Non hai i permessi per questa operazione",
+    404: "Pagina o dato non trovato",
+}
+
+
+@app.exception_handler(StarletteHTTPException)
+async def gestisci_errore_http(request: Request, exc: StarletteHTTPException):
+    """Mostra gli errori in una pagina leggibile invece che come JSON grezzo.
+
+    I router sollevano HTTPException con messaggi scritti apposta in italiano
+    semplice ("Il dipendente ha già un'assenza che si sovrappone a questo
+    periodo"), ma i form sono POST normali: il browser NAVIGAVA sulla
+    risposta di default di FastAPI, cioè {"detail": "..."}. L'utente si
+    ritrovava una schermata bianca con del testo tecnico, senza menu e senza
+    un modo ovvio di tornare al form — per un errore di tutti i giorni, come
+    due date che si sovrappongono.
+
+    Il codice di stato NON cambia: resta 400/403/404 esattamente come prima.
+    Cambia solo la forma della risposta, a seconda di chi l'ha chiesta:
+    - htmx: solo il testo, che il gestore globale in base.html mostra in un
+      banner senza ricaricare la pagina;
+    - navigazione del browser (Accept: text/html): errore.html, con il
+      layout e il menu dell'applicazione;
+    - tutto il resto: il JSON di sempre.
+    """
+    if request.headers.get("HX-Request"):
+        return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
+
+    if "text/html" in request.headers.get("accept", ""):
+        return templates.TemplateResponse(
+            request,
+            "errore.html",
+            {
+                "titolo": TITOLI_ERRORE.get(exc.status_code, "Si è verificato un errore"),
+                "messaggio": exc.detail,
+            },
+            status_code=exc.status_code,
+        )
+
+    return await http_exception_handler(request, exc)
 
 
 @app.middleware("http")

@@ -602,6 +602,51 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 .flash-errore { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger); }
 .flash-avviso { background: var(--warn-soft); color: var(--warn); border: 1px solid var(--warn); }
 
+/* Avviso di errore per le richieste htmx (vedi lo script in base.html).
+   Fisso in basso a destra e non in cima alla pagina: le celle del calendario
+   si modificano scorrendo la tabella, e un banner in testa resterebbe fuori
+   schermo proprio nel momento in cui serve. */
+.avviso-errore {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 1000;
+    max-width: 28rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radius-sm);
+    background: var(--danger);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.avviso-errore[hidden] { display: none; }
+
+.avviso-errore-chiudi {
+    flex-shrink: 0;
+    padding: 0 0.3rem;
+    border: none;
+    background: transparent;
+    color: white;
+    font-size: 1.2rem;
+    line-height: 1;
+    box-shadow: none;
+}
+
+.avviso-errore-chiudi:hover { background: rgba(255, 255, 255, 0.18); }
+
+/* Pagina errore.html: il messaggio deve leggersi come una frase, non come
+   un codice di errore. */
+.riquadro-errore { max-width: 34rem; }
+.riquadro-errore .messaggio-errore {
+    font-size: 1.02rem;
+    color: var(--text);
+    margin-bottom: 1.25rem;
+}
+
 .banner-notifica {
     background: var(--warn-soft);
     border-bottom: 1px solid var(--warn);

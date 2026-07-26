@@ -64,5 +64,46 @@
     <main class="container {% block container_extra %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>
+
+    <div id="avviso-errore" class="avviso-errore" hidden role="alert" aria-live="assertive">
+        <span id="avviso-errore-testo"></span>
+        <button type="button" class="avviso-errore-chiudi" aria-label="Chiudi">&times;</button>
+    </div>
+    <script>
+        // Senza questo, un salvataggio htmx fallito non si vede: htmx non
+        // sostituisce niente quando la risposta non è positiva, quindi nel
+        // calendario la tendina mostra già il turno nuovo mentre il riquadro
+        // sotto resta su quello vecchio, e nessuno avvisa che non è stato
+        // salvato. Chi pianifica crede di aver assegnato il turno.
+        (function () {
+            var avviso = document.getElementById('avviso-errore');
+            var testo = document.getElementById('avviso-errore-testo');
+            var timer = null;
+
+            function mostra(messaggio) {
+                testo.textContent = messaggio;
+                avviso.hidden = false;
+                clearTimeout(timer);
+                timer = setTimeout(function () { avviso.hidden = true; }, 8000);
+            }
+
+            avviso.querySelector('.avviso-errore-chiudi').addEventListener('click', function () {
+                avviso.hidden = true;
+            });
+
+            document.body.addEventListener('htmx:responseError', function (e) {
+                var risposta = (e.detail.xhr.responseText || '').trim();
+                mostra(risposta || 'Salvataggio non riuscito. Riprova.');
+                // La pagina è ferma allo stato di prima: ricaricarla rimette
+                // a posto anche i controlli che il browser ha già cambiato
+                // per conto suo, cioè le tendine del calendario.
+                setTimeout(function () { window.location.reload(); }, 4000);
+            });
+
+            document.body.addEventListener('htmx:sendError', function () {
+                mostra('Server non raggiungibile: controlla che il PC che fa da server sia acceso.');
+            });
+        })();
+    </script>
 </body>
 </html>

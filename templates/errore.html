@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ titolo }}{% endblock %}
+{% block content %}
+{# Pagina mostrata al posto della risposta JSON grezza di FastAPI quando una
+   validazione fallisce durante la normale navigazione: prima l'utente si
+   trovava davanti una schermata bianca con del testo tecnico, senza menu e
+   senza modo di tornare indietro se non con il tasto del browser. #}
+<div class="riquadro riquadro-errore">
+    <h1>{{ titolo }}</h1>
+    <p class="messaggio-errore">{{ messaggio }}</p>
+    <p>
+        <a class="btn" href="javascript:history.back()">← Torna indietro e correggi</a>
+        <a class="btn btn-secondary" href="/calendario">Vai al calendario</a>
+    </p>
+</div>
+{% endblock %}
