@@ -10,6 +10,7 @@ from app.database import get_db
 from app.email_service import invia_notifica_asincrona
 from app.logging_service import registra_modifica
 from app.models import Dipendente, Sede, Sostituzione, Utente
+from app.routers.assenze import _si_sovrappone
 from app.templates import templates
 from app.utils import ottieni_o_404
 
@@ -61,6 +62,58 @@ def _sostituzione_in_conflitto(
         if esistente.ora_inizio < fine and esistente.ora_fine > inizio:
             return True
     return False
+
+
+def _sostituto_non_disponibile(
+    db: Session,
+    dipendente_sostituto_id: int,
+    data_sost: date,
+    inizio: time | None,
+    fine: time | None,
+) -> str | None:
+    """Motivo per cui il sostituto scelto non può coprire, o None se è
+    libero. Restituisce già la frase da mostrare: i due motivi vanno
+    spiegati in modo diverso a chi sta compilando il form.
+
+    _sostituzione_in_conflitto qui sopra guarda solo chi VIENE sostituito.
+    Chi sostituisce non lo controllava nessuno, quindi la stessa persona
+    poteva risultare contemporaneamente in due sedi, o essere mandata a
+    coprire un giorno in cui è in ferie. Non è un errore che dia errore: la
+    sostituzione veniva accettata, e il buco si scopriva quando al presidio
+    non si presentava nessuno.
+
+    Controlla solo le impossibilità vere — essere in due posti insieme,
+    essere assente — e non se il sostituto ha un turno proprio quel giorno:
+    spostare qualcuno dal suo turno per coprire altrove è una cosa che si fa
+    di proposito, e bloccarla darebbe fastidio senza motivo.
+    """
+    gia_impegnato = (
+        db.query(Sostituzione)
+        .filter(
+            Sostituzione.dipendente_sostituto_id == dipendente_sostituto_id,
+            Sostituzione.data == data_sost,
+        )
+        .all()
+    )
+    for esistente in gia_impegnato:
+        if inizio is None or esistente.ora_inizio is None:
+            return (
+                "Il sostituto scelto sta già sostituendo un altro dipendente in "
+                "questa data: non può coprire due sedi contemporaneamente."
+            )
+        if esistente.ora_inizio < fine and esistente.ora_fine > inizio:
+            return (
+                "Il sostituto scelto sta già sostituendo un altro dipendente in "
+                "questa data, in un orario che si sovrappone a quello indicato."
+            )
+
+    if _si_sovrappone(db, dipendente_sostituto_id, data_sost, data_sost):
+        return (
+            "Il sostituto scelto risulta assente (ferie, permesso o malattia) "
+            "in questa data."
+        )
+
+    return None
 
 
 @router.get("/sostituzioni")
@@ -142,6 +195,10 @@ def crea_sostituzione(
             status_code=400,
             detail="Esiste già una sostituzione per questo dipendente in questa data che si sovrappone all'orario indicato.",
         )
+
+    motivo = _sostituto_non_disponibile(db, dipendente_sostituto_id, data_sost, inizio, fine)
+    if motivo:
+        raise HTTPException(status_code=400, detail=motivo)
 
     sostituzione = Sostituzione(
         data=data_sost,

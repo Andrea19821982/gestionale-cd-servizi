@@ -23,7 +23,7 @@ from app.logging_service import registra_modifica
 from app.models import Assenza, BozzaEmail, Dipendente, Sostituzione, Utente
 from app.paths import cartella_risorse
 from app.routers.assenze import _copri_giorni_con_assenza, _malattia, _si_sovrappone
-from app.routers.sostituzioni import _sostituzione_in_conflitto
+from app.routers.sostituzioni import _sostituto_non_disponibile, _sostituzione_in_conflitto
 from app.templates import templates
 from app.utils import fk_opzionale_o_400, ottieni_o_404
 
@@ -559,6 +559,12 @@ def conferma_bozza_email(
                 status_code=400,
                 detail="Esiste già una sostituzione per questo dipendente in questa data che si sovrappone all'orario indicato.",
             )
+        # Stesso controllo del form manuale: una bozza arrivata per email non
+        # è più affidabile di quanto scrive a mano l'amministrativo, e qui il
+        # sostituto lo propone chi ha scritto l'email.
+        motivo = _sostituto_non_disponibile(db, sostituto_id, inizio, inizio_ora, fine_ora)
+        if motivo:
+            raise HTTPException(status_code=400, detail=motivo)
 
         sostituzione = Sostituzione(
             data=inizio,

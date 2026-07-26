@@ -61,13 +61,13 @@
     <tbody>
         {% for r in righe_costo %}
         <tr>
-            <td><a href="/dipendenti/{{ r.dipendente.id }}/storico"><span class="avatar" style="background:{{ colore_avatar(r.dipendente.cognome + r.dipendente.nome) }}">{{ iniziali(r.dipendente.nome, r.dipendente.cognome) }}</span>{{ r.dipendente.cognome }} {{ r.dipendente.nome }}</a></td>
+            <td><a href="/dipendenti/{{ r.dipendente.id }}/storico"><span class="avatar" style="background:{{ colore_avatar(r.dipendente.cognome + r.dipendente.nome) }}">{{ iniziali(r.dipendente.nome, r.dipendente.cognome) }}</span>{{ r.dipendente.cognome }} {{ r.dipendente.nome }}</a>{% if not r.dipendente.attivo %} <span class="badge badge-muted" title="Disattivato: compare perché in questo mese ha lavorato">non più attivo</span>{% endif %}</td>
             <td>{{ r.ore_lavorate }}</td>
             <td>{% if r.costo_orario is not none %}{{ "%.2f"|format(r.costo_orario) }} €{% else %}—{% endif %}</td>
             <td>{% if r.costo_totale is not none %}{{ "%.2f"|format(r.costo_totale) }} €{% else %}—{% endif %}</td>
         </tr>
         {% else %}
-        <tr><td colspan="4" class="muted">Nessun dipendente attivo.</td></tr>
+        <tr><td colspan="4" class="muted">Nessun dipendente con ore in questo mese.</td></tr>
         {% endfor %}
     </tbody>
     <tfoot>

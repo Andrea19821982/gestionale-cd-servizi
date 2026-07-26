@@ -27,6 +27,7 @@ from app.database import get_db
 from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, Sostituzione, Utente
 from app.routers.calendario import NOMI_MESE, _anno_mese_validi_o_oggi
 from app.templates import templates
+from app.utils import dipendenti_del_mese
 
 router = APIRouter()
 
@@ -240,12 +241,11 @@ def statistiche(
 ):
     anno, mese = _anno_mese_validi_o_oggi(anno, mese)
 
-    dipendenti = (
-        db.query(Dipendente)
-        .filter(Dipendente.attivo == True)  # noqa: E712
-        .order_by(Dipendente.cognome, Dipendente.nome)
-        .all()
-    )
+    # Include i disattivati che in questo mese hanno comunque lavorato:
+    # altrimenti chi lascia l'azienda a metà mese sparisce dal riepilogo di
+    # quel mese e il costo del lavoro risulta sottostimato (vedi
+    # app/utils.py::dipendenti_del_mese).
+    dipendenti = dipendenti_del_mese(db, anno, mese)
 
     # Una manciata di query per TUTTI i dipendenti (raggruppate per id),
     # invece di ~5 query per ciascuno: con molti dipendenti attivi la

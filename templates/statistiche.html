@@ -40,7 +40,7 @@
     <tbody>
         {% for r in righe %}
         <tr>
-            <td class="colonna-dipendente"><a href="/dipendenti/{{ r.dipendente.id }}/storico">{{ r.dipendente.cognome }} {{ r.dipendente.nome }}</a></td>
+            <td class="colonna-dipendente"><a href="/dipendenti/{{ r.dipendente.id }}/storico">{{ r.dipendente.cognome }} {{ r.dipendente.nome }}</a>{% if not r.dipendente.attivo %} <span class="badge badge-muted" title="Disattivato: compare perché in questo mese ha lavorato">non più attivo</span>{% endif %}</td>
             <td>{{ r.dipendente.sede_riferimento.nome if r.dipendente.sede_riferimento else "—" }}</td>
             <td class="gruppo-inizio">{{ r.ferie_annuali_effettive }}</td>
             <td>{{ r.ferie_usate }}</td>

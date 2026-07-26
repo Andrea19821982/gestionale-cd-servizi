@@ -16,6 +16,7 @@ from app.models import Assenza, Dipendente, Utente
 from app.routers.calendario import NOMI_MESE, _anno_mese_validi_o_oggi
 from app.routers.statistiche import _ore_lavorate_nel_mese_per_dipendenti
 from app.templates import templates
+from app.utils import dipendenti_del_mese
 
 router = APIRouter()
 
@@ -67,12 +68,11 @@ def report(
     ]
     picco_assenteismo = max((r["giorni_assenza"] for r in andamento_assenteismo), default=0)
 
-    dipendenti = (
-        db.query(Dipendente)
-        .filter(Dipendente.attivo == True)  # noqa: E712
-        .order_by(Dipendente.cognome, Dipendente.nome)
-        .all()
-    )
+    # Include i disattivati che in questo mese hanno comunque lavorato:
+    # altrimenti chi lascia l'azienda a metà mese sparisce dal riepilogo di
+    # quel mese e il costo del lavoro risulta sottostimato (vedi
+    # app/utils.py::dipendenti_del_mese).
+    dipendenti = dipendenti_del_mese(db, anno, mese)
     ore_lavorate_per_dip = _ore_lavorate_nel_mese_per_dipendenti(db, [d.id for d in dipendenti], anno, mese)
     righe_costo = []
     totale_costo_azienda = 0.0

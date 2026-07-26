@@ -1,5 +1,59 @@
+from calendar import monthrange
+from datetime import date
+
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
+
+
+def dipendenti_del_mese(db: Session, anno: int, mese: int):
+    """Chi va conteggiato nel riepilogo di un mese: tutti gli attivi, più i
+    disattivati che in quel mese hanno lavorato o sono stati assenti.
+
+    Filtrare solo su attivo==True sembra ovvio e invece falsa i numeri: chi
+    lascia l'azienda il 20 agosto sparisce anche dal riepilogo di agosto,
+    il mese in cui ha lavorato venti giorni. Le sue ore e il suo costo non
+    venivano sommati da nessuna parte, quindi il costo del lavoro del mese
+    risultava più basso del vero — senza nessun avviso, e proprio quando si
+    chiudono le buste paga.
+
+    Chi stampa la riga distingue i disattivati guardando dipendente.attivo.
+    """
+    from app.models import AssegnazioneGiornaliera, Assenza, Dipendente
+
+    primo = date(anno, mese, 1)
+    ultimo = date(anno, mese, monthrange(anno, mese)[1])
+
+    ha_turni = (
+        db.query(AssegnazioneGiornaliera.dipendente_id)
+        .filter(
+            AssegnazioneGiornaliera.data >= primo,
+            AssegnazioneGiornaliera.data <= ultimo,
+        )
+        .distinct()
+    )
+    ha_assenze = (
+        db.query(Assenza.dipendente_id)
+        .filter(
+            Assenza.stato != "rifiutata",
+            Assenza.data_inizio <= ultimo,
+            Assenza.data_fine >= primo,
+        )
+        .distinct()
+    )
+
+    return (
+        db.query(Dipendente)
+        .filter(
+            or_(
+                Dipendente.attivo == True,  # noqa: E712
+                Dipendente.id.in_(ha_turni),
+                Dipendente.id.in_(ha_assenze),
+            )
+        )
+        .order_by(Dipendente.cognome, Dipendente.nome)
+        .all()
+    )
 
 
 def ottieni_o_404(db: Session, modello, id_valore):

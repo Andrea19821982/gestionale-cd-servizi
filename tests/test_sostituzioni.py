@@ -417,3 +417,110 @@ def test_elenco_filtrato_per_dipendente_e_periodo(client, crea_utente, db):
     r2 = client.get("/sostituzioni?data_da=2026-09-01")
     assert "2026-09-01" in r2.text
     assert "2026-08-01" not in r2.text
+
+
+def _scenario_sostituto(client, crea_utente, db):
+    """Due dipendenti da sostituire e un unico sostituto conteso, ciascuno
+    con la propria sede: lo scenario dei test qui sotto."""
+    _login_admin(client, crea_utente)
+    sede_a = _crea_sede(db, "Palazzo A", "#111111")
+    sede_b = _crea_sede(db, "Palazzo B", "#222222")
+    primo = Dipendente(cognome="PrimoAssente", nome="Test", sede_riferimento_id=sede_a.id, attivo=True)
+    secondo = Dipendente(cognome="SecondoAssente", nome="Test", sede_riferimento_id=sede_b.id, attivo=True)
+    sostituto = Dipendente(cognome="Conteso", nome="Test", sede_riferimento_id=sede_a.id, attivo=True)
+    db.add_all([primo, secondo, sostituto])
+    db.commit()
+    for d in (primo, secondo, sostituto):
+        db.refresh(d)
+    return sede_a, sede_b, primo, secondo, sostituto
+
+
+def _posta_sostituzione(client, partente, sede_partenza, sostituto, sede_arrivo, giorno, ora_inizio="", ora_fine=""):
+    return client.post(
+        "/sostituzioni/nuova",
+        data={
+            "dipendente_partente_id": partente.id,
+            "sede_partenza_id": sede_partenza.id,
+            "dipendente_sostituto_id": sostituto.id,
+            "sede_arrivo_id": sede_arrivo.id,
+            "data": giorno,
+            "ora_inizio": ora_inizio,
+            "ora_fine": ora_fine,
+        },
+        follow_redirects=False,
+    )
+
+
+def test_stesso_sostituto_non_puo_coprire_due_sedi_nello_stesso_giorno(client, crea_utente, db):
+    """Il controllo di conflitto guardava solo chi VIENE sostituito: la
+    stessa persona poteva risultare contemporaneamente in due palazzi, e il
+    buco si scopriva quando al presidio non si presentava nessuno."""
+    sede_a, sede_b, primo, secondo, sostituto = _scenario_sostituto(client, crea_utente, db)
+
+    prima = _posta_sostituzione(client, primo, sede_a, sostituto, sede_a, "2026-09-10")
+    assert prima.status_code == 303
+
+    seconda = _posta_sostituzione(client, secondo, sede_b, sostituto, sede_b, "2026-09-10")
+
+    assert seconda.status_code == 400
+    assert db.query(Sostituzione).count() == 1
+
+
+def test_stesso_sostituto_su_fasce_orarie_sovrapposte_rifiutato(client, crea_utente, db):
+    sede_a, sede_b, primo, secondo, sostituto = _scenario_sostituto(client, crea_utente, db)
+
+    prima = _posta_sostituzione(client, primo, sede_a, sostituto, sede_a, "2026-09-11", "09:00", "13:00")
+    assert prima.status_code == 303
+
+    seconda = _posta_sostituzione(client, secondo, sede_b, sostituto, sede_b, "2026-09-11", "11:00", "15:00")
+
+    assert seconda.status_code == 400
+    assert db.query(Sostituzione).count() == 1
+
+
+def test_stesso_sostituto_su_fasce_che_non_si_toccano_e_permesso(client, crea_utente, db):
+    """Il contraltare: chi copre 9-11 in un palazzo può coprire 11-13 in un
+    altro. Bloccarlo sarebbe stato più comodo da programmare e sbagliato."""
+    sede_a, sede_b, primo, secondo, sostituto = _scenario_sostituto(client, crea_utente, db)
+
+    prima = _posta_sostituzione(client, primo, sede_a, sostituto, sede_a, "2026-09-12", "09:00", "11:00")
+    seconda = _posta_sostituzione(client, secondo, sede_b, sostituto, sede_b, "2026-09-12", "11:00", "13:00")
+
+    assert prima.status_code == 303
+    assert seconda.status_code == 303
+    assert db.query(Sostituzione).count() == 2
+
+
+def test_non_si_puo_mandare_a_sostituire_chi_e_in_ferie(client, crea_utente, db):
+    """Mandare a coprire un presidio una persona che quel giorno è in ferie
+    è un buco garantito: il programma lo accettava senza dire niente."""
+    sede_a, sede_b, primo, secondo, sostituto = _scenario_sostituto(client, crea_utente, db)
+
+    client.post(
+        "/assenze/nuova",
+        data={
+            "dipendente_id": sostituto.id,
+            "data_inizio": "2026-09-15",
+            "data_fine": "2026-09-15",
+            "tipo_assenza": "Ferie",
+        },
+        follow_redirects=False,
+    )
+
+    r = _posta_sostituzione(client, primo, sede_a, sostituto, sede_a, "2026-09-15")
+
+    assert r.status_code == 400
+    assert "assente" in r.text.lower()
+    assert db.query(Sostituzione).count() == 0
+
+
+def test_sostituto_libero_in_un_altro_giorno_resta_assegnabile(client, crea_utente, db):
+    """Le restrizioni valgono per lo stesso giorno, non in generale."""
+    sede_a, sede_b, primo, secondo, sostituto = _scenario_sostituto(client, crea_utente, db)
+
+    prima = _posta_sostituzione(client, primo, sede_a, sostituto, sede_a, "2026-09-20")
+    seconda = _posta_sostituzione(client, secondo, sede_b, sostituto, sede_b, "2026-09-21")
+
+    assert prima.status_code == 303
+    assert seconda.status_code == 303
+    assert db.query(Sostituzione).count() == 2
