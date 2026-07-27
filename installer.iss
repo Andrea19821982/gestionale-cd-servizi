@@ -27,7 +27,7 @@
 #define NomeApp "Gestionale CD-Servizi"
 ; Versione: tenerla allineata a versione_client.txt e versione_server.txt,
 ; che sono le informazioni incorporate nei due eseguibili.
-#define Versione "1.0.4"
+#define Versione "1.0.5"
 #define Produttore "CD Servizi"
 
 [Setup]
