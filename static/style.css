@@ -3,7 +3,11 @@
     --panel: #ffffff;
     --text: #1f2937;
     --text-secondary: #475569;
-    --muted: #64748b;
+    /* Grigio dei testi secondari. Era #64748b, che sul fondo grigio delle
+       intestazioni di tabella (#f7f8fb) dava 4.48:1 contro i 4.5:1 minimi:
+       mancava un niente, ma lo si vede proprio sulle etichette di servizio
+       che si leggono di sfuggita. Ora 4.96:1 lì e 5.27:1 sul bianco. */
+    --muted: #5f6d80;
     --border: #e2e8f0;
     --border-strong: #cbd5e1;
     --accent: #2563eb;
@@ -628,7 +632,14 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     gap: 0.75rem;
     padding: 0.8rem 1rem;
     border-radius: var(--radius-sm);
-    background: var(--danger);
+    /* Fondo più scuro di --danger: il testo bianco su #ef4444 stava a
+       3.76:1, sotto la soglia di 4.5:1, e qui non è un dettaglio decorativo
+       ma il messaggio che spiega perché un salvataggio non è andato a buon
+       fine — cioè l'unica cosa che l'utente ha per capire cosa è successo.
+       Con #d92626 sale a 4.93:1 e a colpo d'occhio resta lo stesso rosso di
+       allarme. La variabile --danger non si tocca: la usano bordi e
+       pulsanti, dove il testo bianco sopra non c'è. */
+    background: #d92626;
     color: white;
     font-weight: 600;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);

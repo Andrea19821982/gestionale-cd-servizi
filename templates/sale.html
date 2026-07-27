@@ -22,8 +22,8 @@
                     <div class="riquadro">
                         <form method="post" action="/sale/{{ s.id }}/modifica" class="form-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-                            <input type="text" name="nome" value="{{ s.nome }}" required>
-                            <select name="sede_id" required>
+                            <input type="text" name="nome" value="{{ s.nome }}" aria-label="Nome della sala" required>
+                            <select name="sede_id" aria-label="Palazzo" required>
                                 {% for sede in sedi %}
                                 <option value="{{ sede.id }}" {% if sede.id == s.sede_id %}selected{% endif %}>{{ sede.nome }}</option>
                                 {% endfor %}
@@ -45,13 +45,15 @@
 <h2>Nuova sala</h2>
 <form method="post" action="/sale/nuova" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <input type="text" name="nome" placeholder="Nome sala" required>
-    <select name="sede_id" required>
-        <option value="" disabled selected>Palazzo</option>
+    <label>Nome sala <input type="text" name="nome" required></label>
+    <label>Palazzo
+        <select name="sede_id" required>
+        <option value="" disabled selected>— scegli —</option>
         {% for sede in sedi %}
         <option value="{{ sede.id }}">{{ sede.nome }}</option>
         {% endfor %}
-    </select>
+        </select>
+    </label>
     <label>Copertura aggiuntiva <input type="number" name="copertura_minima_aggiuntiva" value="1" min="0" required style="width:5em;"></label>
     <button type="submit">Aggiungi</button>
 </form>
@@ -90,15 +92,17 @@
 <h2>Nuovo evento</h2>
 <form method="post" action="/sale/eventi/nuovo" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <select name="sala_id" required>
-        <option value="" disabled selected>Sala</option>
+    <label>Sala
+        <select name="sala_id" required>
+        <option value="" disabled selected>— scegli —</option>
         {% for s in sale %}
         <option value="{{ s.id }}">{{ s.nome }} ({{ s.sede.nome }})</option>
         {% endfor %}
-    </select>
+        </select>
+    </label>
     <label>Dal <input type="date" name="data_inizio" required></label>
     <label>Al <input type="date" name="data_fine" required></label>
-    <input type="text" name="descrizione" placeholder="Descrizione (facoltativo)">
+    <label>Descrizione <input type="text" name="descrizione" placeholder="facoltativo"></label>
     <label>Ripeti ogni settimana fino al (facoltativo) <input type="date" name="ripeti_fino_al"></label>
     <button type="submit">Registra evento</button>
 </form>

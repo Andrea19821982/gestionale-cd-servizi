@@ -21,19 +21,19 @@
                     <div class="riquadro">
                         <form method="post" action="/utenti/{{ u.id }}/modifica" class="form-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-                            <select name="ruolo" required>
+                            <select name="ruolo" aria-label="Ruolo dell'utente" required>
                                 {% for r in ruoli_validi %}
                                 <option value="{{ r }}" {% if u.ruolo == r %}selected{% endif %}>{{ r }}</option>
                                 {% endfor %}
                             </select>
-                            <select name="dipendente_collegato_id">
+                            <select name="dipendente_collegato_id" aria-label="Dipendente collegato">
                                 <option value="">— nessuno —</option>
                                 {% for d in dipendenti %}
                                 <option value="{{ d.id }}" {% if u.dipendente_collegato_id == d.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
                                 {% endfor %}
                             </select>
                             <label><input type="checkbox" name="attivo" {% if u.attivo %}checked{% endif %}> attivo</label>
-                            <input type="password" name="nuova_password" placeholder="Nuova password (facoltativo)" minlength="8">
+                            <input type="password" name="nuova_password" placeholder="Nuova password (facoltativo)" aria-label="Nuova password, lascia vuoto per non cambiarla" minlength="8">
                             <button type="submit">Salva</button>
                         </form>
                     </div>
@@ -47,19 +47,23 @@
 <h2>Nuovo utente</h2>
 <form method="post" action="/utenti/nuovo" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <input type="text" name="username" placeholder="Username" required>
-    <input type="password" name="password" placeholder="Password (min. 8 caratteri)" minlength="8" required>
-    <select name="ruolo" required>
+    <label>Username <input type="text" name="username" required></label>
+    <label>Password <input type="password" name="password" placeholder="min. 8 caratteri" minlength="8" required></label>
+    <label>Ruolo
+        <select name="ruolo" required>
         {% for r in ruoli_validi %}
         <option value="{{ r }}">{{ r }}</option>
         {% endfor %}
-    </select>
-    <select name="dipendente_collegato_id">
-        <option value="">Nessun dipendente collegato</option>
+        </select>
+    </label>
+    <label>Dipendente collegato
+        <select name="dipendente_collegato_id">
+        <option value="">— nessuno —</option>
         {% for d in dipendenti %}
         <option value="{{ d.id }}">{{ d.cognome }} {{ d.nome }}</option>
         {% endfor %}
-    </select>
+        </select>
+    </label>
     <button type="submit">Crea utente</button>
 </form>
 
@@ -101,17 +105,19 @@
 <h3>Nuova delega</h3>
 <form method="post" action="/deleghe/nuova" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <select name="utente_delegato_id" required>
-        <option value="" disabled selected>Utente da delegare</option>
+    <label>Utente da delegare
+        <select name="utente_delegato_id" required>
+        <option value="" disabled selected>— scegli —</option>
         {% for u in utenti %}
         {% if u.ruolo != "dipendente" and u.attivo %}
         <option value="{{ u.id }}">{{ u.username }} ({{ u.ruolo }})</option>
         {% endif %}
         {% endfor %}
-    </select>
+        </select>
+    </label>
     <label>Dal <input type="date" name="data_inizio" required></label>
     <label>Al <input type="date" name="data_fine" required></label>
-    <input type="text" name="note" placeholder="Note (facoltativo)">
+    <label>Note <input type="text" name="note" placeholder="facoltativo"></label>
     <button type="submit">Crea delega</button>
 </form>
 {% endblock %}

@@ -21,10 +21,10 @@
                     <div class="riquadro">
                         <form method="post" action="/tipi-turno/{{ t.id }}/modifica" class="form-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-                            <input type="text" name="etichetta" value="{{ t.etichetta }}" required>
-                            <input type="time" name="ora_inizio" value="{{ t.ora_inizio.strftime('%H:%M') }}" required>
-                            <input type="time" name="ora_fine" value="{{ t.ora_fine.strftime('%H:%M') }}" required>
-                            <select name="fascia">
+                            <input type="text" name="etichetta" value="{{ t.etichetta }}" aria-label="Etichetta del turno" required>
+                            <input type="time" name="ora_inizio" value="{{ t.ora_inizio.strftime('%H:%M') }}" aria-label="Ora di inizio" required>
+                            <input type="time" name="ora_fine" value="{{ t.ora_fine.strftime('%H:%M') }}" aria-label="Ora di fine" required>
+                            <select name="fascia" aria-label="Fascia">
                                 <option value="" {% if not t.fascia %}selected{% endif %}>— non classificato —</option>
                                 <option value="mattina" {% if t.fascia == "mattina" %}selected{% endif %}>Mattina</option>
                                 <option value="pomeriggio" {% if t.fascia == "pomeriggio" %}selected{% endif %}>Pomeriggio</option>
@@ -48,7 +48,7 @@
 <h2>Nuovo tipo turno</h2>
 <form method="post" action="/tipi-turno/nuovo" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <input type="text" name="etichetta" placeholder="Etichetta (es. Mattina)" required>
+    <label>Etichetta <input type="text" name="etichetta" placeholder="es. Mattina" required></label>
     <label>Dalle <input type="time" name="ora_inizio" required></label>
     <label>Alle <input type="time" name="ora_fine" required></label>
     <label>Fascia

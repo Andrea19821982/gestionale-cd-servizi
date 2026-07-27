@@ -23,8 +23,8 @@
                     <div class="riquadro">
                         <form method="post" action="/sedi/{{ s.id }}/modifica" class="form-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-                            <input type="text" name="nome" value="{{ s.nome }}" required>
-                            <input type="color" name="colore_hex" value="{{ s.colore_hex }}" required>
+                            <input type="text" name="nome" value="{{ s.nome }}" aria-label="Nome della sede" required>
+                            <input type="color" name="colore_hex" value="{{ s.colore_hex }}" aria-label="Colore della sede" required>
                             <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="{{ s.copertura_minima_mattina }}" min="0" required style="width:5em;"></label>
                             <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="{{ s.copertura_minima_pomeriggio }}" min="0" required style="width:5em;"></label>
                             <label>Ordine visualizzazione <input type="number" name="ordine_visualizzazione" value="{{ s.ordine_visualizzazione }}" required style="width:4em;"></label>
@@ -45,8 +45,8 @@
 <h2>Nuova sede</h2>
 <form method="post" action="/sedi/nuova" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <input type="text" name="nome" placeholder="Nome sede" required>
-    <input type="color" name="colore_hex" value="#2563eb" required>
+    <label>Nome sede <input type="text" name="nome" required></label>
+    <label>Colore <input type="color" name="colore_hex" value="#2563eb" required></label>
     <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="0" min="0" required style="width:5em;"></label>
     <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="0" min="0" required style="width:5em;"></label>
     <label>Ordine visualizzazione <input type="number" name="ordine_visualizzazione" value="0" required style="width:4em;"></label>
@@ -74,12 +74,12 @@
                     <div class="riquadro">
                         <form method="post" action="/sedi/comparti/{{ c.id }}/modifica" class="form-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-                            <select name="sede_id" required>
+                            <select name="sede_id" aria-label="Sede a cui appartiene il comparto" required>
                                 {% for s in sedi %}
                                 <option value="{{ s.id }}" {% if c.sede_id == s.id %}selected{% endif %}>{{ s.nome }}</option>
                                 {% endfor %}
                             </select>
-                            <input type="text" name="nome" value="{{ c.nome }}" required>
+                            <input type="text" name="nome" value="{{ c.nome }}" aria-label="Nome del comparto" required>
                             <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="{{ c.copertura_minima_mattina }}" min="0" required style="width:5em;"></label>
                             <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="{{ c.copertura_minima_pomeriggio }}" min="0" required style="width:5em;"></label>
                             <button type="submit">Salva</button>
@@ -96,12 +96,12 @@
 <h3>Nuovo comparto</h3>
 <form method="post" action="/sedi/comparti/nuovo" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <select name="sede_id" required>
+    <select name="sede_id" aria-label="Sede" required>
         {% for s in sedi %}
         <option value="{{ s.id }}">{{ s.nome }}</option>
         {% endfor %}
     </select>
-    <input type="text" name="nome" placeholder="Nome comparto (es. Parcheggio)" required>
+    <label>Nome comparto <input type="text" name="nome" placeholder="es. Parcheggio" required></label>
     <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="0" min="0" required style="width:5em;"></label>
     <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="0" min="0" required style="width:5em;"></label>
     <button type="submit">Aggiungi</button>

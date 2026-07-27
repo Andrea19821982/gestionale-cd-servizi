@@ -55,7 +55,7 @@
         <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato: compilalo qui sotto in "Casella email per le richieste dei dipendenti", nel testo qui sotto resta un segnaposto da completare a mano prima di inoltrarlo.</p>
         {% endif %}
         <p class="muted">Copia oggetto e corpo qui sotto e inoltrali per email ai dipendenti che devono segnalare ferie, permessi, malattie e sostituzioni. Rispettando questo formato, il programma legge da solo l'email e prepara la richiesta pronta da confermare qui sopra.</p>
-        <textarea id="testo-email-dipendenti" readonly rows="30" style="width:100%; font-family: ui-monospace, monospace; font-size: 0.85rem;">{{ testo_email_dipendenti }}</textarea>
+        <textarea id="testo-email-dipendenti" aria-label="Testo dell'email da inoltrare ai dipendenti" readonly rows="30" style="width:100%; font-family: ui-monospace, monospace; font-size: 0.85rem;">{{ testo_email_dipendenti }}</textarea>
         <button type="button" onclick="const t=document.getElementById('testo-email-dipendenti'); t.select(); navigator.clipboard.writeText(t.value); this.textContent='✅ Copiato!'; setTimeout(() => { this.textContent='📋 Copia testo'; }, 2000);">📋 Copia testo</button>
         <a href="/bozze-email/guida-stampa" target="_blank">📄 Scarica/stampa PDF con bozza email e guida</a>
     </div>
@@ -87,7 +87,7 @@
 {% endif %}
 
 <form method="get" class="form-inline">
-    <select name="stato">
+    <select name="stato" aria-label="Filtra per stato">
         <option value="da_confermare" {% if stato_filtro == "da_confermare" %}selected{% endif %}>Da confermare</option>
         <option value="confermata" {% if stato_filtro == "confermata" %}selected{% endif %}>Confermate</option>
         <option value="scartata" {% if stato_filtro == "scartata" %}selected{% endif %}>Scartate</option>

@@ -4,13 +4,13 @@
 <h1>Assenze</h1>
 
 <form method="get" class="form-inline">
-    <select name="dipendente_id">
+    <select name="dipendente_id" aria-label="Filtra per dipendente">
         <option value="">Tutti i dipendenti</option>
         {% for d in dipendenti %}
         <option value="{{ d.id }}" {% if filtri.dipendente_id == d.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
         {% endfor %}
     </select>
-    <select name="stato">
+    <select name="stato" aria-label="Filtra per stato">
         <option value="" {% if not filtri.stato %}selected{% endif %}>Tutti gli stati</option>
         <option value="richiesta" {% if filtri.stato == "richiesta" %}selected{% endif %}>In attesa di approvazione</option>
         <option value="approvata" {% if filtri.stato == "approvata" %}selected{% endif %}>Approvata</option>
@@ -80,13 +80,15 @@
 <p class="muted">L'assenza copre subito il calendario, senza aspettare l'approvazione. Se un amministratore la rifiuterà, le celle coperte torneranno libere ma la richiesta resterà nello storico del dipendente.</p>
 <form method="post" action="/assenze/nuova" class="form-inline" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <select name="dipendente_id" required>
-        <option value="" disabled selected>Dipendente</option>
+    <label>Dipendente
+        <select name="dipendente_id" required>
+        <option value="" disabled selected>— scegli —</option>
         {% for d in dipendenti %}
         <option value="{{ d.id }}">{{ d.cognome }} {{ d.nome }}</option>
         {% endfor %}
-    </select>
-    <input type="text" name="tipo_assenza" list="suggerimenti-tipo-assenza" placeholder="Tipo (es. Ferie)" required>
+        </select>
+    </label>
+    <label>Tipo <input type="text" name="tipo_assenza" list="suggerimenti-tipo-assenza" placeholder="es. Ferie" required></label>
     <datalist id="suggerimenti-tipo-assenza">
         <option value="Ferie">
         <option value="Malattia">
@@ -94,7 +96,7 @@
     </datalist>
     <label>Dal <input type="date" name="data_inizio" required></label>
     <label>Al <input type="date" name="data_fine" required></label>
-    <input type="text" name="note" placeholder="Note (facoltativo)">
+    <label>Note <input type="text" name="note" placeholder="facoltativo"></label>
     <label>Certificato (facoltativo) <input type="file" name="allegato" accept=".pdf,.jpg,.jpeg,.png"></label>
     <button type="submit">Registra assenza</button>
 </form>

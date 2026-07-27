@@ -5,7 +5,7 @@
 <h1>Calendario — {{ mese_nome }} {{ anno }}</h1>
 
 <form method="get" class="form-inline filtro">
-    <select name="sede_id" onchange="this.form.submit()">
+    <select name="sede_id" aria-label="Palazzo da visualizzare" onchange="this.form.submit()">
         {% for s in sedi %}
         <option value="{{ s.id }}" {% if sede_corrente and sede_corrente.id == s.id %}selected{% endif %}>{{ s.nome }}</option>
         {% endfor %}

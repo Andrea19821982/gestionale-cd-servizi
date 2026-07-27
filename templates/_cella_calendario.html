@@ -16,6 +16,13 @@
         <select
             name="tipo_turno_id"
             class="select-cella-overlay"
+            {# La tendina è invisibile e sovrapposta al riquadro: senza un nome
+               proprio, tutte le celle del mese si presentano identiche. Il
+               title dice solo da dove viene il turno (pattern o manuale), non
+               di chi né di quando, così muovendosi con Tab non si sa su quale
+               cella si sta per intervenire — e la modifica parte al primo
+               cambio, senza conferma. Qui va quindi la persona e il giorno. #}
+            aria-label="Turno di {{ dipendente.cognome }} {{ dipendente.nome }} del {{ data_iso[8:10] }}/{{ data_iso[5:7] }}/{{ data_iso[0:4] }}"
             title="{{ assegnazione.origine if assegnazione else 'nessun turno' }}"
             hx-post="/calendario/cella"
             hx-trigger="change"
