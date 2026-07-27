@@ -137,7 +137,7 @@ class Dipendente(Base):
     sede_riferimento: Mapped[Sede | None] = relationship()
 
 
-FASCE_TURNO_VALIDE = ("mattina", "pomeriggio")
+FASCE_TURNO_VALIDE = ("mattina", "pomeriggio", "entrambe")
 
 
 class TipoTurno(Base):
@@ -156,9 +156,12 @@ class TipoTurno(Base):
     # esplicitamente dall'amministratore in Tipi turno, mai dedotto in
     # automatico dall'orario, perché un turno come "Pomeriggio lungo"
     # (14:30-21:00) o uno importato con orari intermedi non ha una fascia
-    # ovvia da un semplice confronto sull'ora di inizio. None = non ancora
-    # classificato: quel turno non entra nel conteggio di nessuna delle due
-    # fasce finché l'amministratore non lo imposta.
+    # ovvia da un semplice confronto sull'ora di inizio. "entrambe" è per un
+    # turno che copre parte di entrambe le fasce (es. un intermedio
+    # 11:00-17:30): chi lo fa risulta presente sia per il minimo mattina sia
+    # per quello pomeriggio. None = non ancora classificato: quel turno non
+    # entra nel conteggio di nessuna fascia finché l'amministratore non lo
+    # imposta (vedi l'avviso in copertura.html).
     fascia: Mapped[str | None] = mapped_column(String, nullable=True)
 
 

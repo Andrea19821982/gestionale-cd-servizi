@@ -49,15 +49,21 @@ def _righe_presenza(dipendenti: list[Dipendente], assegnazioni: dict[int, Assegn
 
 def _presenti_per_fascia(righe: list[dict]) -> dict[str, int]:
     """Quanti presenti in ciascuna fascia (mattina/pomeriggio), secondo
-    TipoTurno.fascia del turno assegnato. Un turno non ancora classificato
-    (fascia=None, vedi TipoTurno) non entra in nessuna delle due fasce: la
-    persona compare comunque come "presente" nell'elenco, semplicemente non
-    concorre al minimo di nessuna fascia finché il turno non viene
-    classificato in Tipi turno. "non_classificati" conta quante di queste
-    persone presenti restano fuori dal conteggio per questo motivo: senza
-    saperlo, un minimo mattina/pomeriggio configurato ma con i turni reali
-    ancora tutti non classificati risulterebbe sempre "sotto il minimo"
-    anche a organico pieno, in modo silenzioso e fuorviante — vedi
+    TipoTurno.fascia del turno assegnato. Un turno "entrambe" (es. un
+    intermedio 11:00-17:30, che copre parte di entrambe) fa contare la
+    persona sia per il minimo mattina sia per quello pomeriggio: non è un
+    caso raro da trascurare, è esattamente il tipo di turno che serve per un
+    comparto coperto su un solo turno atipico invece che su due come il
+    resto del palazzo.
+
+    Un turno non ancora classificato (fascia=None, vedi TipoTurno) non entra
+    in nessuna fascia: la persona compare comunque come "presente"
+    nell'elenco, semplicemente non concorre al minimo finché il turno non
+    viene classificato in Tipi turno. "non_classificati" conta quante di
+    queste persone presenti restano fuori dal conteggio per questo motivo:
+    senza saperlo, un minimo mattina/pomeriggio configurato ma con i turni
+    reali ancora tutti non classificati risulterebbe sempre "sotto il
+    minimo" anche a organico pieno, in modo silenzioso e fuorviante — vedi
     l'avviso in copertura.html quando questo numero non è zero."""
     conteggio = {"mattina": 0, "pomeriggio": 0}
     non_classificati = 0
@@ -65,7 +71,10 @@ def _presenti_per_fascia(righe: list[dict]) -> dict[str, int]:
         if riga["stato"] != "presente":
             continue
         fascia = riga["assegnazione"].tipo_turno.fascia
-        if fascia in conteggio:
+        if fascia == "entrambe":
+            conteggio["mattina"] += 1
+            conteggio["pomeriggio"] += 1
+        elif fascia in conteggio:
             conteggio[fascia] += 1
         else:
             non_classificati += 1

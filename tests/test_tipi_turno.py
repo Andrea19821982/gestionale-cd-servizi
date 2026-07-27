@@ -148,3 +148,38 @@ def test_modifica_tipo_turno_cambia_fascia(client, crea_utente, db):
     assert r.status_code == 303
     db.refresh(tipo)
     assert tipo.fascia == "pomeriggio"
+
+
+def test_crea_tipo_turno_con_fascia_entrambe(client, crea_utente, db):
+    """Un turno intermedio che copre parte di entrambe le fasce: prima
+    l'unica alternativa a mattina/pomeriggio era lasciarlo non classificato,
+    il che lo escludeva da qualunque minimo di copertura."""
+    _login_admin(client, crea_utente)
+    r = client.post(
+        "/tipi-turno/nuovo",
+        data={"etichetta": "Intermedio Test", "ora_inizio": "11:00", "ora_fine": "17:30", "fascia": "entrambe"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    tipo = db.query(TipoTurno).filter_by(etichetta="Intermedio Test").first()
+    assert tipo.fascia == "entrambe"
+
+    pagina = client.get("/tipi-turno").text
+    assert "Entrambe" in pagina
+
+
+def test_modifica_tipo_turno_a_fascia_entrambe(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    tipo = TipoTurno(etichetta="Da Riclassificare", ora_inizio=time(11, 0), ora_fine=time(17, 30), fascia="mattina")
+    db.add(tipo)
+    db.commit()
+    db.refresh(tipo)
+
+    r = client.post(
+        f"/tipi-turno/{tipo.id}/modifica",
+        data={"etichetta": tipo.etichetta, "ora_inizio": "11:00", "ora_fine": "17:30", "fascia": "entrambe"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    db.refresh(tipo)
+    assert tipo.fascia == "entrambe"

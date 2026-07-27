@@ -402,3 +402,75 @@ def test_consultazione_non_vede_il_pulsante_organizza_sostituzione(client, crea_
 
     r = client.get(f"/copertura?data={oggi.isoformat()}")
     assert "Organizza sostituzione" not in r.text
+
+
+def test_turno_entrambe_conta_sia_per_mattina_sia_per_pomeriggio(db):
+    """Un turno intermedio (es. 11:00-17:30) copre parte di entrambe le
+    fasce. Prima esisteva solo mattina/pomeriggio/non-classificato, e
+    "non-classificato" significava "non conta mai": un comparto coperto
+    con un turno atipico su una sola fascia sarebbe risultato sempre sotto
+    il minimo di entrambe, a organico pieno, senza alcun avviso che lo
+    spiegasse (l'avviso "non classificato" esiste solo per l'assenza di
+    classificazione, non per questo caso)."""
+    sede = _crea_sede(db, "Sede Entrambe")
+    sede.copertura_minima_mattina = 1
+    sede.copertura_minima_pomeriggio = 1
+    db.commit()
+    intermedio = TipoTurno(etichetta="Intermedio", ora_inizio=time(11, 0), ora_fine=time(17, 30), fascia="entrambe")
+    db.add(intermedio)
+    dip = Dipendente(cognome="Intermedio", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    db.refresh(intermedio)
+    oggi = date.today()
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=intermedio.id, origine="manuale",
+    ))
+    db.commit()
+
+    blocchi = calcola_copertura(db, oggi)
+    blocco = blocchi[0]
+    assert blocco["presenti_mattina"] == 1
+    assert blocco["presenti_pomeriggio"] == 1
+    assert blocco["presenti_non_classificati"] == 0
+    assert blocco["sotto_minimo_mattina"] is False
+    assert blocco["sotto_minimo_pomeriggio"] is False
+
+
+def test_mattina_e_pomeriggio_con_orari_diversi_per_palazzi_diversi(client, crea_utente, db):
+    """Il conteggio di copertura dipende solo da TipoTurno.fascia, non
+    dagli orari effettivi: si possono avere tipi "Mattina"/"Pomeriggio"
+    diversi per nome e orario in ogni palazzo, e ciascuno conta comunque
+    per il minimo del proprio palazzo, indipendentemente da come si
+    chiamano o dagli orari degli altri."""
+    sede_a = _crea_sede(db, "Palazzo Uno")
+    sede_b = _crea_sede(db, "Palazzo Due")
+    sede_a.copertura_minima_mattina = 1
+    sede_b.copertura_minima_mattina = 1
+    db.commit()
+
+    mattina_a = TipoTurno(etichetta="Mattina Palazzo Uno", ora_inizio=time(7, 0), ora_fine=time(13, 30), fascia="mattina")
+    mattina_b = TipoTurno(etichetta="Mattina Palazzo Due", ora_inizio=time(8, 30), ora_fine=time(15, 0), fascia="mattina")
+    db.add_all([mattina_a, mattina_b])
+    dip_a = Dipendente(cognome="PalazzoUno", nome="Test", sede_riferimento_id=sede_a.id, attivo=True)
+    dip_b = Dipendente(cognome="PalazzoDue", nome="Test", sede_riferimento_id=sede_b.id, attivo=True)
+    db.add_all([dip_a, dip_b])
+    db.commit()
+    for x in (mattina_a, mattina_b, dip_a, dip_b):
+        db.refresh(x)
+
+    oggi = date.today()
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip_a.id, data=oggi, sede_effettiva_id=sede_a.id, tipo_turno_id=mattina_a.id, origine="manuale",
+    ))
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip_b.id, data=oggi, sede_effettiva_id=sede_b.id, tipo_turno_id=mattina_b.id, origine="manuale",
+    ))
+    db.commit()
+
+    blocchi = calcola_copertura(db, oggi)
+    blocco_a = next(b for b in blocchi if b["sede"].id == sede_a.id)
+    blocco_b = next(b for b in blocchi if b["sede"].id == sede_b.id)
+    assert blocco_a["presenti_mattina"] == 1 and blocco_a["sotto_minimo_mattina"] is False
+    assert blocco_b["presenti_mattina"] == 1 and blocco_b["sotto_minimo_mattina"] is False

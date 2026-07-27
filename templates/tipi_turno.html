@@ -13,7 +13,7 @@
             <td><span class="badge" style="background:{{ colore_sequenziale(t.id) }}">{{ t.etichetta }}</span></td>
             <td>{{ t.ora_inizio.strftime("%H:%M") }}</td>
             <td>{{ t.ora_fine.strftime("%H:%M") }}</td>
-            <td>{{ "Mattina" if t.fascia == "mattina" else ("Pomeriggio" if t.fascia == "pomeriggio" else "—") }}</td>
+            <td>{{ "Mattina" if t.fascia == "mattina" else ("Pomeriggio" if t.fascia == "pomeriggio" else ("Entrambe" if t.fascia == "entrambe" else "—")) }}</td>
             <td>
                 {% if utente.ruolo == "amministratore" %}
                 <details>
@@ -28,6 +28,7 @@
                                 <option value="" {% if not t.fascia %}selected{% endif %}>— non classificato —</option>
                                 <option value="mattina" {% if t.fascia == "mattina" %}selected{% endif %}>Mattina</option>
                                 <option value="pomeriggio" {% if t.fascia == "pomeriggio" %}selected{% endif %}>Pomeriggio</option>
+                                <option value="entrambe" {% if t.fascia == "entrambe" %}selected{% endif %}>Entrambe (turno intermedio)</option>
                             </select>
                             <button type="submit">Salva</button>
                         </form>
@@ -46,19 +47,48 @@
 
 {% if utente.ruolo == "amministratore" %}
 <h2>Nuovo tipo turno</h2>
-<form method="post" action="/tipi-turno/nuovo" class="form-inline">
+<form method="post" action="/tipi-turno/nuovo" class="form-inline" id="form-nuovo-tipo-turno">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <label>Etichetta <input type="text" name="etichetta" placeholder="es. Mattina" required></label>
+    <label>Etichetta <input type="text" name="etichetta" id="etichetta-nuovo-turno" placeholder="es. Mattina" required></label>
     <label>Dalle <input type="time" name="ora_inizio" required></label>
     <label>Alle <input type="time" name="ora_fine" required></label>
     <label>Fascia
-        <select name="fascia">
+        <select name="fascia" id="fascia-nuovo-turno">
             <option value="">— non classificato —</option>
             <option value="mattina">Mattina</option>
             <option value="pomeriggio">Pomeriggio</option>
+            <option value="entrambe">Entrambe (turno intermedio)</option>
         </select>
     </label>
     <button type="submit">Aggiungi</button>
 </form>
+<p class="muted">Un turno lasciato "non classificato" non conta per il minimo di copertura di mattina/pomeriggio (vedi la pagina Copertura), anche se il dipendente è davvero presente. Un turno che copre parte di entrambe le fasce (es. un intermedio 11:00-17:30) va classificato come "Entrambe": conta per il minimo di entrambe, non va lasciato non classificato.</p>
+
+<script>
+(function () {
+    // Il modo più facile di finire con un turno scoperto senza accorgersene:
+    // chiamarlo "Mattina" e lasciare la fascia su "non classificato", che è
+    // il valore di partenza del menu. Successo davvero: un turno chiamato
+    // "Mattina" è rimasto senza fascia nel database di produzione. Qui si
+    // preselezionano Mattina/Pomeriggio/Entrambe in base al nome digitato —
+    // stesso criterio di app/templates.py::_codice_turno, per coerenza con
+    // l'abbreviazione già mostrata nel calendario — ma resta un
+    // suggerimento: alla prima scelta manuale sulla tendina, smette di
+    // riproporsi, per non ostacolare un turno il cui nome contenga
+    // comunque "mattina" o "pomeriggio" senza esserlo davvero (es. "Prima
+    // di mattina" pensato come intermedio).
+    var etichetta = document.getElementById('etichetta-nuovo-turno');
+    var fascia = document.getElementById('fascia-nuovo-turno');
+    var fasciaScelta = false;
+    fascia.addEventListener('change', function () { fasciaScelta = true; });
+    etichetta.addEventListener('input', function () {
+        if (fasciaScelta) return;
+        var testo = etichetta.value.toLowerCase();
+        if (testo.indexOf('intermed') !== -1) fascia.value = 'entrambe';
+        else if (testo.indexOf('mattin') !== -1) fascia.value = 'mattina';
+        else if (testo.indexOf('pomerig') !== -1) fascia.value = 'pomeriggio';
+    });
+})();
+</script>
 {% endif %}
 {% endblock %}
