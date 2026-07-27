@@ -432,6 +432,26 @@ class ImpostazioneAllarmeCopertura(Base):
     aggiornato_da: Mapped[int | None] = mapped_column(ForeignKey("utenti.id"), nullable=True)
 
 
+class ImpostazioneRiepilogoGiornaliero(Base):
+    """Stessa cosa di ImpostazioneAllarmeCopertura sopra, ma per i
+    destinatari del riepilogo giornaliero (vedi
+    app/riepilogo_giornaliero.py): il referente della Camera dei Deputati,
+    non i gestori interni. Modificabili SOLO dall'amministratore dalla
+    pagina /riepilogo-giornaliero, senza editare
+    app/email_config_locale.py a mano. Una sola riga (id=1, vedi
+    app/impostazioni_riepilogo_giornaliero.py): se manca o tutti e tre i
+    campi sono vuoti, si ricade sulla lista statica
+    RIEPILOGO_GIORNALIERO_DESTINATARI di app/email_config.py come prima."""
+    __tablename__ = "impostazioni_riepilogo_giornaliero"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email_1: Mapped[str | None] = mapped_column(String, nullable=True)
+    email_2: Mapped[str | None] = mapped_column(String, nullable=True)
+    email_3: Mapped[str | None] = mapped_column(String, nullable=True)
+    aggiornato_il: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
+    aggiornato_da: Mapped[int | None] = mapped_column(ForeignKey("utenti.id"), nullable=True)
+
+
 class LogModifica(Base):
     __tablename__ = "log_modifiche"
     __table_args__ = (

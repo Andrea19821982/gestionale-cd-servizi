@@ -201,3 +201,104 @@ def test_controlla_e_invia_se_dovuto_rispetta_orario_configurato(db, monkeypatch
 
     assert riepilogo_giornaliero.controlla_e_invia_se_dovuto() is False
     assert db.query(InvioGiornaliero).count() == 0
+
+
+def _login_gestore(client, crea_utente):
+    crea_utente("gestore_riepilogo_test", "passwordsegreta", "gestore_turni")
+    login(client, "gestore_riepilogo_test", "passwordsegreta")
+
+
+def test_destinatari_da_interfaccia_hanno_precedenza_sul_file(db, monkeypatch):
+    """Fino a oggi i destinatari del riepilogo giornaliero si potevano
+    cambiare solo modificando app/email_config_locale.py a mano sul PC
+    server: stesso meccanismo già disponibile per l'allarme di copertura,
+    ora anche qui."""
+    from app import impostazioni_riepilogo_giornaliero
+
+    monkeypatch.setattr(email_config, "RIEPILOGO_GIORNALIERO_DESTINATARI", ["file@esempio.it"])
+    impostazioni_riepilogo_giornaliero.salva_destinatari(db, 1, "uno@esempio.it", "due@esempio.it", "")
+    db.commit()  # salva_destinatari non committa: lo fa il chiamante
+
+    assert impostazioni_riepilogo_giornaliero.destinatari_effettivi(db) == ["uno@esempio.it", "due@esempio.it"]
+
+
+def test_destinatari_ricade_sul_file_se_i_tre_campi_sono_vuoti(db, monkeypatch):
+    from app import impostazioni_riepilogo_giornaliero
+
+    monkeypatch.setattr(email_config, "RIEPILOGO_GIORNALIERO_DESTINATARI", ["file@esempio.it"])
+    impostazioni_riepilogo_giornaliero.salva_destinatari(db, 1, "", "", "")
+    db.commit()
+
+    assert impostazioni_riepilogo_giornaliero.destinatari_effettivi(db) == ["file@esempio.it"]
+
+
+def test_imposta_destinatari_via_http_solo_amministratore(client, crea_utente, db):
+    _login_gestore(client, crea_utente)
+    r = client.post(
+        "/riepilogo-giornaliero/destinatari",
+        data={"email_1": "a@esempio.it", "email_2": "", "email_3": ""},
+        follow_redirects=False,
+    )
+    assert r.status_code == 403
+
+
+def test_imposta_destinatari_via_http_salva_e_si_riflette_nella_pagina(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    r = client.post(
+        "/riepilogo-giornaliero/destinatari",
+        data={"email_1": "primo@esempio.it", "email_2": "secondo@esempio.it", "email_3": ""},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    r2 = client.get("/riepilogo-giornaliero")
+    assert "primo@esempio.it" in r2.text
+    assert "secondo@esempio.it" in r2.text
+
+
+def test_pagina_riepilogo_giornaliero_sezione_destinatari_solo_amministratore(client, crea_utente, db):
+    _login_gestore(client, crea_utente)
+    r = client.get("/riepilogo-giornaliero")
+    assert r.status_code == 200
+    assert "Destinatari del riepilogo" not in r.text
+
+
+def test_cambiare_i_destinatari_finisce_nel_registro_delle_modifiche(client, crea_utente, db):
+    """Stesso bug già corretto per l'allarme di copertura: salva_destinatari
+    non deve fare commit al suo interno, altrimenti la riga di log aggiunta
+    subito dopo dal router resta in una transazione mai chiusa e sparisce
+    alla chiusura della sessione."""
+    from app.models import LogModifica
+
+    _login_admin(client, crea_utente)
+    client.post(
+        "/riepilogo-giornaliero/destinatari",
+        data={"email_1": "tracciato@esempio.it", "email_2": "", "email_3": ""},
+        follow_redirects=False,
+    )
+
+    righe = db.query(LogModifica).filter_by(tabella="impostazioni_riepilogo_giornaliero").all()
+    assert len(righe) == 1
+    assert "tracciato@esempio.it" in righe[0].dettaglio
+
+
+def test_invio_usa_i_destinatari_da_interfaccia_non_solo_dal_file(db, monkeypatch):
+    """Il punto centrale della richiesta: l'invio vero (non solo la pagina)
+    deve rispettare gli indirizzi salvati da interfaccia, non restare
+    agganciato alla lista statica del file come prima di questa modifica."""
+    from app import impostazioni_riepilogo_giornaliero
+
+    _configura_riepilogo(monkeypatch)
+    monkeypatch.setattr(email_config, "RIEPILOGO_GIORNALIERO_DESTINATARI", ["file@esempio.it"])
+    impostazioni_riepilogo_giornaliero.salva_destinatari(db, 1, "interfaccia@esempio.it", "", "")
+    db.commit()
+
+    chiamate = []
+    _invio_finto_riuscito(monkeypatch, chiamate)
+
+    riuscito = riepilogo_giornaliero.invia_riepilogo_giornaliero(db, forza=True)
+
+    assert riuscito is True
+    assert len(chiamate) == 1
+    _, _, destinatari_usati = chiamate[0]
+    assert destinatari_usati == ["interfaccia@esempio.it"]

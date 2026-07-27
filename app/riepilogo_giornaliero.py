@@ -10,7 +10,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import email_config
+from app import email_config, impostazioni_riepilogo_giornaliero
 from app.database import SessionLocal
 from app.email_service import _invia_ora
 from app.models import InvioGiornaliero
@@ -42,7 +42,7 @@ def invia_riepilogo_giornaliero(db: Session, forza: bool = False, inviato_da: in
     rimanda nulla se è già stato inviato oggi per la stessa data (evita
     doppi invii, es. per un riavvio del server proprio a cavallo dell'orario
     configurato). Restituisce True solo se ha inviato davvero."""
-    if not email_config.riepilogo_giornaliero_configurato():
+    if not impostazioni_riepilogo_giornaliero.riepilogo_giornaliero_configurato(db):
         return False
 
     domani = date.today() + timedelta(days=1)
@@ -50,9 +50,10 @@ def invia_riepilogo_giornaliero(db: Session, forza: bool = False, inviato_da: in
     if gia_inviato is not None and not forza:
         return False
 
+    destinatari = impostazioni_riepilogo_giornaliero.destinatari_effettivi(db)
     corpo_html = genera_html_riepilogo(db, domani)
     oggetto = f"Presidi CD Servizi — {domani.strftime('%d/%m/%Y')}"
-    riuscito = _invia_ora(oggetto, corpo_html, destinatari=email_config.RIEPILOGO_GIORNALIERO_DESTINATARI)
+    riuscito = _invia_ora(oggetto, corpo_html, destinatari=destinatari)
     if not riuscito:
         return False
 
@@ -61,13 +62,13 @@ def invia_riepilogo_giornaliero(db: Session, forza: bool = False, inviato_da: in
             # Reinvio manuale forzato di un giorno già coperto: aggiorna la
             # riga esistente invece di violare l'unicità su data_riepilogo.
             gia_inviato.inviato_il = datetime.now()
-            gia_inviato.destinatari = ", ".join(email_config.RIEPILOGO_GIORNALIERO_DESTINATARI)
+            gia_inviato.destinatari = ", ".join(destinatari)
             gia_inviato.manuale = True
             gia_inviato.inviato_da = inviato_da
         else:
             db.add(InvioGiornaliero(
                 data_riepilogo=domani,
-                destinatari=", ".join(email_config.RIEPILOGO_GIORNALIERO_DESTINATARI),
+                destinatari=", ".join(destinatari),
                 manuale=inviato_da is not None,
                 inviato_da=inviato_da,
             ))
