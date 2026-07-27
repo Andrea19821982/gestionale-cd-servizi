@@ -11,7 +11,19 @@
 
 <td id="cella-{{ dipendente.id }}-{{ data_iso }}" class="{{ 'weekend' if weekend else '' }}">
     {% if utente.ruolo in ("amministratore", "gestore_turni") %}
-    {% set origine_classe = 'origine-' + assegnazione.origine if assegnazione else '' %}
+    {# "sostituzione" è un valore valido di assegnazione.origine (vedi
+       ORIGINI_VALIDE in app/models.py) ma nessuna rotta lo scrive mai lì:
+       creare una sostituzione non tocca la riga di chi parte, che resta
+       "manuale" o "pattern" come prima. Il bordo blu della legenda quindi
+       non compariva mai — solo il tag col nome del sostituto sotto, che
+       viene da sostituzioni_giorno, una fonte diversa. Qui si guarda quella
+       stessa fonte per decidere il colore del bordo, invece di dedurlo da
+       un campo che di fatto non viene mai valorizzato così. Solo per la
+       sostituzione dell'intera giornata (ns.intera): quelle orarie
+       lasciano il turno di base visibile, con solo il tag "S 9:00-11:00"
+       sotto, perché la persona lavora comunque per il resto della
+       giornata. #}
+    {% set origine_classe = 'origine-sostituzione' if ns.intera else ('origine-' + assegnazione.origine if assegnazione else '') %}
     <div class="cella-turno-wrap">
         <select
             name="tipo_turno_id"

@@ -44,7 +44,7 @@
         <p class="muted">Nessun dipendente assegnato a questa sede.</p>
         {% else %}
         <table class="tabella">
-            <thead><tr><th>Dipendente</th><th>Stato</th><th>Turno</th></tr></thead>
+            <thead><tr><th>Dipendente</th><th>Stato</th><th>Turno</th>{% if utente.ruolo in ("amministratore", "gestore_turni") %}<th></th>{% endif %}</tr></thead>
             <tbody>
                 {% for riga in blocco.righe %}
                 <tr>
@@ -55,6 +55,21 @@
                         {% else %}<span class="badge badge-warn-testo">Non pianificato</span>{% endif %}
                     </td>
                     <td>{% if riga.assegnazione and riga.assegnazione.tipo_turno %}{{ riga.assegnazione.tipo_turno.etichetta }}{% else %}—{% endif %}</td>
+                    {% if utente.ruolo in ("amministratore", "gestore_turni") %}
+                    <td>
+                        {# Solo per chi è assente: una sostituzione sostituisce
+                           QUALCUNO, mentre "non pianificato" è un turno da
+                           assegnare, non un buco da coprire — confonderli
+                           porterebbe a registrare sostituzioni prive di senso.
+                           Il collegamento porta chi manca, il palazzo e il
+                           giorno già compilati nel form. #}
+                        {% if riga.stato == "assente" %}
+                        <a class="btn btn-secondary"
+                           href="/sostituzioni?precompila_partente_id={{ riga.dipendente.id }}&precompila_sede_id={{ blocco.sede.id }}&precompila_data={{ data.isoformat() }}#nuova-sostituzione"
+                           title="Apre il form con {{ riga.dipendente.cognome }} {{ riga.dipendente.nome }}, {{ blocco.sede.nome }} e la data già compilati">Organizza sostituzione</a>
+                        {% endif %}
+                    </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>

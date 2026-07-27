@@ -524,3 +524,159 @@ def test_sostituto_libero_in_un_altro_giorno_resta_assegnabile(client, crea_uten
     assert prima.status_code == 303
     assert seconda.status_code == 303
     assert db.query(Sostituzione).count() == 2
+
+
+def test_i_parametri_precompila_riempiono_il_form(client, crea_utente, db):
+    """I parametri arrivano dal pulsante "Organizza sostituzione" della
+    pagina Copertura: chi manca, il palazzo e il giorno sono già noti da
+    lì, e vanno preselezionati nel form invece di essere reinseriti a
+    memoria da una tendina di decine di nomi."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Precompila")
+    dip = Dipendente(cognome="Precompilato", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.get(
+        f"/sostituzioni?precompila_partente_id={dip.id}"
+        f"&precompila_sede_id={sede.id}&precompila_data=2026-08-15"
+    )
+
+    assert r.status_code == 200
+    testo = r.text
+    assert f'<option value="{dip.id}" data-sede="{sede.id}" selected>' in testo
+    # Sede partenza E sede arrivo devono precompilarsi entrambe con la sede
+    # dell'assente: il sostituto va mandato proprio dove manca la persona.
+    assert testo.count(f'<option value="{sede.id}" selected>') == 2
+    assert 'value="2026-08-15"' in testo
+    assert "Compilato dalla pagina Copertura" in testo
+
+
+def test_senza_parametri_precompila_il_form_resta_vuoto_come_prima(client, crea_utente, db):
+    """Un utente che apre /sostituzioni normalmente non deve trovare nulla
+    di preselezionato né l'avviso di precompilazione."""
+    _login_admin(client, crea_utente)
+
+    r = client.get("/sostituzioni")
+
+    assert "Compilato dalla pagina Copertura" not in r.text
+    assert '<option value="" disabled selected>— scegli —</option>' in r.text
+
+
+def test_precompila_data_non_valida_da_errore_leggibile_non_pagina_bianca(client, crea_utente, db):
+    """Se l'indirizzo arrivasse con una data malformata, deve fallire con
+    l'errore leggibile del gestore centrale, non con un campo silenziosamente
+    vuoto che lascerebbe l'utente a chiedersi perché la data non c'è."""
+    _login_admin(client, crea_utente)
+
+    r = client.get("/sostituzioni?precompila_data=non-una-data", headers={"accept": "text/html"})
+
+    assert r.status_code == 400
+    assert "Non è stato possibile salvare" in r.text or "non valida" in r.text.lower()
+
+
+def test_creare_la_sostituzione_precompilata_funziona_dal_form_al_salvataggio(client, crea_utente, db):
+    """Il test end-to-end del pulsante: apre il form con i parametri della
+    Copertura, sceglie solo il sostituto (l'unico campo lasciato vuoto) e
+    verifica che la sostituzione nasca con i dati giusti."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Flusso Completo")
+    partente = Dipendente(cognome="PartenteFlusso", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto = Dipendente(cognome="SostitutoFlusso", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([partente, sostituto])
+    db.commit()
+    db.refresh(partente)
+    db.refresh(sostituto)
+
+    pagina = client.get(
+        f"/sostituzioni?precompila_partente_id={partente.id}"
+        f"&precompila_sede_id={sede.id}&precompila_data=2026-08-20"
+    )
+    assert pagina.status_code == 200
+
+    r = client.post(
+        "/sostituzioni/nuova",
+        data={
+            "dipendente_partente_id": partente.id,
+            "sede_partenza_id": sede.id,
+            "dipendente_sostituto_id": sostituto.id,
+            "sede_arrivo_id": sede.id,
+            "data": "2026-08-20",
+        },
+        follow_redirects=False,
+    )
+
+    assert r.status_code == 303
+    creata = db.query(Sostituzione).filter_by(dipendente_partente_id=partente.id).first()
+    assert creata is not None
+    assert creata.dipendente_sostituto_id == sostituto.id
+    assert creata.data == date(2026, 8, 20)
+
+
+def test_sostituzione_giorno_intero_colora_il_bordo_di_blu(client, crea_utente, db):
+    """assegnazione.origine non diventa mai "sostituzione" (nessuna rotta
+    scrive quel valore lì: crea_sostituzione non tocca la riga del
+    partente), quindi il bordo blu della legenda non poteva mai comparire
+    finché il colore veniva dedotto solo da quel campo. Il colore va
+    dedotto da sostituzioni_giorno, la stessa fonte che già pesca il nome
+    del sostituto per il badge sotto la cella."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Bordo Blu")
+    partente = Dipendente(cognome="PartenteBordo", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto = Dipendente(cognome="SostitutoBordo", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([partente, sostituto])
+    db.commit()
+    db.refresh(partente)
+    db.refresh(sostituto)
+
+    r = client.post(
+        "/sostituzioni/nuova",
+        data={
+            "dipendente_partente_id": partente.id,
+            "sede_partenza_id": sede.id,
+            "dipendente_sostituto_id": sostituto.id,
+            "sede_arrivo_id": sede.id,
+            "data": "2026-08-14",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    r2 = client.get(f"/calendario?sede_id={sede.id}&anno=2026&mese=8")
+    cella = r2.text.split(f'cella-{partente.id}-2026-08-14')[1].split("</td>")[0]
+    assert "origine-sostituzione" in cella
+
+
+def test_sostituzione_oraria_non_colora_il_bordo_di_blu(client, crea_utente, db):
+    """Il contraltare: una sostituzione di poche ore non deve nascondere il
+    turno di base della persona, che lavora comunque il resto della
+    giornata. Solo il tag "S 9:00-11:00" deve comparire."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Bordo Orario")
+    partente = Dipendente(cognome="PartenteBordoOrario", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    sostituto = Dipendente(cognome="SostitutoBordoOrario", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([partente, sostituto])
+    db.commit()
+    db.refresh(partente)
+    db.refresh(sostituto)
+
+    r = client.post(
+        "/sostituzioni/nuova",
+        data={
+            "dipendente_partente_id": partente.id,
+            "sede_partenza_id": sede.id,
+            "dipendente_sostituto_id": sostituto.id,
+            "sede_arrivo_id": sede.id,
+            "data": "2026-08-16",
+            "ora_inizio": "09:00",
+            "ora_fine": "11:00",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    r2 = client.get(f"/calendario?sede_id={sede.id}&anno=2026&mese=8")
+    cella = r2.text.split(f'cella-{partente.id}-2026-08-16')[1].split("</td>")[0]
+    assert "origine-sostituzione" not in cella
+    assert "badge-sostituzione-oraria" in cella

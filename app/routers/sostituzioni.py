@@ -123,9 +123,25 @@ def elenco_sostituzioni(
     dipendente_id: int | None = None,
     data_da: str | None = None,
     data_a: str | None = None,
+    precompila_partente_id: int | None = None,
+    precompila_sede_id: int | None = None,
+    precompila_data: str | None = None,
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_LETTURA)),
 ):
+    """I tre parametri precompila_* arrivano dal pulsante "Organizza
+    sostituzione" della pagina Copertura, sulla riga di chi risulta assente.
+
+    Da lì si sa già chi manca, in quale palazzo e in che giorno: sono
+    esattamente i campi obbligatori del form, che altrimenti vanno
+    riselezionati a memoria dopo aver cambiato pagina — con 76 nomi in
+    tendina, è il punto dove è facile scegliere la persona sbagliata. Il
+    sostituto resta da scegliere, perché quella è l'unica vera decisione.
+
+    Sono solo valori preselezionati nel form, non un'operazione: restano
+    tutti modificabili, e la sostituzione nasce comunque solo dal POST, con
+    i suoi controlli.
+    """
     query = db.query(Sostituzione)
     if dipendente_id:
         query = query.filter(
@@ -153,6 +169,14 @@ def elenco_sostituzioni(
                 "dipendente_id": dipendente_id,
                 "data_da": data_da or "",
                 "data_a": data_a or "",
+            },
+            "precompila": {
+                "partente_id": precompila_partente_id,
+                "sede_id": precompila_sede_id,
+                # Validata qui e non nel template: se arrivasse una data
+                # malformata dall'indirizzo, un campo date la scarterebbe in
+                # silenzio lasciando l'utente a chiedersi perché è vuoto.
+                "data": _data_o_400(precompila_data).isoformat() if precompila_data else "",
             },
         },
     )

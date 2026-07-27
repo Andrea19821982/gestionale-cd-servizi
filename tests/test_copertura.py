@@ -338,3 +338,67 @@ def test_calcola_copertura_rispetta_ordine_visualizzazione(db):
     blocchi = calcola_copertura(db, date.today())
     nomi_in_ordine = [b["sede"].nome for b in blocchi]
     assert nomi_in_ordine == ["Beta", "Zeta", "Alfa"]
+
+
+def test_riga_assente_ha_il_pulsante_organizza_sostituzione(client, crea_utente, db):
+    """Il pulsante deve comparire solo su chi è ASSENTE, non su chi è
+    presente o non pianificato: una sostituzione sostituisce qualcuno, un
+    "non pianificato" è un turno da assegnare, non un buco da coprire."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Pulsante")
+    presente = Dipendente(cognome="PresenteBtn", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    assente = Dipendente(cognome="AssenteBtn", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    non_pian = Dipendente(cognome="NonPianBtn", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add_all([presente, assente, non_pian])
+    db.commit()
+    for d in (presente, assente, non_pian):
+        db.refresh(d)
+
+    tipo = TipoTurno(etichetta="Mattina Btn", ora_inizio=time(7, 0), ora_fine=time(13, 30))
+    db.add(tipo)
+    db.commit()
+    db.refresh(tipo)
+    oggi = date(2026, 8, 12)
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=presente.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=assente.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=None, origine="assenza",
+    ))
+    db.commit()
+
+    r = client.get(f"/copertura?data={oggi.isoformat()}")
+    testo = r.text
+
+    link_atteso = (
+        f"/sostituzioni?precompila_partente_id={assente.id}"
+        f"&precompila_sede_id={sede.id}&precompila_data={oggi.isoformat()}#nuova-sostituzione"
+    )
+    assert link_atteso in testo
+    # Non deve comparire un secondo pulsante agganciato a chi non è assente:
+    # cerca l'href specifico per gli id degli altri due, che non deve esistere.
+    assert f"precompila_partente_id={presente.id}&" not in testo
+    assert f"precompila_partente_id={non_pian.id}&" not in testo
+
+
+def test_consultazione_non_vede_il_pulsante_organizza_sostituzione(client, crea_utente, db):
+    """Chi è di sola consultazione non può creare sostituzioni: il pulsante
+    non deve nemmeno comparire, oltre a non funzionare se forzato via URL."""
+    crea_utente("admin_cop", "passwordsegreta", "amministratore")
+    login(client, "admin_cop", "passwordsegreta")
+    sede = _crea_sede(db, "Sede Consultazione")
+    assente = Dipendente(cognome="AssenteCons", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(assente)
+    db.commit()
+    db.refresh(assente)
+    oggi = date(2026, 8, 13)
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=assente.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=None, origine="assenza",
+    ))
+    db.commit()
+
+    crea_utente("sola_lettura_cop", "passwordsegreta", "consultazione")
+    login(client, "sola_lettura_cop", "passwordsegreta")
+
+    r = client.get(f"/copertura?data={oggi.isoformat()}")
+    assert "Organizza sostituzione" not in r.text

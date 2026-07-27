@@ -54,28 +54,34 @@
 </table>
 
 {% if utente.ruolo in ("amministratore", "gestore_turni") %}
-<h2>Nuova sostituzione</h2>
+<h2 id="nuova-sostituzione">Nuova sostituzione</h2>
+{% if precompila.partente_id %}
+{# Arrivando dal pulsante della pagina Copertura i campi sono già compilati:
+   dirlo evita che si prema Registra credendo di aver compilato un form
+   vuoto, e ricorda che i valori restano tutti modificabili. #}
+<p class="flash flash-ok">Compilato dalla pagina Copertura: controlla i dati e scegli chi sostituisce.</p>
+{% endif %}
 <form method="post" action="/sostituzioni/nuova" class="form-inline" id="form-sostituzione">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <label>Chi parte
         <select name="dipendente_partente_id" id="dipendente-partente" required>
-            <option value="" disabled selected>Dipendente</option>
+            <option value="" disabled {% if not precompila.partente_id %}selected{% endif %}>— scegli —</option>
             {% for d in dipendenti %}
-            <option value="{{ d.id }}" data-sede="{{ d.sede_riferimento_id or '' }}">{{ d.cognome }} {{ d.nome }}</option>
+            <option value="{{ d.id }}" data-sede="{{ d.sede_riferimento_id or '' }}" {% if precompila.partente_id == d.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
             {% endfor %}
         </select>
     </label>
     <label>Sede partenza
         <select name="sede_partenza_id" id="sede-partenza" required>
-            <option value="" disabled selected>Sede</option>
+            <option value="" disabled {% if not precompila.sede_id %}selected{% endif %}>— scegli —</option>
             {% for s in sedi %}
-            <option value="{{ s.id }}">{{ s.nome }}</option>
+            <option value="{{ s.id }}" {% if precompila.sede_id == s.id %}selected{% endif %}>{{ s.nome }}</option>
             {% endfor %}
         </select>
     </label>
     <label>Chi sostituisce
-        <select name="dipendente_sostituto_id" required>
-            <option value="" disabled selected>Dipendente</option>
+        <select name="dipendente_sostituto_id" required autofocus>
+            <option value="" disabled selected>— scegli —</option>
             {% for d in dipendenti %}
             <option value="{{ d.id }}">{{ d.cognome }} {{ d.nome }}</option>
             {% endfor %}
@@ -83,13 +89,13 @@
     </label>
     <label>Sede arrivo
         <select name="sede_arrivo_id" id="sede-arrivo" required>
-            <option value="" disabled selected>Sede</option>
+            <option value="" disabled {% if not precompila.sede_id %}selected{% endif %}>— scegli —</option>
             {% for s in sedi %}
-            <option value="{{ s.id }}">{{ s.nome }}</option>
+            <option value="{{ s.id }}" {% if precompila.sede_id == s.id %}selected{% endif %}>{{ s.nome }}</option>
             {% endfor %}
         </select>
     </label>
-    <label>Data <input type="date" name="data" required></label>
+    <label>Data <input type="date" name="data" value="{{ precompila.data }}" required></label>
     <label>Dalle ore <input type="time" name="ora_inizio"></label>
     <label>Alle ore <input type="time" name="ora_fine"></label>
     <label>Note <input type="text" name="note" placeholder="facoltativo"></label>
