@@ -84,7 +84,7 @@ def esporta_excel(
     cartella_lavoro.remove(cartella_lavoro.active)
 
     for sede in sedi_da_esportare:
-        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, _ = _dati_calendario_sede(
+        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, _, _ = _dati_calendario_sede(
             db, sede, anno, mese, numero_giorni
         )
         foglio = cartella_lavoro.create_sheet(title=sede.nome[:31])

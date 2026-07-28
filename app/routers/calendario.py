@@ -1,6 +1,6 @@
 from calendar import monthrange
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -12,7 +12,7 @@ from app.csrf import richiedi_csrf_valido
 from app.database import get_db
 from app.flash import imposta_flash
 from app.logging_service import registra_modifica
-from app.models import AssegnazioneGiornaliera, Dipendente, PatternTurno, Sede, Sostituzione, TipoTurno, Utente
+from app.models import AssegnazioneGiornaliera, Assenza, Dipendente, PatternTurno, Sede, Sostituzione, TipoTurno, Utente
 from app.templates import templates
 from app.utils import chiave_sottosezione, fk_opzionale_o_400, ottieni_o_404
 
@@ -137,6 +137,7 @@ def _dati_calendario_sede(db: Session, sede: Sede, anno: int, mese: int, numero_
     dipendenti, titoli_sottosezione = _raggruppa_per_sottosezione(dipendenti)
     assegnazioni_per_dipendente = defaultdict(dict)
     sostituzioni_per_dipendente = defaultdict(lambda: defaultdict(list))
+    assenze_parziali_per_dipendente = defaultdict(dict)
     if dipendenti:
         data_inizio = date(anno, mese, 1)
         data_fine = date(anno, mese, numero_giorni)
@@ -170,7 +171,30 @@ def _dati_calendario_sede(db: Session, sede: Sede, anno: int, mese: int, numero_
         for r in righe_sost:
             sostituzioni_per_dipendente[r.dipendente_partente_id][r.data.day].append(r)
 
-    return dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, titoli_sottosezione
+        # Assenze a orario (esce prima, entra dopo, qualche ora): non hanno
+        # una riga AssegnazioneGiornaliera propria (il turno resta quello
+        # pianificato, vedi crea_assenza), quindi vanno lette direttamente
+        # da Assenza e proiettate giorno per giorno sul mese, come per le
+        # sostituzioni orarie qui sopra.
+        righe_assenze_parziali = (
+            db.query(Assenza)
+            .filter(
+                Assenza.dipendente_id.in_(id_dipendenti),
+                Assenza.stato != "rifiutata",
+                Assenza.ora_inizio.isnot(None),
+                Assenza.data_inizio <= data_fine,
+                Assenza.data_fine >= data_inizio,
+            )
+            .all()
+        )
+        for r in righe_assenze_parziali:
+            giorno = max(r.data_inizio, data_inizio)
+            ultimo = min(r.data_fine, data_fine)
+            while giorno <= ultimo:
+                assenze_parziali_per_dipendente[r.dipendente_id][giorno.day] = r
+                giorno += timedelta(days=1)
+
+    return dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, assenze_parziali_per_dipendente, titoli_sottosezione
 
 
 @router.get("/calendario")
@@ -199,9 +223,10 @@ def vista_calendario(
     dipendenti = []
     assegnazioni_per_dipendente = defaultdict(dict)
     sostituzioni_per_dipendente = defaultdict(lambda: defaultdict(list))
+    assenze_parziali_per_dipendente = defaultdict(dict)
     titoli_sottosezione = {}
     if sede_corrente:
-        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, titoli_sottosezione = _dati_calendario_sede(
+        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, assenze_parziali_per_dipendente, titoli_sottosezione = _dati_calendario_sede(
             db, sede_corrente, anno, mese, numero_giorni
         )
 
@@ -223,6 +248,7 @@ def vista_calendario(
             "dipendenti": dipendenti,
             "assegnazioni_per_dipendente": assegnazioni_per_dipendente,
             "sostituzioni_per_dipendente": sostituzioni_per_dipendente,
+            "assenze_parziali_per_dipendente": assenze_parziali_per_dipendente,
             "titoli_sottosezione": titoli_sottosezione,
             "tipi_turno": tipi_turno,
             "anno_prec": anno_prec,
@@ -437,7 +463,7 @@ def stampa_calendario(
 
     blocchi = []
     for sede in sedi_da_stampare:
-        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, titoli_sottosezione = _dati_calendario_sede(
+        dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, assenze_parziali_per_dipendente, titoli_sottosezione = _dati_calendario_sede(
             db, sede, anno, mese, numero_giorni
         )
         blocchi.append(
@@ -446,6 +472,7 @@ def stampa_calendario(
                 "dipendenti": dipendenti,
                 "assegnazioni_per_dipendente": assegnazioni_per_dipendente,
                 "sostituzioni_per_dipendente": sostituzioni_per_dipendente,
+                "assenze_parziali_per_dipendente": assenze_parziali_per_dipendente,
                 "titoli_sottosezione": titoli_sottosezione,
             }
         )

@@ -86,6 +86,16 @@ def _migra_schema():
             conn.execute(text("ALTER TABLE assegnazioni_giornaliere ADD COLUMN origine_precedente TEXT"))
             conn.commit()
 
+        # Assenza parziale (esce prima, entra dopo, qualche ora): stesso
+        # pattern di Sostituzione.ora_inizio/ora_fine, vedi il modello.
+        # Nullable senza default: sulle assenze già esistenti "nessun
+        # orario" è esattamente il significato giusto, cioè giorno intero.
+        colonne_assenze = {r[1] for r in conn.execute(text("PRAGMA table_info(assenze)"))}
+        if "ora_inizio" not in colonne_assenze:
+            conn.execute(text("ALTER TABLE assenze ADD COLUMN ora_inizio TIME"))
+            conn.execute(text("ALTER TABLE assenze ADD COLUMN ora_fine TIME"))
+            conn.commit()
+
 
 def init_db():
     from app import models  # noqa: F401  (registra i modelli su Base)

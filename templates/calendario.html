@@ -79,6 +79,7 @@
             {% for g in giorni %}
             {% set assegnazione = assegnazioni_per_dipendente.get(d.id, {}).get(g.numero) %}
             {% set sostituzioni_giorno = sostituzioni_per_dipendente.get(d.id, {}).get(g.numero, []) %}
+            {% set assenza_parziale = assenze_parziali_per_dipendente.get(d.id, {}).get(g.numero) %}
             {% set dipendente = d %}
             {% set data_iso = "%04d-%02d-%02d" | format(anno, mese, g.numero) %}
             {% set weekend = g.weekend %}

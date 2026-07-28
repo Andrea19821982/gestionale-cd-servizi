@@ -20,7 +20,7 @@
         <a href="/sale" class="{{ classe_nav_attiva(request, '/sale') }}">🏛️ Sale</a>
         <a href="/dipendenti" class="{{ classe_nav_attiva(request, '/dipendenti') }}">👥 Dipendenti</a>
         <a href="/tipi-turno" class="{{ classe_nav_attiva(request, '/tipi-turno') }}">⏱️ Tipi turno</a>
-        <a href="/assenze" class="{{ classe_nav_attiva(request, '/assenze') }}">🌴 Assenze</a>
+        <a href="/assenze" class="{{ classe_nav_attiva(request, '/assenze') }}">🌴 Assenze e permessi</a>
         <a href="/sostituzioni" class="{{ classe_nav_attiva(request, '/sostituzioni') }}">🔁 Sostituzioni</a>
         <a href="/statistiche" class="{{ classe_nav_attiva(request, '/statistiche') }}">📈 Statistiche</a>
         {% if request.session.get("utente_ruolo") in ("amministratore", "gestore_turni") %}

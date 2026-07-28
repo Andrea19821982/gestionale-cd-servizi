@@ -162,3 +162,48 @@ def test_calendario_mostra_sezione_sottosezione_con_i_membri_raggruppati(client,
     assert pos_normale_uno < pos_sezione
     assert pos_normale_tre < pos_sezione
     assert pos_sezione < pos_parcheggiato
+
+
+def test_calendario_mostra_indicatore_orario_per_assenza_parziale(client, crea_utente, db):
+    """Un'assenza a orario (esce prima, entra dopo, qualche ora) mostra un
+    indicatore con la fascia oraria sulla cella, ma il turno pianificato
+    resta visibile — a differenza di un'assenza per l'intera giornata, che
+    sostituisce la cella col badge ASSENTE."""
+    from datetime import time
+
+    from app.models import AssegnazioneGiornaliera, TipoTurno
+
+    crea_utente("admin_test", "passwordsegreta", "amministratore")
+    login(client, "admin_test", "passwordsegreta")
+    sede = _crea_sede(db)
+    tipo = TipoTurno(etichetta="Mattina Test", ora_inizio=time(7, 0), ora_fine=time(13, 30))
+    db.add(tipo)
+    dip = Dipendente(cognome="Orario", nome="Parziale", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(tipo)
+    db.refresh(dip)
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip.id, data=date(2026, 8, 12), sede_effettiva_id=sede.id,
+        tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.commit()
+
+    r = client.post(
+        "/assenze/nuova",
+        data={
+            "dipendente_id": dip.id,
+            "data_inizio": "2026-08-12",
+            "data_fine": "2026-08-12",
+            "tipo_assenza": "Permesso",
+            "ora_inizio": "12:00",
+            "ora_fine": "19:00",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    r = client.get(f"/calendario?sede_id={sede.id}&anno=2026&mese=8")
+    assert r.status_code == 200
+    assert "A 12:00-19:00" in r.text
+    assert ">ASSENTE<" not in r.text  # il turno resta, non è un'assenza intera

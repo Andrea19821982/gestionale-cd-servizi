@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Assenze{% endblock %}
+{% block title %}Assenze e permessi{% endblock %}
 {% block content %}
-<h1>Assenze</h1>
+<h1>Assenze e permessi</h1>
 
 <form method="get" class="form-inline">
     <select name="dipendente_id" aria-label="Filtra per dipendente">
@@ -41,7 +41,9 @@
             <td><span class="avatar" style="background:{{ colore_avatar(a.dipendente.cognome + a.dipendente.nome) }}">{{ iniziali(a.dipendente.nome, a.dipendente.cognome) }}</span>{{ a.dipendente.cognome }} {{ a.dipendente.nome }}</td>
             <td><span class="badge" style="background:{{ colore_avatar(a.tipo_assenza) }}">{{ a.tipo_assenza }}</span></td>
             <td>{{ a.data_inizio }}</td>
-            <td>{{ a.data_fine }}</td>
+            <td>{{ a.data_fine }}
+                {% if a.ora_inizio %}<br><span class="muted" style="font-size:0.85em;">{{ a.ora_inizio.strftime("%H:%M") }}–{{ a.ora_fine.strftime("%H:%M") }}</span>{% endif %}
+            </td>
             <td>
                 {% if a.stato == "approvata" %}<span class="badge badge-ok-testo">Approvata</span>
                 {% elif a.stato == "rifiutata" %}<span class="badge badge-danger-testo">Rifiutata</span>
@@ -77,7 +79,8 @@
 
 {% if utente.ruolo in ("amministratore", "gestore_turni") %}
 <h2>Registra una nuova assenza</h2>
-<p class="muted">L'assenza copre subito il calendario, senza aspettare l'approvazione. Se un amministratore la rifiuterà, le celle coperte torneranno libere ma la richiesta resterà nello storico del dipendente.</p>
+<p class="muted">L'assenza copre subito il calendario, senza aspettare l'approvazione. Se un amministratore la rifiuterà, le celle coperte torneranno libere ma la richiesta resterà nello storico del dipendente.
+Lascia "Solo dalle/alle" vuoto per un'assenza dell'intera giornata. Compilalo per un'assenza parziale (esce prima, entra dopo, qualche ora): il turno resta visibile sul calendario, compare solo un'indicazione dell'orario di assenza, e la persona continua a contare come presente nella copertura minima.</p>
 <form method="post" action="/assenze/nuova" class="form-inline" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <label>Dipendente
@@ -96,6 +99,8 @@
     </datalist>
     <label>Dal <input type="date" name="data_inizio" required></label>
     <label>Al <input type="date" name="data_fine" required></label>
+    <label>Solo dalle <input type="time" name="ora_inizio"></label>
+    <label>alle <input type="time" name="ora_fine"></label>
     <label>Note <input type="text" name="note" placeholder="facoltativo"></label>
     <label>Certificato (facoltativo) <input type="file" name="allegato" accept=".pdf,.jpg,.jpeg,.png"></label>
     <button type="submit">Registra assenza</button>

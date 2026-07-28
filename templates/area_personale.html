@@ -92,7 +92,7 @@
 {% endif %}
 
 <h2>Richiedi ferie, permesso o malattia</h2>
-<p class="muted">La richiesta copre subito il calendario e resta in attesa di approvazione: chi gestisce i turni la vedrà nell'elenco Assenze.</p>
+<p class="muted">La richiesta copre subito il calendario e resta in attesa di approvazione: chi gestisce i turni la vedrà nell'elenco Assenze e permessi.</p>
 <form method="post" action="/area-personale/richiedi-assenza" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <input type="text" name="tipo_assenza" list="suggerimenti-tipo-assenza" placeholder="Tipo (es. Ferie)" required>

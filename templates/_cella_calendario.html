@@ -70,6 +70,12 @@
         S {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}
     </span>
     {% endfor %}
+    {% if assenza_parziale %}
+    <span class="badge badge-assenza-oraria"
+          title="Assente ({{ assenza_parziale.tipo_assenza }}) dalle {{ assenza_parziale.ora_inizio.strftime('%H:%M') }} alle {{ assenza_parziale.ora_fine.strftime('%H:%M') }}">
+        A {{ assenza_parziale.ora_inizio.strftime('%H:%M') }}-{{ assenza_parziale.ora_fine.strftime('%H:%M') }}
+    </span>
+    {% endif %}
     {% else %}
     {% if ns.intera %}
     <div class="badge-sostituzione" style="background-color: {{ colore_sostituto }}"
@@ -90,5 +96,11 @@
         S {{ s.ora_inizio.strftime('%H:%M') }}-{{ s.ora_fine.strftime('%H:%M') }}
     </span>
     {% endfor %}
+    {% if assenza_parziale %}
+    <span class="badge badge-assenza-oraria"
+          title="Assente ({{ assenza_parziale.tipo_assenza }}) dalle {{ assenza_parziale.ora_inizio.strftime('%H:%M') }} alle {{ assenza_parziale.ora_fine.strftime('%H:%M') }}">
+        A {{ assenza_parziale.ora_inizio.strftime('%H:%M') }}-{{ assenza_parziale.ora_fine.strftime('%H:%M') }}
+    </span>
+    {% endif %}
     {% endif %}
 </td>

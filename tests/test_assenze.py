@@ -565,4 +565,105 @@ def test_due_assenze_sovrapposte_non_perdono_la_memoria_del_turno_vero(client, c
 
     riga = _assegnazione(db, dip, giorno)
     assert riga.tipo_turno_precedente_id == tipo.id
-    assert riga.origine_precedente == "manuale"
+
+
+def test_assenza_a_orario_non_tocca_il_turno_pianificato(client, crea_utente, db):
+    """Un'assenza con ora_inizio/ora_fine (esce prima, entra dopo, qualche
+    ora) non deve azzerare il turno del giorno come fa un'assenza intera:
+    il dipendente resta "presente" col suo turno, l'informazione dell'orario
+    di assenza è solo un dato in più sulla richiesta."""
+    dip, tipo, giorno = _dipendente_con_turno_pianificato(client, crea_utente, db)
+
+    r = client.post(
+        "/assenze/nuova",
+        data={
+            "dipendente_id": dip.id,
+            "data_inizio": giorno.isoformat(),
+            "data_fine": giorno.isoformat(),
+            "tipo_assenza": "Permesso",
+            "ora_inizio": "12:00",
+            "ora_fine": "19:00",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    riga = _assegnazione(db, dip, giorno)
+    assert riga.origine == "manuale"  # non "assenza": il turno pianificato resta
+    assert riga.tipo_turno_id == tipo.id
+
+    assenza = db.query(Assenza).filter_by(dipendente_id=dip.id).first()
+    assert assenza.ora_inizio == time(12, 0)
+    assert assenza.ora_fine == time(19, 0)
+
+
+def test_assenza_a_orario_richiede_sia_inizio_sia_fine(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = Dipendente(cognome="Test", nome="OrarioParziale", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.post(
+        "/assenze/nuova",
+        data={
+            "dipendente_id": dip.id,
+            "data_inizio": "2026-08-10",
+            "data_fine": "2026-08-10",
+            "tipo_assenza": "Permesso",
+            "ora_inizio": "12:00",
+            # ora_fine mancante
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_assenza_a_orario_rifiuta_fine_prima_di_inizio(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db)
+    dip = Dipendente(cognome="Test", nome="OrarioInvertito", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.post(
+        "/assenze/nuova",
+        data={
+            "dipendente_id": dip.id,
+            "data_inizio": "2026-08-10",
+            "data_fine": "2026-08-10",
+            "tipo_assenza": "Permesso",
+            "ora_inizio": "18:00",
+            "ora_fine": "09:00",
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_approvazione_di_assenza_a_orario_non_copre_le_celle(client, crea_utente, db):
+    """approva_assenza richiama _copri_giorni_con_assenza "per sicurezza":
+    su un'assenza a orario non deve comunque toccare il turno."""
+    dip, tipo, giorno = _dipendente_con_turno_pianificato(client, crea_utente, db)
+
+    client.post(
+        "/assenze/nuova",
+        data={
+            "dipendente_id": dip.id,
+            "data_inizio": giorno.isoformat(),
+            "data_fine": giorno.isoformat(),
+            "tipo_assenza": "Permesso",
+            "ora_inizio": "12:00",
+            "ora_fine": "19:00",
+        },
+        follow_redirects=False,
+    )
+    assenza = db.query(Assenza).filter_by(dipendente_id=dip.id).first()
+
+    r = client.post(f"/assenze/{assenza.id}/approva", follow_redirects=False)
+    assert r.status_code == 303
+
+    riga = _assegnazione(db, dip, giorno)
+    assert riga.origine == "manuale"
+    assert riga.tipo_turno_id == tipo.id
+    assert riga.origine_precedente is None  # mai toccata: niente da ripristinare

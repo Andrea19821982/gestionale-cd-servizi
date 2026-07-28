@@ -592,6 +592,24 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     word-break: break-word;
 }
 
+/* Assenza a orario (esce prima, entra dopo, qualche ora): stesso taglio
+   grafico di .badge-sostituzione-oraria, ma nel colore delle assenze
+   (--danger) così resta subito distinguibile da una sostituzione. */
+.badge-assenza-oraria {
+    display: block;
+    background: var(--danger);
+    color: white;
+    font-size: 0.5rem;
+    font-weight: 700;
+    padding: 0.03rem 0.2rem;
+    border-radius: 6px;
+    margin: 0.1rem auto 0;
+    max-width: 3.6rem;
+    line-height: 1.15;
+    white-space: normal;
+    word-break: break-word;
+}
+
 .colore-sede {
     display: inline-block;
     width: 0.9rem;

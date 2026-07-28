@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -30,6 +30,39 @@ def _data_o_400(valore: str) -> date:
         return date.fromisoformat(valore)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Data non valida: {valore!r}")
+
+
+def _orario_o_400(valore: str) -> time:
+    try:
+        return time.fromisoformat(valore)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Orario non valido: {valore!r}")
+
+
+def _orario_assenza_o_400(ora_inizio: str, ora_fine: str) -> tuple[time | None, time | None]:
+    """Entrambi vuoti = assenza per l'intera giornata (comportamento
+    storico). Entrambi valorizzati = assenza solo in quella fascia oraria
+    (esce prima, entra dopo, qualche ora). Uno solo dei due non ha senso: né
+    "giorno intero" né "orario preciso", quindi è un errore da segnalare
+    subito invece di indovinare cosa intendeva chi ha compilato il form."""
+    ora_inizio = ora_inizio.strip()
+    ora_fine = ora_fine.strip()
+    if not ora_inizio and not ora_fine:
+        return None, None
+    if not ora_inizio or not ora_fine:
+        raise HTTPException(
+            status_code=400,
+            detail="Per un'assenza a orario indica sia l'ora di inizio sia l'ora di fine, oppure lasciale entrambe vuote per l'intera giornata.",
+        )
+    inizio = _orario_o_400(ora_inizio)
+    fine = _orario_o_400(ora_fine)
+    if fine <= inizio:
+        raise HTTPException(status_code=400, detail="L'ora di fine deve essere successiva all'ora di inizio.")
+    return inizio, fine
+
+
+def _e_parziale(assenza: Assenza) -> bool:
+    return assenza.ora_inizio is not None
 
 
 def _salva_allegato(assenza_id: int, allegato: UploadFile, contenuto: bytes) -> str:
@@ -183,6 +216,8 @@ def crea_assenza(
     data_inizio: str = Form(...),
     data_fine: str = Form(...),
     tipo_assenza: str = Form(...),
+    ora_inizio: str = Form(""),
+    ora_fine: str = Form(""),
     note: str = Form(""),
     allegato: UploadFile | None = File(None),
     db: Session = Depends(get_db),
@@ -201,6 +236,7 @@ def crea_assenza(
     tipo_assenza = tipo_assenza.strip()
     if not tipo_assenza:
         raise HTTPException(status_code=400, detail="Indica il tipo di assenza.")
+    orario_inizio, orario_fine = _orario_assenza_o_400(ora_inizio, ora_fine)
     if _si_sovrappone(db, dipendente_id, inizio, fine):
         raise HTTPException(
             status_code=400,
@@ -225,6 +261,8 @@ def crea_assenza(
         data_inizio=inizio,
         data_fine=fine,
         tipo_assenza=tipo_assenza,
+        ora_inizio=orario_inizio,
+        ora_fine=orario_fine,
         stato="approvata" if approvazione_automatica else "richiesta",
         note=note.strip() or None,
         creato_da=utente.id,
@@ -236,11 +274,18 @@ def crea_assenza(
     if contenuto_allegato is not None:
         assenza.allegato_nome = allegato.filename
         assenza.allegato_path = _salva_allegato(assenza.id, allegato, contenuto_allegato)
-    _copri_giorni_con_assenza(db, dipendente, inizio, fine)
+    # Un'assenza a orario non tocca il turno pianificato: la persona resta
+    # "presente" nel calendario e nei conteggi di copertura (per la maggior
+    # parte della giornata lo è davvero), compare solo come indicatore sulla
+    # cella — vedi _cella_calendario.html. Solo l'assenza per l'intera
+    # giornata sovrascrive il turno.
+    if not _e_parziale(assenza):
+        _copri_giorni_con_assenza(db, dipendente, inizio, fine)
     registra_modifica(
         db, utente.id, "assenze", assenza.id, "creazione",
         f"dipendente_id={dipendente_id}, {inizio.isoformat()}..{fine.isoformat()}, tipo={tipo_assenza}, "
-        f"stato={'approvata' if approvazione_automatica else 'richiesta'}",
+        f"stato={'approvata' if approvazione_automatica else 'richiesta'}"
+        + (f", orario={orario_inizio.strftime('%H:%M')}-{orario_fine.strftime('%H:%M')}" if orario_inizio else ""),
     )
     db.commit()
 
@@ -285,7 +330,9 @@ def approva_assenza(
     assenza.deciso_il = datetime.now()
     # Il calendario è già coperto dalla creazione della richiesta: qui si
     # ripete la copertura solo per sicurezza (idempotente), non perché serva.
-    _copri_giorni_con_assenza(db, dipendente, assenza.data_inizio, assenza.data_fine)
+    # Le assenze a orario non coprono mai il calendario, vedi crea_assenza.
+    if not _e_parziale(assenza):
+        _copri_giorni_con_assenza(db, dipendente, assenza.data_inizio, assenza.data_fine)
     registra_modifica(
         db, utente.id, "assenze", assenza.id, "modifica",
         f"dipendente_id={assenza.dipendente_id}, stato=approvata",

@@ -225,6 +225,16 @@ class Assenza(Base):
     data_inizio: Mapped[date] = mapped_column(Date, nullable=False)
     data_fine: Mapped[date] = mapped_column(Date, nullable=False)
     tipo_assenza: Mapped[str] = mapped_column(String, nullable=False)
+    # Entrambi nulli = assenza per l'intera giornata (comportamento storico:
+    # azzera il turno del giorno, vedi _copri_giorni_con_assenza). Valorizzati
+    # = assenza solo per quella fascia oraria (es. esce alle 12, entra alle
+    # 10): il turno pianificato resta sulla cella, si aggiunge solo un
+    # indicatore — stesso pattern di Sostituzione.ora_inizio/ora_fine qui
+    # sopra. Non riduce il conteggio di copertura mattina/pomeriggio: chi ha
+    # solo un'assenza oraria resta "presente" nei minimi, come per la maggior
+    # parte del turno lo è davvero.
+    ora_inizio: Mapped[time | None] = mapped_column(Time, nullable=True)
+    ora_fine: Mapped[time | None] = mapped_column(Time, nullable=True)
     # richiesta = appena registrata, non ancora effettiva sul calendario;
     # approvata = copre le celle del calendario; rifiutata = non le tocca.
     stato: Mapped[str] = mapped_column(String, default="richiesta", nullable=False)
