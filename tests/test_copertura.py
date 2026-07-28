@@ -325,6 +325,45 @@ def test_sottosezione_ha_blocco_e_minimo_separati_dalla_sede_principale(db):
     assert blocco_parcheggio["nome_visualizzato"] == "Valdina Test — Parcheggio"
 
 
+def test_sottosezione_si_abbina_al_comparto_anche_con_maiuscole_diverse(db):
+    """Bug reale in produzione: il comparto configurato su /sedi si chiamava
+    "Archivio Legislativo" ma i dipendenti avevano "Archivio legislativo"
+    (l minuscola) nel campo libero Sottosezione — il confronto esatto tra
+    stringhe faceva fallire l'abbinamento, il minimo di copertura ricadeva
+    silenziosamente a 0 e nessuno se ne accorgeva. Il match ora deve
+    ignorare maiuscole/minuscole e spazi iniziali/finali, e mostrare il nome
+    ufficiale del comparto anche se il dipendente lo ha scritto diverso."""
+    sede = _crea_sede(db, nome="Valdina Test")
+    db.add(SottosezioneCopertura(sede_id=sede.id, nome="Archivio Legislativo", copertura_minima_mattina=2))
+    db.commit()
+
+    tipo = TipoTurno(etichetta="Mattina", ora_inizio=time(7, 0), ora_fine=time(13, 30), fascia="mattina")
+    db.add(tipo)
+    dip = Dipendente(
+        cognome="Archivista", nome="Test", sede_riferimento_id=sede.id, attivo=True,
+        sottosezione="  archivio legislativo  ",
+    )
+    db.add(dip)
+    db.commit()
+    db.refresh(tipo)
+    db.refresh(dip)
+
+    oggi = date.today()
+    db.add(AssegnazioneGiornaliera(
+        dipendente_id=dip.id, data=oggi, sede_effettiva_id=sede.id, tipo_turno_id=tipo.id, origine="manuale",
+    ))
+    db.commit()
+
+    blocchi = calcola_copertura(db, oggi)
+    blocchi_sede = [b for b in blocchi if b["sede"].id == sede.id]
+    assert len(blocchi_sede) == 2  # non tre: nessuno spacchettamento in gruppi separati
+
+    blocco_comparto = next(b for b in blocchi_sede if b["nome_sottosezione"] is not None)
+    assert blocco_comparto["nome_sottosezione"] == "Archivio Legislativo"  # nome ufficiale, non quello scritto sul dipendente
+    assert blocco_comparto["copertura_minima_mattina"] == 2  # il minimo configurato, non 0
+    assert blocco_comparto["sotto_minimo_mattina"] is True  # 1 presente su 2 richiesti
+
+
 def test_calcola_copertura_rispetta_ordine_visualizzazione(db):
     """Le sedi compaiono nell'ordine impostato in Sedi (ordine_visualizzazione),
     non semplicemente in ordine alfabetico: a parità di numero, alfabetico

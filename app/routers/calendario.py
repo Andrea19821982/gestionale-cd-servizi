@@ -14,7 +14,7 @@ from app.flash import imposta_flash
 from app.logging_service import registra_modifica
 from app.models import AssegnazioneGiornaliera, Dipendente, PatternTurno, Sede, Sostituzione, TipoTurno, Utente
 from app.templates import templates
-from app.utils import fk_opzionale_o_400, ottieni_o_404
+from app.utils import chiave_sottosezione, fk_opzionale_o_400, ottieni_o_404
 
 router = APIRouter()
 
@@ -105,12 +105,17 @@ def _raggruppa_per_sottosezione(dipendenti: list[Dipendente]) -> tuple[list[Dipe
     gruppi: dict[str, list[Dipendente]] = {}
     for d in dipendenti:
         if d.sottosezione:
-            gruppi.setdefault(d.sottosezione, []).append(d)
+            # Chiave normalizzata (senza distinguere maiuscole/spazi): due
+            # dipendenti con la stessa sottosezione scritta in modo
+            # leggermente diverso restano comunque nello stesso gruppo,
+            # invece di spaccarsi in due sezioni separate — vedi
+            # chiave_sottosezione in app/utils.py.
+            gruppi.setdefault(chiave_sottosezione(d.sottosezione), []).append(d)
 
     riordinati = list(senza_gruppo)
     titoli_per_dipendente_id: dict[int, str] = {}
-    for titolo, membri in gruppi.items():
-        titoli_per_dipendente_id[membri[0].id] = titolo
+    for membri in gruppi.values():
+        titoli_per_dipendente_id[membri[0].id] = membri[0].sottosezione.strip()
         riordinati.extend(membri)
 
     return riordinati, titoli_per_dipendente_id

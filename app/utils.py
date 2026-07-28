@@ -56,6 +56,19 @@ def dipendenti_del_mese(db: Session, anno: int, mese: int):
     )
 
 
+def chiave_sottosezione(testo: str) -> str:
+    """Normalizza il testo libero di Dipendente.sottosezione / Sotto­
+    sezioneCopertura.nome per il confronto tra i due: senza questo, una
+    differenza di maiuscole o di spazi (es. "Parcheggio" scritto come
+    "parcheggio " su un dipendente) fa fallire silenziosamente
+    l'abbinamento — il comparto perde il proprio minimo di copertura, o
+    peggio si spacca in due gruppi distinti nella stessa sede. Successo
+    reale: "Archivio Legislativo" nel comparto contro "Archivio
+    legislativo" su 4 dipendenti, minimo mai applicato per mesi senza che
+    nessuno se ne accorgesse."""
+    return testo.strip().casefold()
+
+
 def ottieni_o_404(db: Session, modello, id_valore):
     """Recupera un record per chiave primaria o solleva 404 invece di
     lasciare che un AttributeError su None finisca in un 500 non gestito

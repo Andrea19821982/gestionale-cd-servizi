@@ -20,6 +20,7 @@ from app.models import (
     Utente,
 )
 from app.templates import templates
+from app.utils import chiave_sottosezione
 
 router = APIRouter()
 
@@ -188,7 +189,7 @@ def calcola_copertura(db: Session, data_obj: date) -> list[dict]:
         eventi_per_sede.setdefault(evento.sala.sede_id, []).append(evento)
 
     minimi_sottosezione = {
-        (s.sede_id, s.nome): s for s in db.query(SottosezioneCopertura).all()
+        (s.sede_id, chiave_sottosezione(s.nome)): s for s in db.query(SottosezioneCopertura).all()
     }
 
     blocchi = []
@@ -214,9 +215,13 @@ def calcola_copertura(db: Session, data_obj: date) -> list[dict]:
         gruppi_sottosezione: dict[str, list[Dipendente]] = {}
         for d in dipendenti_sede:
             if d.sottosezione:
-                gruppi_sottosezione.setdefault(d.sottosezione, []).append(d)
-        for nome_sottosezione, membri in gruppi_sottosezione.items():
-            minimo = minimi_sottosezione.get((sede.id, nome_sottosezione))
+                gruppi_sottosezione.setdefault(chiave_sottosezione(d.sottosezione), []).append(d)
+        for chiave, membri in gruppi_sottosezione.items():
+            minimo = minimi_sottosezione.get((sede.id, chiave))
+            # Il nome del comparto (se configurato) vince su quello scritto
+            # sul dipendente: così il titolo resta unico e corretto anche
+            # se qualcuno lo ha digitato con maiuscole/spazi diversi.
+            nome_sottosezione = minimo.nome if minimo else membri[0].sottosezione.strip()
             blocchi.append(_costruisci_blocco(
                 sede=sede,
                 nome_sottosezione=nome_sottosezione,

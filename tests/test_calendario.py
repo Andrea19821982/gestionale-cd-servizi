@@ -122,6 +122,26 @@ def test_raggruppa_per_sottosezione_ordina_senza_gruppo_prima_poi_i_gruppi():
     assert titoli == {2: "Parcheggio", 5: "Archivio"}
 
 
+def test_raggruppa_per_sottosezione_ignora_maiuscole_e_spazi():
+    """Stesso comparto scritto in modo diverso sui singoli dipendenti (es.
+    "Parcheggio" vs " parcheggio") deve restare un unico gruppo, non
+    spaccarsi in due sezioni distinte nel calendario."""
+    from app.routers.calendario import _raggruppa_per_sottosezione
+
+    class Finto:
+        def __init__(self, id, sottosezione=None):
+            self.id = id
+            self.sottosezione = sottosezione
+
+    a = Finto(1, "Parcheggio")
+    b = Finto(2, " parcheggio ")
+
+    riordinati, titoli = _raggruppa_per_sottosezione([a, b])
+
+    assert [x.id for x in riordinati] == [1, 2]
+    assert titoli == {1: "Parcheggio"}  # un solo titolo di sezione, quello del primo del gruppo
+
+
 def test_calendario_mostra_sezione_sottosezione_con_i_membri_raggruppati(client, crea_utente, db):
     crea_utente("admin_test", "passwordsegreta", "amministratore")
     login(client, "admin_test", "passwordsegreta")
