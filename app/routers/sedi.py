@@ -106,6 +106,27 @@ def modifica_sede(
     return RedirectResponse("/sedi", status_code=303)
 
 
+def _rifiuta_comparto_duplicato(db: Session, sede_id: int, nome: str, escludi_id: int | None = None) -> None:
+    """Il vincolo UNIQUE(sede_id, nome) nel DB è un confronto esatto,
+    case-sensitive: da solo non impedisce "Parcheggio" e "parcheggio " nella
+    stessa sede. calcola_copertura invece li abbina con chiave_sottosezione
+    (normalizzata), quindi i due finirebbero a collassare sulla stessa
+    chiave: uno dei due minimi sparirebbe silenziosamente dal cruscotto
+    Copertura, senza nessun errore né avviso. Meglio bloccarlo qui."""
+    chiave = chiave_sottosezione(nome)
+    query = db.query(SottosezioneCopertura).filter(SottosezioneCopertura.sede_id == sede_id)
+    if escludi_id is not None:
+        query = query.filter(SottosezioneCopertura.id != escludi_id)
+    for esistente in query.all():
+        if chiave_sottosezione(esistente.nome) == chiave:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Esiste già un comparto \"{esistente.nome}\" in questa sede: differisce solo per "
+                "maiuscole o spazi, che nel calcolo della copertura vengono ignorati e farebbero sparire "
+                "silenziosamente uno dei due minimi configurati.",
+            )
+
+
 @router.post("/sedi/comparti/nuovo")
 def crea_comparto_copertura(
     request: Request,
@@ -118,6 +139,7 @@ def crea_comparto_copertura(
     _csrf: None = Depends(richiedi_csrf_valido),
 ):
     ottieni_o_404(db, Sede, sede_id)
+    _rifiuta_comparto_duplicato(db, sede_id, nome.strip())
     comparto = SottosezioneCopertura(
         sede_id=sede_id,
         nome=nome.strip(),
@@ -148,6 +170,7 @@ def modifica_comparto_copertura(
 ):
     comparto = ottieni_o_404(db, SottosezioneCopertura, comparto_id)
     ottieni_o_404(db, Sede, sede_id)
+    _rifiuta_comparto_duplicato(db, sede_id, nome.strip(), escludi_id=comparto.id)
     comparto.sede_id = sede_id
     comparto.nome = nome.strip()
     comparto.copertura_minima_mattina = _intero_non_negativo_o_400(copertura_minima_mattina)

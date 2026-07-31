@@ -196,6 +196,34 @@ def test_pagina_modifica_dipendente_mostra_tutti_i_campi(client, crea_utente, db
     assert "Pattern turno" in r.text
 
 
+def test_pagina_modifica_dipendente_riconosce_sottosezione_con_maiuscole_diverse(client, crea_utente, db):
+    """Un dipendente con sottosezione storica scritta diversa dal comparto
+    solo per maiuscole/spazi (es. "parcheggio " vs "Parcheggio") deve
+    risultare comunque abbinato al comparto vero nel form, non segnalato
+    come "non configurato": è lo stesso confronto normalizzato che usa già
+    calcola_copertura per non perdere il minimo configurato."""
+    from app.models import Sede, SottosezioneCopertura
+
+    crea_utente("admin_test2", "passwordsegreta", "amministratore")
+    login(client, "admin_test2", "passwordsegreta")
+    sede = Sede(nome="Sede Comparto Maiuscole", colore_hex="#123456", attivo=True)
+    db.add(sede)
+    db.commit()
+    db.refresh(sede)
+    db.add(SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1))
+
+    from app.models import Dipendente
+    dip = Dipendente(cognome="Maiuscole", nome="Test", sede_riferimento_id=sede.id, attivo=True, sottosezione="parcheggio ")
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+
+    r = client.get(f"/dipendenti/{dip.id}/modifica")
+    assert r.status_code == 200
+    assert "non corrisponde a nessun comparto configurato" not in r.text
+    assert 'value="Parcheggio" data-sede="{}" selected'.format(sede.id) in r.text
+
+
 def test_pagina_modifica_dipendente_richiede_ruolo_operativo(client, crea_utente, db):
     from app.models import Dipendente
 

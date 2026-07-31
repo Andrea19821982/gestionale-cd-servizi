@@ -27,12 +27,21 @@
                 </select>
             </label>
             <label>Sottosezione
+                {# Confronto normalizzato (maiuscole/spazi ignorati, vedi chiave_sottosezione
+                   in app/utils.py) invece di un confronto esatto: coerente con come calcola_copertura
+                   abbina davvero dipendente e comparto, altrimenti un valore storico scritto con
+                   maiuscole diverse verrebbe segnalato qui come "non configurato" anche se il
+                   backend lo riconosce già correttamente. #}
+                {% set chiave_corrente = chiave_sottosezione(dipendente.sottosezione) if dipendente.sottosezione else none %}
+                {% set ns_comparto = namespace(trovato=false) %}
                 <select name="sottosezione" id="sottosezione-modifica">
                     <option value="">— nessuna —</option>
                     {% for c in comparti %}
-                    <option value="{{ c.nome }}" data-sede="{{ c.sede_id }}" {% if dipendente.sottosezione == c.nome %}selected{% endif %}>{{ c.nome }} ({{ c.sede.nome }})</option>
+                    {% set combacia = chiave_corrente is not none and chiave_sottosezione(c.nome) == chiave_corrente %}
+                    {% if combacia %}{% set ns_comparto.trovato = true %}{% endif %}
+                    <option value="{{ c.nome }}" data-sede="{{ c.sede_id }}" {% if combacia %}selected{% endif %}>{{ c.nome }} ({{ c.sede.nome }})</option>
                     {% endfor %}
-                    {% if dipendente.sottosezione and dipendente.sottosezione not in (comparti | map(attribute="nome") | list) %}
+                    {% if chiave_corrente is not none and not ns_comparto.trovato %}
                     {# Testo scritto a mano prima che esistesse il comparto corrispondente, o che non combacia
                        più esattamente con nessun comparto configurato: va preservato invece di sparire silenziosamente
                        al primo salvataggio, ma segnalato perché probabilmente non ha più un minimo di copertura collegato. #}

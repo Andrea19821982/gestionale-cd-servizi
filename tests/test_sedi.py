@@ -106,6 +106,59 @@ def test_modifica_comparto_copertura(client, crea_utente, db):
     assert comparto.copertura_minima_mattina == 2
 
 
+def test_crea_comparto_duplicato_per_maiuscole_da_400(client, crea_utente, db):
+    """Due comparti nella stessa sede che differiscono solo per maiuscole o
+    spazi collasserebbero sulla stessa chiave in calcola_copertura, facendo
+    sparire silenziosamente il minimo di uno dei due: va rifiutato subito."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Comparto Duplicato")
+    db.add(SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1))
+    db.commit()
+
+    r = client.post(
+        "/sedi/comparti/nuovo",
+        data={"sede_id": sede.id, "nome": "  parcheggio  ", "copertura_minima_mattina": "2", "copertura_minima_pomeriggio": "2"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    assert db.query(SottosezioneCopertura).filter_by(sede_id=sede.id).count() == 1
+
+
+def test_stesso_nome_comparto_in_sedi_diverse_e_ammesso(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    sede_a = _crea_sede(db, "Sede Comparto A")
+    sede_b = _crea_sede(db, "Sede Comparto B")
+    db.add(SottosezioneCopertura(sede_id=sede_a.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1))
+    db.commit()
+
+    r = client.post(
+        "/sedi/comparti/nuovo",
+        data={"sede_id": sede_b.id, "nome": "Parcheggio", "copertura_minima_mattina": "1", "copertura_minima_pomeriggio": "1"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert db.query(SottosezioneCopertura).filter_by(sede_id=sede_b.id, nome="Parcheggio").first() is not None
+
+
+def test_modifica_comparto_in_duplicato_da_400(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Comparto Modifica Duplicato")
+    db.add(SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1))
+    comparto_b = SottosezioneCopertura(sede_id=sede.id, nome="Archivio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
+    db.add(comparto_b)
+    db.commit()
+    db.refresh(comparto_b)
+
+    r = client.post(
+        f"/sedi/comparti/{comparto_b.id}/modifica",
+        data={"sede_id": sede.id, "nome": "PARCHEGGIO", "copertura_minima_mattina": "1", "copertura_minima_pomeriggio": "1"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    db.refresh(comparto_b)
+    assert comparto_b.nome == "Archivio"  # non modificato
+
+
 def test_pagina_sedi_mostra_comparti_esistenti(client, crea_utente, db):
     _login_admin(client, crea_utente)
     sede = _crea_sede(db, "Sede Con Comparto Visibile")

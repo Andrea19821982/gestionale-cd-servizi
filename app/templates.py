@@ -3,6 +3,7 @@ from starlette.requests import Request
 
 from app.auth import RUOLI_SCRITTURA_OPERATIVO
 from app.paths import cartella_risorse
+from app.utils import chiave_sottosezione
 
 _RISORSE_DIR = cartella_risorse()
 
@@ -152,3 +153,4 @@ templates.env.globals["colore_avatar"] = _colore_avatar
 templates.env.globals["colore_sequenziale"] = _colore_sequenziale
 templates.env.globals["codice_turno"] = _codice_turno
 templates.env.globals["orario_turno"] = _orario_turno
+templates.env.globals["chiave_sottosezione"] = chiave_sottosezione
