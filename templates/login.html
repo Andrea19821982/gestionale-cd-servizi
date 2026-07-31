@@ -8,28 +8,51 @@
     <link rel="stylesheet" href="/static/style.css?v={{ versione_statico('style.css') }}">
 </head>
 <body>
-    <main class="container login-container">
-        <div class="login-box">
-            <img class="login-logo" src="/static/logo.png" alt="" width="52" height="52">
-            <h1>Calendario Turni</h1>
-            {% if errore %}
-            <div class="flash flash-errore">{{ errore }}</div>
-            {% endif %}
-            <form method="post">
-                <input type="hidden" name="next" value="{{ next }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-                <label>
-                    Username
-                    <input type="text" name="username" autofocus required>
-                </label>
-                <label>
-                    Password
-                    <input type="password" name="password" required>
-                </label>
-                <button type="submit">Accedi</button>
-            </form>
+    <main class="login-container">
+        <div class="login-panel-brand">
+            <div class="login-brand-content">
+                <div class="login-brand-bars" aria-hidden="true"><span></span><span></span><span></span></div>
+                <h1 class="login-brand-title">Gestionale CD-Servizi</h1>
+                <p class="login-brand-tagline">Calendario turni, assenze, sostituzioni e copertura minima di ogni palazzo: un solo posto, sempre aggiornato per tutti.</p>
+            </div>
         </div>
-        <p class="credito-autore">Un progetto di Andrea Pozzi</p>
+        <div class="login-panel-form">
+            <div class="login-box">
+                <img class="login-logo" src="/static/logo.png" alt="" width="56" height="56">
+                <h2>Accedi</h2>
+                {% if errore %}
+                <div class="flash flash-errore">{{ errore }}</div>
+                {% endif %}
+                <form method="post">
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                    <label>
+                        Username
+                        <input type="text" name="username" autofocus required>
+                    </label>
+                    <label>
+                        Password
+                        <div class="campo-password">
+                            <input type="password" name="password" required>
+                            <button type="button" class="mostra-password" aria-label="Mostra password">👁️</button>
+                        </div>
+                    </label>
+                    <button type="submit">Accedi</button>
+                </form>
+            </div>
+            <p class="credito-autore">Un progetto di Andrea Pozzi</p>
+        </div>
     </main>
+    <script>
+    document.querySelectorAll('.mostra-password').forEach(function (pulsante) {
+        pulsante.addEventListener('click', function () {
+            const campo = pulsante.previousElementSibling;
+            const mostra = campo.type === 'password';
+            campo.type = mostra ? 'text' : 'password';
+            pulsante.textContent = mostra ? '🙈' : '👁️';
+            pulsante.setAttribute('aria-label', mostra ? 'Nascondi password' : 'Mostra password');
+        });
+    });
+    </script>
 </body>
 </html>

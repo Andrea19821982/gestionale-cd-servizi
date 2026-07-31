@@ -33,7 +33,10 @@
                                 {% endfor %}
                             </select>
                             <label><input type="checkbox" name="attivo" {% if u.attivo %}checked{% endif %}> attivo</label>
-                            <input type="password" name="nuova_password" placeholder="Nuova password (facoltativo)" aria-label="Nuova password, lascia vuoto per non cambiarla" minlength="8">
+                            <div class="campo-password">
+                                <input type="password" name="nuova_password" placeholder="Nuova password (facoltativo)" aria-label="Nuova password, lascia vuoto per non cambiarla" minlength="8">
+                                <button type="button" class="mostra-password" aria-label="Mostra password">👁️</button>
+                            </div>
                             <button type="submit">Salva</button>
                         </form>
                     </div>
@@ -48,7 +51,12 @@
 <form method="post" action="/utenti/nuovo" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <label>Username <input type="text" name="username" required></label>
-    <label>Password <input type="password" name="password" placeholder="min. 8 caratteri" minlength="8" required></label>
+    <label>Password
+        <div class="campo-password">
+            <input type="password" name="password" placeholder="min. 8 caratteri" minlength="8" required>
+            <button type="button" class="mostra-password" aria-label="Mostra password">👁️</button>
+        </div>
+    </label>
     <label>Ruolo
         <select name="ruolo" required>
         {% for r in ruoli_validi %}
@@ -120,4 +128,15 @@
     <label>Note <input type="text" name="note" placeholder="facoltativo"></label>
     <button type="submit">Crea delega</button>
 </form>
+<script>
+document.querySelectorAll('.mostra-password').forEach(function (pulsante) {
+    pulsante.addEventListener('click', function () {
+        const campo = pulsante.previousElementSibling;
+        const mostra = campo.type === 'password';
+        campo.type = mostra ? 'text' : 'password';
+        pulsante.textContent = mostra ? '🙈' : '👁️';
+        pulsante.setAttribute('aria-label', mostra ? 'Nascondi password' : 'Mostra password');
+    });
+});
+</script>
 {% endblock %}

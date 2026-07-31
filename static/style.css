@@ -76,7 +76,9 @@ a { color: var(--accent); }
     align-items: center;
     gap: 0.5rem;
     font-weight: 800;
-    font-size: 1rem;
+    font-size: 1.02rem;
+    font-family: Cambria, Georgia, serif;
+    letter-spacing: -0.005em;
     color: #fff;
     padding: 0.85rem 1.25rem 0.85rem 0;
     margin-right: 0.25rem;
@@ -137,6 +139,12 @@ h1 {
     font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: -0.01em;
+    /* Stesso trattamento editoriale (serif solo sul titolo, corpo in sans)
+       delle guide Word e della presentazione già consegnate: un tocco che
+       si riconosce come "lo stesso prodotto" attraverso i materiali, non
+       solo dentro il programma. Cambria è preinstallato su ogni Windows
+       (il pubblico di questa app), quindi non serve alcun fallback web. */
+    font-family: Cambria, Georgia, serif;
 }
 
 h2 {
@@ -329,6 +337,48 @@ input:focus, select:focus, textarea:focus {
     height: 1rem;
 }
 
+/* Campo password con occhio per mostrare/nascondere: senza, chi sbaglia a
+   digitarla lo scopre solo dopo l'invio ("password errata"), e su una
+   password nuova (utente, IMAP) non c'è nemmeno quel riscontro — resta
+   sbagliata finché qualcuno non se ne accorge. Vedi il piccolo script
+   inline in ogni pagina che lo usa (login.html, utenti.html, bozze_email.html). */
+.campo-password {
+    position: relative;
+    display: flex;
+}
+
+.campo-password input {
+    flex: 1;
+    padding-right: 2.3rem !important;
+    width: 100%;
+}
+
+.mostra-password {
+    /* top+bottom a 0 invece di top:50%+transform: l'emoji ha una metrica
+       verticale che varia da font a font (spesso più alta del suo stesso
+       font-size), quindi un centraggio percentuale sballa di qualche
+       pixel. Ancorando il pulsante all'altezza esatta del campo e
+       centrando il contenuto con flex resta preciso a prescindere. */
+    position: absolute;
+    right: 0.15rem;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0 0.6rem;
+    font-size: 0.95rem;
+    line-height: 1;
+    color: var(--muted);
+}
+
+.mostra-password:hover { background: none; color: var(--text); }
+.mostra-password:active { transform: none; }
+.mostra-password:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 /* --- Pulsanti --- */
 
 /* .btn veste da pulsante anche elementi che pulsanti non sono: i link di
@@ -487,6 +537,11 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     margin-right: 0.55rem;
     vertical-align: middle;
     letter-spacing: 0;
+    /* Esplicito, non ereditato: in dipendente_modifica.html/dipendente_storico.html
+       l'avatar sta dentro un <h1>, che ora usa un serif per il titolo (vedi
+       sopra) — senza questo le iniziali cambierebbero font a seconda di
+       dove compare l'avatar, identico altrove nelle tabelle. */
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .avatar-lg {
@@ -730,29 +785,66 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 
 .nav-logout button:hover { color: #f87171; background: none; }
 
-/* --- Login --- */
+/* --- Login ---
+   Due pannelli affiancati (schema "SaaS professionale"): a sinistra
+   l'identità del prodotto (stessa palette navy/verde della presentazione
+   e delle guide già consegnate), a destra il modulo di accesso. Sotto i
+   720px il pannello di marca sparisce: su schermo stretto conta solo
+   poter accedere in fretta, non la messa in scena. */
 
 .login-container {
     display: flex;
-    justify-content: center;
-    align-items: center;
     min-height: 100vh;
-    background:
-        radial-gradient(circle at 15% 15%, var(--accent-soft) 0%, transparent 45%),
-        radial-gradient(circle at 85% 85%, var(--accent-soft) 0%, transparent 45%),
-        var(--bg);
 }
 
-/* Ancorato alla finestra (fixed), non al riquadro di login: .login-container
-   eredita anche .container, che aggiunge un margine verticale di 1.75rem
-   sopra e sotto. Con position:absolute il credito si sarebbe posizionato
-   relativo a quel margine e finiva parzialmente sotto il bordo dello
-   schermo, invece che ancorato dove si vede davvero. */
-.login-container .credito-autore {
-    position: fixed;
-    bottom: 1.25rem;
-    left: 0;
-    right: 0;
+.login-panel-brand {
+    flex: 1 1 44%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 3rem;
+    background: linear-gradient(160deg, var(--brand-navy) 0%, #12141f 100%);
+}
+
+.login-brand-content { max-width: 380px; }
+
+.login-brand-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    height: 2.75rem;
+    margin-bottom: 1.75rem;
+}
+
+.login-brand-bars span { display: block; width: 0.85rem; border-radius: 3px 3px 0 0; }
+.login-brand-bars span:nth-child(1) { height: 45%; background: #4a6fa5; }
+.login-brand-bars span:nth-child(2) { height: 70%; background: #5c8fc9; }
+.login-brand-bars span:nth-child(3) { height: 100%; background: var(--ok); }
+
+.login-brand-title {
+    margin: 0 0 0.85rem;
+    font-size: 1.85rem;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.login-brand-tagline {
+    margin: 0;
+    color: #b7c2d9;
+    font-size: 0.95rem;
+    line-height: 1.65;
+}
+
+.login-panel-form {
+    flex: 1 1 56%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: var(--bg);
 }
 
 .credito-autore {
@@ -778,10 +870,11 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     border-radius: 12px;
 }
 
-.login-box h1 {
+.login-box h2 {
     font-size: 1.25rem;
     text-align: center;
     margin: 0 0 1.5rem;
+    color: var(--text);
 }
 
 .login-box form {
@@ -806,10 +899,15 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     font-size: 0.95rem;
 }
 
-.login-box button {
+.login-box button:not(.mostra-password) {
     margin-top: 0.4rem;
     padding: 0.65rem;
     font-size: 0.9rem;
+}
+
+@media (max-width: 780px) {
+    .login-panel-brand { display: none; }
+    .login-panel-form { flex: 1 1 100%; }
 }
 
 /* --- Calendario --- */

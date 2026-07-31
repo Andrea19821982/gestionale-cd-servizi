@@ -72,7 +72,10 @@
             <label>Porta <input type="number" name="porta" value="{{ imap_porta }}" style="width:5em;"></label>
             <label>Indirizzo email <input type="email" name="imap_utente" value="{{ imap_utente }}" placeholder="turni@esempio.it"></label>
             <label>Password
-                <input type="password" name="password" placeholder="{{ '(lasciare vuoto per non cambiarla)' if imap_password_impostata else 'password' }}">
+                <div class="campo-password">
+                    <input type="password" name="password" placeholder="{{ '(lasciare vuoto per non cambiarla)' if imap_password_impostata else 'password' }}">
+                    <button type="button" class="mostra-password" aria-label="Mostra password">👁️</button>
+                </div>
             </label>
             <label>Cartella <input type="text" name="cartella" value="{{ imap_cartella }}" style="width:8em;"></label>
             <button type="submit">Salva</button>
@@ -168,4 +171,15 @@
 {% else %}
 <p class="muted">Nessuna bozza in questo stato.</p>
 {% endfor %}
+<script>
+document.querySelectorAll('.mostra-password').forEach(function (pulsante) {
+    pulsante.addEventListener('click', function () {
+        const campo = pulsante.previousElementSibling;
+        const mostra = campo.type === 'password';
+        campo.type = mostra ? 'text' : 'password';
+        pulsante.textContent = mostra ? '🙈' : '👁️';
+        pulsante.setAttribute('aria-label', mostra ? 'Nascondi password' : 'Mostra password');
+    });
+});
+</script>
 {% endblock %}
