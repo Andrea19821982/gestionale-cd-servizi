@@ -2,6 +2,7 @@
 stampa/PDF della Fase 6: stessa logica di lettura dei dati (_dati_calendario_sede),
 un foglio per sede."""
 
+import re
 from calendar import monthrange
 from io import BytesIO
 
@@ -26,6 +27,28 @@ router = APIRouter()
 COLORE_INTESTAZIONE = "1F2430"
 COLORE_WEEKEND = "FDF1E0"
 COLORE_ASSENZA = "D64545"
+
+_CARATTERI_NON_AMMESSI_FOGLIO = re.compile(r'[:\\/?*\[\]]')
+
+
+def _titolo_foglio(nome: str, gia_usati: set[str]) -> str:
+    """openpyxl rifiuta alcuni caratteri nel titolo di un foglio Excel
+    (: \\ / ? * [ ]) sollevando un ValueError non gestito: Sede.nome è
+    testo libero senza questa restrizione, e un nome come "Via Roma 5/A"
+    (tutt'altro che raro per un indirizzo) fa fallire con un 500 l'intera
+    esportazione invece di produrre il file. Deduplica anche il caso in
+    cui due sedi, una volta sanificate e troncate ai 31 caratteri massimi
+    di Excel, finiscano con lo stesso titolo: create_sheet fallirebbe
+    comunque su un duplicato."""
+    pulito = _CARATTERI_NON_AMMESSI_FOGLIO.sub(" ", nome).strip() or "Sede"
+    titolo = pulito[:31]
+    contatore = 2
+    while titolo in gia_usati:
+        suffisso = f" ({contatore})"
+        titolo = pulito[:31 - len(suffisso)] + suffisso
+        contatore += 1
+    gia_usati.add(titolo)
+    return titolo
 
 
 def _testo_cella(assegnazione, sostituzioni_giorno) -> str:
@@ -82,12 +105,13 @@ def esporta_excel(
 
     cartella_lavoro = Workbook()
     cartella_lavoro.remove(cartella_lavoro.active)
+    titoli_foglio_usati: set[str] = set()
 
     for sede in sedi_da_esportare:
         dipendenti, assegnazioni_per_dipendente, sostituzioni_per_dipendente, _, _ = _dati_calendario_sede(
             db, sede, anno, mese, numero_giorni
         )
-        foglio = cartella_lavoro.create_sheet(title=sede.nome[:31])
+        foglio = cartella_lavoro.create_sheet(title=_titolo_foglio(sede.nome, titoli_foglio_usati))
 
         intestazione = foglio.cell(row=1, column=1, value="Dipendente")
         intestazione.font = Font(bold=True, color="FFFFFF")

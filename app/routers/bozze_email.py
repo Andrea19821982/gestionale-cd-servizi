@@ -264,6 +264,7 @@ def elenco_bozze_email(
     dipendenti_con_email = [d for d in dipendenti if d.email]
 
     cfg = impostazioni_email.imap_effettivo(db)
+    imap_host, imap_porta, imap_utente, imap_cartella, imap_password_impostata = impostazioni_email.campi_grezzi(db)
     return templates.TemplateResponse(
         request,
         "bozze_email.html",
@@ -277,11 +278,17 @@ def elenco_bozze_email(
             "utente": utente,
             "indirizzo_email": cfg.utente,
             "testo_email_dipendenti": genera_testo_email_dipendenti(cfg.utente),
-            "imap_host": cfg.host,
-            "imap_porta": cfg.porta,
-            "imap_utente": cfg.utente,
-            "imap_cartella": cfg.cartella,
-            "imap_password_impostata": bool(cfg.password),
+            # Valori grezzi (quello che è davvero salvato in DB), non
+            # imap_effettivo(): il form di modifica va precompilato con
+            # ciò che l'amministratore ha davvero scritto, non con un
+            # eventuale ripiego sul file, altrimenti un campo nuovo
+            # salvato ma non "completo" (manca ancora la password)
+            # sembra scomparire al ricaricamento — vedi campi_grezzi.
+            "imap_host": imap_host,
+            "imap_porta": imap_porta,
+            "imap_utente": imap_utente,
+            "imap_cartella": imap_cartella,
+            "imap_password_impostata": imap_password_impostata,
         },
     )
 

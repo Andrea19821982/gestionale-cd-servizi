@@ -283,6 +283,42 @@ def test_pagina_bozze_email_avvisa_se_indirizzo_non_configurato(client, crea_ute
     assert "non è ancora configurato" in r.text
 
 
+def test_form_imap_precompilato_con_valori_salvati_non_con_quelli_del_file(client, crea_utente, monkeypatch):
+    """Bug reale: cambiare casella email (host+utente nuovi, password
+    lasciata vuota com'è incoraggiato dal placeholder) veniva mostrato nel
+    form coi vecchi valori del file, perché la pagina precompilava con
+    imap_effettivo() — che ricade *in blocco* sul file finché la password
+    della riga DB non è valorizzata anche lei. Il form deve mostrare quello
+    che è stato davvero salvato, non quello che il programma userebbe come
+    ripiego."""
+    monkeypatch.setattr(email_config, "IMAP_HOST", "imap.vecchiafornitura.it")
+    monkeypatch.setattr(email_config, "IMAP_UTENTE", "turni@vecchiafornitura.it")
+    monkeypatch.setattr(email_config, "IMAP_PASSWORD", "vecchiapassword")
+    _login_admin(client, crea_utente)
+
+    r = client.post(
+        "/bozze-email/imposta-imap",
+        data={"host": "imap.cd-servizi.it", "porta": "993", "imap_utente": "turni@cd-servizi.it", "password": "", "cartella": "INBOX"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    r = client.get("/bozze-email")
+    assert r.status_code == 200
+    # Il FORM (quello che l'amministratore ha davvero digitato) mostra i
+    # valori nuovi, non quelli del file: prova diretta del bug.
+    assert 'name="host" value="imap.cd-servizi.it"' in r.text
+    assert 'name="imap_utente" value="turni@cd-servizi.it"' in r.text
+    # L'indirizzo mostrato ai dipendenti resta invece quello vecchio, ancora
+    # davvero funzionante: la password non è stata salvata, quindi
+    # imap_effettivo() continua correttamente a usare il file finché la
+    # configurazione nuova non è completa — non è lo stesso bug.
+    assert "turni@vecchiafornitura.it" in r.text
+    # Nessuna password salvata in DB: il placeholder deve dirlo, non dare
+    # per scontato che vada bene perché il file ne ha una.
+    assert "Password non ancora configurata" in r.text
+
+
 def _configura_smtp_finto(monkeypatch):
     monkeypatch.setattr(email_config, "SMTP_HOST", "smtp.esempio.it")
     monkeypatch.setattr(email_config, "SMTP_UTENTE", "turni@esempio.it")

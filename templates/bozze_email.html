@@ -130,7 +130,7 @@
             </select>
         </label>
         {% if b.tipo == "assenza" %}
-        <input type="text" name="tipo_assenza" value="{{ b.tipo_assenza or '' }}" list="suggerimenti-tipo-assenza" placeholder="Tipo (es. Ferie)" required>
+        <label>Tipo <input type="text" name="tipo_assenza" value="{{ b.tipo_assenza or '' }}" list="suggerimenti-tipo-assenza" placeholder="es. Ferie" required></label>
         <datalist id="suggerimenti-tipo-assenza">
             <option value="Ferie">
             <option value="Malattia">
@@ -152,7 +152,7 @@
         <label>Alle ore <input type="time" name="ora_fine" value="{{ b.ora_fine.strftime('%H:%M') if b.ora_fine else '' }}"></label>
         <span class="muted">(orari vuoti = intera giornata)</span>
         {% endif %}
-        <input type="text" name="note" value="{{ b.note or '' }}" placeholder="Note (facoltativo)">
+        <label>Note <input type="text" name="note" value="{{ b.note or '' }}" placeholder="facoltativo"></label>
         <button type="submit">✅ Conferma</button>
     </form>
     <form method="post" action="/bozze-email/{{ b.id }}/scarta" style="display:inline;" onsubmit="return confirm('Scartare questa bozza? Non verrà creata nessuna assenza/sostituzione.')">

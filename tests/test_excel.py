@@ -59,6 +59,36 @@ def test_excel_sede_inesistente_non_crasha(client, crea_utente):
     assert cartella.sheetnames == ["Nessuna sede"]
 
 
+def test_excel_sede_con_caratteri_non_ammessi_nel_titolo_foglio(client, crea_utente, db):
+    """openpyxl rifiuta : \\ / ? * [ ] nel titolo di un foglio: un nome
+    sede realistico come un indirizzo con lo slash non deve far fallire
+    l'intera esportazione con un 500."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Via Roma 5/A")
+    dip = Dipendente(cognome="Slash", nome="Test", sede_riferimento_id=sede.id, attivo=True)
+    db.add(dip)
+    db.commit()
+
+    r = client.get(f"/calendario/excel?sede_id={sede.id}&anno=2026&mese=8")
+    assert r.status_code == 200
+    cartella = load_workbook(BytesIO(r.content))
+    assert cartella.sheetnames == ["Via Roma 5 A"]
+
+
+def test_excel_due_sedi_con_lo_stesso_titolo_foglio_dopo_la_sanificazione(client, crea_utente, db):
+    """Due sedi che, una volta tolti i caratteri non ammessi, finiscono
+    con lo stesso titolo non devono far fallire create_sheet su un
+    duplicato: la seconda va distinta con un suffisso."""
+    _login_admin(client, crea_utente)
+    _crea_sede(db, "Sede/Duplicata")
+    _crea_sede(db, "Sede:Duplicata")
+
+    r = client.get("/calendario/excel?tutte=1&anno=2026&mese=8")
+    assert r.status_code == 200
+    cartella = load_workbook(BytesIO(r.content))
+    assert cartella.sheetnames == ["Sede Duplicata", "Sede Duplicata (2)"]
+
+
 def test_excel_richiede_login(client):
     r = client.get("/calendario/excel", follow_redirects=False)
     assert r.status_code == 303
