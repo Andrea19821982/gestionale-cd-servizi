@@ -1,4 +1,4 @@
-from app.models import Sede, SottosezioneCopertura
+from app.models import Dipendente, Sede, SottosezioneCopertura
 from tests.conftest import login
 
 
@@ -128,3 +128,58 @@ def test_comparti_richiede_amministratore_per_creare(client, crea_utente, db):
         follow_redirects=False,
     )
     assert r.status_code == 403
+
+
+def test_elimina_comparto_senza_dipendenti_collegati(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Comparto Da Eliminare")
+    comparto = SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
+    db.add(comparto)
+    db.commit()
+    db.refresh(comparto)
+    comparto_id = comparto.id
+
+    r = client.post(f"/sedi/comparti/{comparto_id}/elimina", follow_redirects=True)
+    assert r.status_code == 200
+    db.expire_all()
+    assert db.get(SottosezioneCopertura, comparto_id) is None
+    assert "flash-ok" in r.text
+    assert "eliminato" in r.text.lower()
+
+
+def test_elimina_comparto_con_dipendenti_ancora_collegati_avvisa(client, crea_utente, db):
+    """Eliminare il comparto non deve toccare i dipendenti (Dipendente.
+    sottosezione resta un campo libero), ma deve avvisare chi elimina che
+    quei dipendenti restano senza un minimo di copertura configurato."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Comparto Con Dipendenti")
+    comparto = SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
+    db.add(comparto)
+    dip = Dipendente(cognome="Rimasto", nome="Test", sede_riferimento_id=sede.id, attivo=True, sottosezione="Parcheggio")
+    db.add(dip)
+    db.commit()
+    db.refresh(comparto)
+    db.refresh(dip)
+    comparto_id = comparto.id
+
+    r = client.post(f"/sedi/comparti/{comparto_id}/elimina", follow_redirects=True)
+    assert r.status_code == 200
+    db.expire_all()
+    assert db.get(SottosezioneCopertura, comparto_id) is None
+    assert "flash-avviso" in r.text
+    assert "Rimasto Test" in r.text
+    assert dip.sottosezione == "Parcheggio"  # il dipendente non viene toccato
+
+
+def test_eliminare_comparto_richiede_amministratore(client, crea_utente, db):
+    crea_utente("gestore_sedi_test2", "passwordsegreta", "gestore_turni")
+    login(client, "gestore_sedi_test2", "passwordsegreta")
+    sede = _crea_sede(db, "Sede Gestore Test 2")
+    comparto = SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
+    db.add(comparto)
+    db.commit()
+    db.refresh(comparto)
+
+    r = client.post(f"/sedi/comparti/{comparto.id}/elimina", follow_redirects=False)
+    assert r.status_code == 403
+    assert db.get(SottosezioneCopertura, comparto.id) is not None

@@ -7,7 +7,7 @@ from app.csrf import richiedi_csrf_valido
 from app.database import get_db
 from app.flash import imposta_flash
 from app.logging_service import registra_modifica
-from app.models import Assenza, Dipendente, PatternTurno, Sede, Sostituzione, TipoTurno, Utente
+from app.models import Assenza, Dipendente, PatternTurno, Sede, SottosezioneCopertura, Sostituzione, TipoTurno, Utente
 from app.routers.statistiche import _ferie_annuali_effettive
 from app.templates import templates
 from app.utils import checkbox_a_bool, fk_opzionale_o_400, ottieni_o_404
@@ -61,12 +61,14 @@ def elenco_dipendenti(
         Dipendente.ordine_visualizzazione, Dipendente.cognome, Dipendente.nome
     ).all()
     sedi = db.query(Sede).filter(Sede.attivo == True).order_by(Sede.nome).all()  # noqa: E712
+    comparti = db.query(SottosezioneCopertura).order_by(SottosezioneCopertura.nome).all()
     return templates.TemplateResponse(
         request,
         "dipendenti.html",
         {
             "dipendenti": dipendenti,
             "sedi": sedi,
+            "comparti": comparti,
             "solo_attivi": solo_attivi,
             "utente": utente,
         },
@@ -131,6 +133,7 @@ def modifica_dipendente_form(
     sedi = db.query(Sede).filter(Sede.attivo == True).order_by(Sede.nome).all()  # noqa: E712
     tipi_turno = db.query(TipoTurno).order_by(TipoTurno.ora_inizio).all()
     pattern = db.get(PatternTurno, dipendente_id)
+    comparti = db.query(SottosezioneCopertura).order_by(SottosezioneCopertura.nome).all()
     return templates.TemplateResponse(
         request,
         "dipendente_modifica.html",
@@ -139,6 +142,7 @@ def modifica_dipendente_form(
             "sedi": sedi,
             "tipi_turno": tipi_turno,
             "pattern": pattern,
+            "comparti": comparti,
             "utente": utente,
         },
     )

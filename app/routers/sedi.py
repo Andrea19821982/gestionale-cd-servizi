@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session, joinedload
 from app.auth import RUOLI_LETTURA, RUOLI_SCRITTURA_ANAGRAFICA, richiedi_ruolo
 from app.csrf import richiedi_csrf_valido
 from app.database import get_db
+from app.flash import imposta_flash
 from app.logging_service import registra_modifica
-from app.models import Sede, SottosezioneCopertura, Utente
+from app.models import Dipendente, Sede, SottosezioneCopertura, Utente
 from app.templates import templates
-from app.utils import checkbox_a_bool, ottieni_o_404
+from app.utils import chiave_sottosezione, checkbox_a_bool, ottieni_o_404
 
 router = APIRouter()
 
@@ -156,4 +157,51 @@ def modifica_comparto_copertura(
         f"sede_id={sede_id}, nome={comparto.nome}",
     )
     db.commit()
+    return RedirectResponse("/sedi", status_code=303)
+
+
+@router.post("/sedi/comparti/{comparto_id}/elimina")
+def elimina_comparto_copertura(
+    request: Request,
+    comparto_id: int,
+    db: Session = Depends(get_db),
+    utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_ANAGRAFICA)),
+    _csrf: None = Depends(richiedi_csrf_valido),
+):
+    """Eliminare un comparto non tocca mai i dipendenti: Dipendente.sottosezione
+    resta un campo libero (non una FK, vedi il modello), quindi qui non c'è
+    nessun vincolo di integrità da rispettare. Ma se qualcuno ha ancora quel
+    nome scritto in Sottosezione, dopo l'eliminazione il suo gruppo in
+    Copertura resta visibile, semplicemente senza più un minimo configurato
+    (ricade a 0, vedi calcola_copertura) — comportamento silenzioso che vale
+    la pena segnalare subito a chi elimina, invece di lasciarlo scoprire
+    dopo che l'allarme copertura ha smesso di scattare per quel gruppo."""
+    comparto = ottieni_o_404(db, SottosezioneCopertura, comparto_id)
+    chiave = chiave_sottosezione(comparto.nome)
+    dipendenti_collegati = [
+        d for d in db.query(Dipendente).filter(
+            Dipendente.sede_riferimento_id == comparto.sede_id,
+            Dipendente.attivo == True,  # noqa: E712
+        ).all()
+        if d.sottosezione and chiave_sottosezione(d.sottosezione) == chiave
+    ]
+    nome_comparto = comparto.nome
+    registra_modifica(
+        db, utente.id, "sottosezioni_copertura", comparto.id, "cancellazione",
+        f"sede_id={comparto.sede_id}, nome={nome_comparto}",
+    )
+    db.delete(comparto)
+    db.commit()
+
+    if dipendenti_collegati:
+        nomi = ", ".join(f"{d.cognome} {d.nome}" for d in dipendenti_collegati)
+        imposta_flash(
+            request,
+            f"Comparto \"{nome_comparto}\" eliminato. {len(dipendenti_collegati)} dipendenti hanno ancora questa "
+            f"sottosezione ({nomi}): restano un gruppo separato in Copertura ma senza più un minimo configurato, "
+            f"finché non aggiorni il loro campo Sottosezione o non ricrei il comparto.",
+            tipo="avviso",
+        )
+    else:
+        imposta_flash(request, f"Comparto \"{nome_comparto}\" eliminato.", tipo="ok")
     return RedirectResponse("/sedi", status_code=303)

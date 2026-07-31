@@ -882,6 +882,13 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
 .scroll-calendario .tabella-calendario {
     box-shadow: none;
     margin-bottom: 0;
+    /* .tabella ha overflow:hidden per gli angoli arrotondati, ma sulla
+       tabella del calendario spezza silenziosamente position:sticky sulla
+       colonna Dipendente (stesso problema già risolto per .tabella-
+       statistiche qui sotto): senza questo override, scorrendo in
+       orizzontale per vedere il resto del mese la colonna Dipendente
+       scorre via insieme al resto invece di restare ferma a sinistra. */
+    overflow: visible;
 }
 
 .tabella-calendario {

@@ -19,7 +19,7 @@
                 <input type="text" name="nome" value="{{ dipendente.nome }}" required>
             </label>
             <label>Sede di riferimento
-                <select name="sede_riferimento_id">
+                <select name="sede_riferimento_id" id="sede-rif-modifica">
                     <option value="">— nessuna —</option>
                     {% for s in sedi %}
                     <option value="{{ s.id }}" {% if dipendente.sede_riferimento_id == s.id %}selected{% endif %}>{{ s.nome }}</option>
@@ -27,7 +27,18 @@
                 </select>
             </label>
             <label>Sottosezione
-                <input type="text" name="sottosezione" value="{{ dipendente.sottosezione or '' }}" placeholder="facoltativo, es. Parcheggio">
+                <select name="sottosezione" id="sottosezione-modifica">
+                    <option value="">— nessuna —</option>
+                    {% for c in comparti %}
+                    <option value="{{ c.nome }}" data-sede="{{ c.sede_id }}" {% if dipendente.sottosezione == c.nome %}selected{% endif %}>{{ c.nome }} ({{ c.sede.nome }})</option>
+                    {% endfor %}
+                    {% if dipendente.sottosezione and dipendente.sottosezione not in (comparti | map(attribute="nome") | list) %}
+                    {# Testo scritto a mano prima che esistesse il comparto corrispondente, o che non combacia
+                       più esattamente con nessun comparto configurato: va preservato invece di sparire silenziosamente
+                       al primo salvataggio, ma segnalato perché probabilmente non ha più un minimo di copertura collegato. #}
+                    <option value="{{ dipendente.sottosezione }}" data-sede="{{ dipendente.sede_riferimento_id or '' }}" selected>{{ dipendente.sottosezione }} (non corrisponde a nessun comparto configurato)</option>
+                    {% endif %}
+                </select>
             </label>
             <label>Email
                 <input type="email" name="email" value="{{ dipendente.email or '' }}" placeholder="facoltativo, per inviare i moduli assenze/sostituzioni">
@@ -86,4 +97,23 @@
         <button type="submit">Salva pattern</button>
     </form>
 </div>
+<script>
+(function() {
+    const selSede = document.getElementById('sede-rif-modifica');
+    const selComparto = document.getElementById('sottosezione-modifica');
+    function aggiornaComparti() {
+        const sedeId = selSede.value;
+        let selezionatoVisibile = !selComparto.value;
+        for (const opt of selComparto.options) {
+            if (!opt.value) continue;
+            const visibile = opt.dataset.sede === sedeId;
+            opt.hidden = !visibile;
+            if (visibile && opt.selected) selezionatoVisibile = true;
+        }
+        if (!selezionatoVisibile) selComparto.value = "";
+    }
+    selSede.addEventListener('change', aggiornaComparti);
+    aggiornaComparti();
+})();
+</script>
 {% endblock %}
