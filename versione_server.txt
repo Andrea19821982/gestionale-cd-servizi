@@ -27,7 +27,7 @@ VSVersionInfo(
       StringTable(
         '041004b0',
         [StringStruct('CompanyName', 'CD Servizi'),
-         StringStruct('FileDescription', 'Calendario Turni - Server'),
+         StringStruct('FileDescription', 'Gestionale CD Servizi - Server'),
          StringStruct('FileVersion', '1.0.6.0'),
          StringStruct('InternalName', 'CalendarioTurni-Server'),
          StringStruct('LegalCopyright', 'Copyright (C) 2026 CD Servizi'),

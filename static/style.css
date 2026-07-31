@@ -324,6 +324,34 @@ input, select, textarea {
     color: var(--text);
 }
 
+/* Elenco a spunta di chi fa parte di un comparto (pagina Sedi): occupa
+   tutta la riga del form-inline invece di stare in linea con i campi
+   corti, e scorre se la sede ha molti dipendenti. */
+.elenco-membri {
+    flex: 1 1 100%;
+    margin: 0.25rem 0;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    max-height: 13rem;
+    overflow-y: auto;
+}
+
+.elenco-membri legend {
+    padding: 0 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.elenco-membri label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.15rem 0;
+    font-size: 0.87rem;
+}
+
 .form-inline input:focus, .form-inline select:focus,
 input:focus, select:focus, textarea:focus {
     outline: none;

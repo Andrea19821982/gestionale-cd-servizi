@@ -429,7 +429,7 @@ def modulo_assenza_stampa(
         request,
         "modulo_email_stampa.html",
         {
-            "titolo_pagina": "Modulo assenze — Calendario Turni",
+            "titolo_pagina": "Modulo assenze — Gestionale CD Servizi",
             "testo_modulo": genera_modulo_assenza(cfg.utente),
         },
     )
@@ -447,7 +447,7 @@ def modulo_sostituzione_stampa(
         request,
         "modulo_email_stampa.html",
         {
-            "titolo_pagina": "Modulo sostituzioni — Calendario Turni",
+            "titolo_pagina": "Modulo sostituzioni — Gestionale CD Servizi",
             "testo_modulo": genera_modulo_sostituzione(cfg.utente),
         },
     )

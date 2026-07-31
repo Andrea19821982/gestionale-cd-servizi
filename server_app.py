@@ -111,7 +111,7 @@ def _scrivi_indirizzo_su_file(ip: str) -> None:
     try:
         percorso = cartella_dati() / "indirizzo_server.txt"
         percorso.write_text(
-            "Indirizzo del server Calendario Turni (da dare ai colleghi):\n"
+            "Indirizzo del server Gestionale CD Servizi (da dare ai colleghi):\n"
             f"{ip}:{PORTA}\n",
             encoding="utf-8",
         )
@@ -151,7 +151,7 @@ def main():
         pystray.MenuItem("Apri nel browser", apri_nel_browser, default=True),
         pystray.MenuItem("Ferma il server ed esci", ferma_ed_esci),
     )
-    icona = pystray.Icon("CalendarioTurni", _carica_icona(), "Calendario Turni — Server", menu)
+    icona = pystray.Icon("CalendarioTurni", _carica_icona(), "Gestionale CD Servizi — Server", menu)
 
     def mostra_avviso_iniziale(icon: pystray.Icon) -> None:
         # Su alcuni backend l'icona deve già essere visibile prima di poter
@@ -159,10 +159,10 @@ def main():
         # icona.run(setup=...)), non prima di avviare il loop dell'icona.
         icon.visible = True
         if icon.HAS_NOTIFICATION:
-            icon.notify(f"Indirizzo per i colleghi: {ip}:{PORTA}", "Calendario Turni — server avviato")
+            icon.notify(f"Indirizzo per i colleghi: {ip}:{PORTA}", "Gestionale CD Servizi — server avviato")
 
     print("=" * 60)
-    print("Calendario Turni - server avviato")
+    print("Gestionale CD Servizi - server avviato")
     print(f"Da questo PC:        http://localhost:{PORTA}")
     print(f"Dagli altri PC:      http://{ip}:{PORTA}")
     print("Icona nella system tray per fermarlo. Chiudendo questa finestra")

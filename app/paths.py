@@ -130,7 +130,7 @@ def _migra_dati(
 
     try:
         marcatore.write_text(
-            "Questa cartella contiene i dati di Calendario Turni.\n"
+            "Questa cartella contiene i dati di Gestionale CD Servizi.\n"
             "Il file serve al programma per sapere che i dati delle versioni\n"
             "precedenti sono già stati recuperati: non cancellarlo.\n",
             encoding="utf-8",

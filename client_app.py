@@ -22,7 +22,7 @@ import webview
 from app.paths import cartella_dati_client
 
 NOME_FILE_CONFIG = "client_config.json"
-TITOLO_FINESTRA = "Calendario Turni"
+TITOLO_FINESTRA = "Gestionale CD Servizi"
 
 
 def _percorso_config() -> Path:
@@ -58,7 +58,7 @@ HTML_CONFIGURAZIONE = """
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<title>Configurazione — Calendario Turni</title>
+<title>Configurazione — Gestionale CD Servizi</title>
 <style>
   body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background: #f5f6f8; margin: 0; }
   .box { max-width: 360px; margin: 15vh auto; background: white; padding: 2rem; border-radius: 8px; border: 1px solid #dde1e6; }
@@ -70,7 +70,7 @@ HTML_CONFIGURAZIONE = """
 </head>
 <body>
   <div class="box">
-    <h1>Calendario Turni</h1>
+    <h1>Gestionale CD Servizi</h1>
     <p>Indirizzo del PC che fa da server (chiedilo a chi lo gestisce), ad esempio 192.168.1.50:8420.</p>
     <input type="text" id="indirizzo" placeholder="192.168.1.50:8420" autofocus>
     <button onclick="conferma()">Connetti</button>

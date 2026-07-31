@@ -106,6 +106,118 @@ def test_modifica_comparto_copertura(client, crea_utente, db):
     assert comparto.copertura_minima_mattina == 2
 
 
+def _crea_dipendente(db, cognome, sede, sottosezione=None):
+    dip = Dipendente(cognome=cognome, nome="Test", sede_riferimento_id=sede.id, attivo=True, sottosezione=sottosezione)
+    db.add(dip)
+    db.commit()
+    db.refresh(dip)
+    return dip
+
+
+def test_crea_comparto_assegnando_subito_i_dipendenti(client, crea_utente, db):
+    """Creando il comparto si può già spuntare chi ne fa parte, senza
+    doverli poi aprire uno a uno da Dipendenti."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Comparto Con Membri")
+    dip_dentro = _crea_dipendente(db, "Dentro", sede)
+    dip_fuori = _crea_dipendente(db, "Fuori", sede)
+
+    r = client.post(
+        "/sedi/comparti/nuovo",
+        data={
+            "sede_id": sede.id, "nome": "Parcheggio",
+            "copertura_minima_mattina": "1", "copertura_minima_pomeriggio": "1",
+            "dipendente_ids": [str(dip_dentro.id)],
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    db.expire_all()
+    assert db.get(Dipendente, dip_dentro.id).sottosezione == "Parcheggio"
+    assert db.get(Dipendente, dip_fuori.id).sottosezione is None
+
+
+def test_modifica_comparto_aggiunge_e_toglie_membri(client, crea_utente, db):
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Comparto Membri Modifica")
+    comparto = SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
+    db.add(comparto)
+    db.commit()
+    db.refresh(comparto)
+    gia_dentro = _crea_dipendente(db, "GiaDentro", sede, sottosezione="Parcheggio")
+    da_aggiungere = _crea_dipendente(db, "DaAggiungere", sede)
+
+    r = client.post(
+        f"/sedi/comparti/{comparto.id}/modifica",
+        data={
+            "sede_id": sede.id, "nome": "Parcheggio",
+            "copertura_minima_mattina": "1", "copertura_minima_pomeriggio": "1",
+            "dipendente_ids": [str(da_aggiungere.id)],  # gia_dentro non è più spuntato
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    db.expire_all()
+    assert db.get(Dipendente, da_aggiungere.id).sottosezione == "Parcheggio"
+    assert db.get(Dipendente, gia_dentro.id).sottosezione is None
+
+
+def test_modifica_comparto_non_ruba_i_membri_di_un_altro_comparto(client, crea_utente, db):
+    """Chi è già in un altro comparto della stessa sede non deve essere
+    svuotato solo perché non è spuntato in questo form (nel template è
+    disabilitato, ma il controllo deve reggere anche a una POST diretta)."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Due Comparti")
+    parcheggio = SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
+    db.add(parcheggio)
+    db.add(SottosezioneCopertura(sede_id=sede.id, nome="Archivio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1))
+    db.commit()
+    db.refresh(parcheggio)
+    archivista = _crea_dipendente(db, "Archivista", sede, sottosezione="Archivio")
+
+    r = client.post(
+        f"/sedi/comparti/{parcheggio.id}/modifica",
+        data={
+            "sede_id": sede.id, "nome": "Parcheggio",
+            "copertura_minima_mattina": "1", "copertura_minima_pomeriggio": "1",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    db.expire_all()
+    assert db.get(Dipendente, archivista.id).sottosezione == "Archivio"
+
+
+def test_rinominare_un_comparto_porta_con_se_i_suoi_dipendenti(client, crea_utente, db):
+    """Rinominando il comparto, i dipendenti restavano col vecchio nome
+    scritto in Sottosezione: scollegati dal minimo di copertura senza
+    nessun avviso (stesso effetto del bug già corretto sulle maiuscole)."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Comparto Rinominato")
+    comparto = SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
+    db.add(comparto)
+    db.commit()
+    db.refresh(comparto)
+    membro = _crea_dipendente(db, "Membro", sede, sottosezione="Parcheggio")
+
+    r = client.post(
+        f"/sedi/comparti/{comparto.id}/modifica",
+        data={
+            "sede_id": sede.id, "nome": "Parcheggio interrato",
+            "copertura_minima_mattina": "1", "copertura_minima_pomeriggio": "1",
+            "dipendente_ids": [str(membro.id)],
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    db.expire_all()
+    assert db.get(Dipendente, membro.id).sottosezione == "Parcheggio interrato"
+
+
 def test_crea_comparto_duplicato_per_maiuscole_da_400(client, crea_utente, db):
     """Due comparti nella stessa sede che differiscono solo per maiuscole o
     spazi collasserebbero sulla stessa chiave in calcola_copertura, facendo

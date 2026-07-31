@@ -107,7 +107,7 @@ async def lifespan(app: FastAPI):
     _arresta_backup.set()
 
 
-app = FastAPI(title="Calendario Turni CD Servizi", lifespan=lifespan)
+app = FastAPI(title="Gestionale CD Servizi", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(cartella_risorse() / "static")), name="static")
 
 

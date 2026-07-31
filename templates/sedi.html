@@ -56,10 +56,10 @@
 
 {% if utente.ruolo == "amministratore" %}
 <h2>Comparti con copertura propria</h2>
-<p class="muted">Un gruppo di dipendenti dentro una sede (es. "Parcheggio" dentro Valdina) con un proprio minimo di copertura, monitorato separatamente dal resto del palazzo. Il nome deve corrispondere ESATTAMENTE al valore scritto in Dipendenti → Sottosezione per essere collegato correttamente.</p>
+<p class="muted">Un gruppo di dipendenti dentro una sede (es. "Parcheggio" dentro Valdina) con un proprio minimo di copertura, monitorato separatamente dal resto del palazzo. Spunta qui sotto chi ne fa parte: chi è già assegnato a un altro comparto della stessa sede compare in grigio e va prima tolto da quello.</p>
 <table class="tabella">
     <thead>
-        <tr><th>Sede</th><th>Nome comparto</th><th>Minimo mattina</th><th>Minimo pomeriggio</th><th></th></tr>
+        <tr><th>Sede</th><th>Nome comparto</th><th>Minimo mattina</th><th>Minimo pomeriggio</th><th>Persone</th><th></th></tr>
     </thead>
     <tbody>
         {% for c in comparti %}
@@ -68,6 +68,7 @@
             <td>{{ c.nome }}</td>
             <td>{{ c.copertura_minima_mattina }}</td>
             <td>{{ c.copertura_minima_pomeriggio }}</td>
+            <td>{{ membri_per_comparto.get(c.id, []) | length }}</td>
             <td>
                 <details>
                     <summary class="btn btn-secondary">Modifica</summary>
@@ -82,6 +83,22 @@
                             <input type="text" name="nome" value="{{ c.nome }}" aria-label="Nome del comparto" required>
                             <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="{{ c.copertura_minima_mattina }}" min="0" required style="width:5em;"></label>
                             <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="{{ c.copertura_minima_pomeriggio }}" min="0" required style="width:5em;"></label>
+                            <fieldset class="elenco-membri">
+                                <legend>Chi fa parte di questo comparto</legend>
+                                {% set membri = membri_per_comparto.get(c.id, []) %}
+                                {% set dipendenti_sede = dipendenti | selectattr("sede_riferimento_id", "equalto", c.sede_id) | list %}
+                                {% for d in dipendenti_sede %}
+                                {% set in_altro_comparto = d.sottosezione and d.id not in membri %}
+                                <label class="{{ 'muted' if in_altro_comparto else '' }}">
+                                    <input type="checkbox" name="dipendente_ids" value="{{ d.id }}"
+                                           {% if d.id in membri %}checked{% endif %}
+                                           {% if in_altro_comparto %}disabled{% endif %}>
+                                    {{ d.cognome }} {{ d.nome }}{% if in_altro_comparto %} <span class="muted">(in "{{ d.sottosezione }}")</span>{% endif %}
+                                </label>
+                                {% else %}
+                                <p class="muted">Nessun dipendente attivo in questa sede.</p>
+                                {% endfor %}
+                            </fieldset>
                             <button type="submit">Salva</button>
                         </form>
                     </div>
@@ -93,14 +110,14 @@
             </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" class="muted">Nessun comparto configurato.</td></tr>
+        <tr><td colspan="6" class="muted">Nessun comparto configurato.</td></tr>
         {% endfor %}
     </tbody>
 </table>
 <h3>Nuovo comparto</h3>
 <form method="post" action="/sedi/comparti/nuovo" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <select name="sede_id" aria-label="Sede" required>
+    <select name="sede_id" id="sede-nuovo-comparto" aria-label="Sede" required>
         {% for s in sedi %}
         <option value="{{ s.id }}">{{ s.nome }}</option>
         {% endfor %}
@@ -108,7 +125,42 @@
     <label>Nome comparto <input type="text" name="nome" placeholder="es. Parcheggio" required></label>
     <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="0" min="0" required style="width:5em;"></label>
     <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="0" min="0" required style="width:5em;"></label>
+    <fieldset class="elenco-membri" id="membri-nuovo-comparto">
+        <legend>Chi fa parte di questo comparto</legend>
+        {% for d in dipendenti %}
+        {% if d.sede_riferimento_id %}
+        <label data-sede="{{ d.sede_riferimento_id }}" class="{{ 'muted' if d.sottosezione else '' }}">
+            <input type="checkbox" name="dipendente_ids" value="{{ d.id }}" {% if d.sottosezione %}disabled{% endif %}>
+            {{ d.cognome }} {{ d.nome }}{% if d.sottosezione %} <span class="muted">(in "{{ d.sottosezione }}")</span>{% endif %}
+        </label>
+        {% endif %}
+        {% endfor %}
+        <p class="muted" id="nessun-dipendente-sede" hidden>Nessun dipendente attivo in questa sede.</p>
+    </fieldset>
     <button type="submit">Aggiungi</button>
 </form>
+<script>
+(function() {
+    const selSede = document.getElementById('sede-nuovo-comparto');
+    const contenitore = document.getElementById('membri-nuovo-comparto');
+    const avvisoVuoto = document.getElementById('nessun-dipendente-sede');
+    // Mostra solo i dipendenti del palazzo scelto: le caselle nascoste
+    // vengono anche deselezionate, altrimenti cambiando sede si
+    // porterebbero dietro una selezione fatta per un altro palazzo (che il
+    // server ignorerebbe comunque, ma senza dirlo).
+    function aggiornaElenco() {
+        const sedeId = selSede.value;
+        let visibili = 0;
+        contenitore.querySelectorAll('label[data-sede]').forEach(function (riga) {
+            const mostra = riga.dataset.sede === sedeId;
+            riga.hidden = !mostra;
+            if (mostra) { visibili++; } else { riga.querySelector('input').checked = false; }
+        });
+        avvisoVuoto.hidden = visibili > 0;
+    }
+    selSede.addEventListener('change', aggiornaElenco);
+    aggiornaElenco();
+})();
+</script>
 {% endif %}
 {% endblock %}

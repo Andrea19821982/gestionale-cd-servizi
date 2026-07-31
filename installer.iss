@@ -84,8 +84,8 @@ Name: "completa"; Description: "Completa — client e server su questo PC"
 Name: "personalizzata"; Description: "Personalizzata"; Flags: iscustom
 
 [Components]
-Name: "client"; Description: "Calendario Turni (client): per consultare e modificare i turni"; Types: client completa
-Name: "server"; Description: "Calendario Turni — Server: da installare su un solo PC, quello che tiene i dati"; Types: server completa
+Name: "client"; Description: "Gestionale CD Servizi (client): per consultare e modificare i turni"; Types: client completa
+Name: "server"; Description: "Gestionale CD Servizi — Server: da installare su un solo PC, quello che tiene i dati"; Types: server completa
 
 [Files]
 ; Excludes è una precauzione, non una necessità: PyInstaller ricrea dist\ da
@@ -107,25 +107,33 @@ Name: "iconadesktop"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "
 Name: "avvioautomatico"; Description: "Avvia il server automaticamente all'accensione del PC"; \
     GroupDescription: "Opzioni del server:"; Components: server; Flags: unchecked
 
+; I collegamenti si chiamavano "Calendario Turni" fino alla 1.0.6. Ora che
+; portano il nome del prodotto, quelli vecchi vanno cancellati
+; esplicitamente: Inno rimuove solo i collegamenti che ha creato con lo
+; stesso nome, quindi senza queste righe su ogni PC già aggiornato
+; resterebbero due icone sul Desktop che lanciano lo stesso programma.
+[InstallDelete]
+Type: files; Name: "{autodesktop}\Calendario Turni.lnk"
+Type: files; Name: "{autodesktop}\Calendario Turni - Server.lnk"
+Type: files; Name: "{group}\Calendario Turni.lnk"
+Type: files; Name: "{group}\Calendario Turni - Server.lnk"
+Type: files; Name: "{userstartup}\Calendario Turni - Server.lnk"
+
 [Icons]
-Name: "{group}\Calendario Turni"; Filename: "{app}\Client\CalendarioTurni.exe"; Components: client
-Name: "{group}\Calendario Turni - Server"; Filename: "{app}\Server\CalendarioTurni-Server.exe"; Components: server
+Name: "{group}\Gestionale CD Servizi"; Filename: "{app}\Client\CalendarioTurni.exe"; Components: client
+Name: "{group}\Gestionale CD Servizi - Server"; Filename: "{app}\Server\CalendarioTurni-Server.exe"; Components: server
 Name: "{group}\Disinstalla {#NomeApp}"; Filename: "{uninstallexe}"
 
-; Gli stessi nomi che usavano installa_client.ps1 / installa_server.ps1: su
-; un PC che aveva la versione vecchia, i collegamenti sul Desktop vengono
-; così sostituiti invece di raddoppiarsi, e nessuno resta a lanciare per
-; sbaglio il programma della vecchia cartella.
-Name: "{autodesktop}\Calendario Turni"; Filename: "{app}\Client\CalendarioTurni.exe"; \
+Name: "{autodesktop}\Gestionale CD Servizi"; Filename: "{app}\Client\CalendarioTurni.exe"; \
     Tasks: iconadesktop; Components: client
-Name: "{autodesktop}\Calendario Turni - Server"; Filename: "{app}\Server\CalendarioTurni-Server.exe"; \
+Name: "{autodesktop}\Gestionale CD Servizi - Server"; Filename: "{app}\Server\CalendarioTurni-Server.exe"; \
     Tasks: iconadesktop; Components: server
 
-Name: "{userstartup}\Calendario Turni - Server"; Filename: "{app}\Server\CalendarioTurni-Server.exe"; \
+Name: "{userstartup}\Gestionale CD Servizi - Server"; Filename: "{app}\Server\CalendarioTurni-Server.exe"; \
     Tasks: avvioautomatico; Components: server
 
 [Run]
 Filename: "{app}\Server\CalendarioTurni-Server.exe"; Description: "Avvia ora il server"; \
     Flags: nowait postinstall skipifsilent; Components: server
-Filename: "{app}\Client\CalendarioTurni.exe"; Description: "Apri Calendario Turni"; \
+Filename: "{app}\Client\CalendarioTurni.exe"; Description: "Apri Gestionale CD Servizi"; \
     Flags: nowait postinstall skipifsilent; Components: client
