@@ -22,6 +22,7 @@ _migra_dati_dalla_cartella_eseguibile().
 
 import os
 import shutil
+import sqlite3
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -34,14 +35,31 @@ _CARTELLA_DATI_SERVER = "CalendarioTurni-Server"
 _CARTELLA_DATI_CLIENT = "CalendarioTurni"
 
 # Cosa recuperare dalla vecchia posizione (accanto all'eseguibile) la prima
-# volta che si parte con questa versione. I file -wal e -shm vanno copiati
-# insieme al database: sono la parte di transazioni non ancora consolidata
-# nel file principale (SQLite è in modalità WAL, vedi app/database.py), e
-# copiare il solo turni.db perderebbe le ultime modifiche.
+# volta che si parte con questa versione.
+#
+# ATTENZIONE, qui c'è stata una perdita di dati vera: in origine questa lista
+# comprendeva anche "turni.db-wal" e "turni.db-shm", perché sono la parte di
+# transazioni non ancora consolidata nel file principale (SQLite è in
+# modalità WAL, vedi app/database.py) e sembrava che copiare il solo
+# turni.db perdesse le ultime modifiche.
+#
+# Il problema è che venivano copiati come tre voci INDIPENDENTI, mentre la
+# guardia qui sotto salta ciò che la destinazione ha già. Se la destinazione
+# aveva il suo turni.db (saltato, giustamente) ma in quel momento nessun
+# -wal — cioè la situazione normale dopo una chiusura pulita — allora il
+# -wal della VECCHIA installazione le veniva innestato accanto. SQLite lo
+# applica come se fosse suo, e il database sano assume in silenzio il
+# contenuto di quello vecchio: senza errori, e superando pure
+# PRAGMA integrity_check. Vedi tests/test_migrazione_dati.py.
+#
+# Il database ora si copia con l'API di backup di sqlite3 (_copia_database),
+# che consolida da sé l'eventuale -wal dell'origine dentro la copia: le
+# ultime modifiche non si perdono lo stesso, e nessun -wal estraneo può
+# più finire accanto a un database che non è il suo.
+_NOME_DATABASE = "turni.db"
+
 _DATI_SERVER_DA_MIGRARE = (
-    "turni.db",
-    "turni.db-wal",
-    "turni.db-shm",
+    _NOME_DATABASE,
     "secret_key.txt",
     "indirizzo_server.txt",
     "allegati",
@@ -84,6 +102,24 @@ def _cartelle_installazioni_precedenti(nome_vecchia_cartella: str) -> list[Path]
     return [Path(radice) / "Programs" / nome_vecchia_cartella]
 
 
+def _copia_database(da: Path, a: Path) -> None:
+    """Copia un database SQLite con l'API di backup di sqlite3 invece che
+    come file qualunque: l'eventuale -wal dell'origine viene consolidato
+    dentro la copia, che nasce quindi completa e autosufficiente. Così non
+    serve (e non si deve) copiare separatamente -wal e -shm, che accanto a
+    un database diverso dal proprio ne sostituiscono in silenzio il
+    contenuto — vedi il commento su _DATI_SERVER_DA_MIGRARE."""
+    origine = sqlite3.connect(str(da))
+    try:
+        copia = sqlite3.connect(str(a))
+        try:
+            origine.backup(copia)
+        finally:
+            copia.close()
+    finally:
+        origine.close()
+
+
 def _migra_dati(
     destinazione: Path, contenuti: tuple[str, ...], origini: list[Path]
 ) -> None:
@@ -116,11 +152,13 @@ def _migra_dati(
             if not da.exists() or a.exists():
                 continue
             try:
-                if da.is_dir():
+                if nome == _NOME_DATABASE:
+                    _copia_database(da, a)
+                elif da.is_dir():
                     shutil.copytree(da, a)
                 else:
                     shutil.copy2(da, a)
-            except OSError:
+            except (OSError, sqlite3.Error):
                 # Senza marcatore la migrazione viene ritentata al prossimo
                 # avvio, e i file già copiati li salta il controllo qui
                 # sopra: meglio riprovare che dare per concluso un recupero

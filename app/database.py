@@ -1,7 +1,11 @@
+import logging
+
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import DB_PATH
+
+logger = logging.getLogger("calendario_turni.database")
 
 engine = create_engine(
     f"sqlite:///{DB_PATH}",
@@ -97,8 +101,36 @@ def _migra_schema():
             conn.commit()
 
 
+def verifica_integrita() -> str | None:
+    """Restituisce il problema riscontrato, o None se il database è sano.
+
+    Un database SQLite danneggiato non si annuncia: ogni pagina che serve
+    risponde "database disk image is malformed" e l'utente vede solo
+    "Internal Server Error" su qualunque schermata, senza un motivo né un
+    punto da cui partire. È già successo, ed è costato ore per capire di
+    cosa si trattasse: meglio dirlo a chiare lettere nel log all'avvio,
+    quando c'è ancora un backup recente da cui ripartire (vedi
+    app/backup.py e la cartella backup accanto al database)."""
+    try:
+        with engine.connect() as conn:
+            esito = conn.execute(text("PRAGMA integrity_check")).scalar()
+    except Exception as e:  # il database non si apre nemmeno
+        return str(e)
+    return None if esito == "ok" else esito
+
+
 def init_db():
     from app import models  # noqa: F401  (registra i modelli su Base)
 
     Base.metadata.create_all(bind=engine)
     _migra_schema()
+
+    problema = verifica_integrita()
+    if problema is not None:
+        logger.error(
+            "DATABASE DANNEGGIATO (%s): %s. Il programma partirà comunque, ma le pagine "
+            "che leggono i dati rovinati daranno errore. Ripristina l'ultimo backup buono "
+            "dalla cartella backup accanto al database.",
+            DB_PATH,
+            problema,
+        )
