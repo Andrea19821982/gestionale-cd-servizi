@@ -8,4 +8,4 @@ valore che il programma possa mostrare a chi lo usa. Il disallineamento è
 impedito da tests/test_versione.py, che li confronta.
 """
 
-VERSIONE = "1.0.8"
+VERSIONE = "1.0.9"
