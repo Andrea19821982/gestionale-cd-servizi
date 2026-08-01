@@ -2,7 +2,10 @@
 {% block title %}Storico {{ dipendente.cognome }} {{ dipendente.nome }}{% endblock %}
 {% block content %}
 <h1 style="display:flex; align-items:center;"><span class="avatar avatar-lg" style="background:{{ colore_avatar(dipendente.cognome + dipendente.nome) }}">{{ iniziali(dipendente.nome, dipendente.cognome) }}</span>{{ dipendente.cognome }} {{ dipendente.nome }}</h1>
-<p><a href="/dipendenti">&larr; torna all'anagrafica</a></p>
+<p class="azioni-riga">
+    <a class="btn btn-secondary" href="/dipendenti">&larr; Torna all'anagrafica</a>
+    <a class="btn btn-secondary" href="/dipendenti/{{ dipendente.id }}/modifica">Modifica anagrafica</a>
+</p>
 
 <h2>Anagrafica</h2>
 <table class="tabella">

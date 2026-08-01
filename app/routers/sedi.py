@@ -267,39 +267,51 @@ def elimina_comparto_copertura(
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_ANAGRAFICA)),
     _csrf: None = Depends(richiedi_csrf_valido),
 ):
-    """Eliminare un comparto non tocca mai i dipendenti: Dipendente.sottosezione
-    resta un campo libero (non una FK, vedi il modello), quindi qui non c'è
-    nessun vincolo di integrità da rispettare. Ma se qualcuno ha ancora quel
-    nome scritto in Sottosezione, dopo l'eliminazione il suo gruppo in
-    Copertura resta visibile, semplicemente senza più un minimo configurato
-    (ricade a 0, vedi calcola_copertura) — comportamento silenzioso che vale
-    la pena segnalare subito a chi elimina, invece di lasciarlo scoprire
-    dopo che l'allarme copertura ha smesso di scattare per quel gruppo."""
+    """Eliminare un comparto rimette i suoi dipendenti nel palazzo: si
+    svuota il loro Dipendente.sottosezione, così spariscono come gruppo a
+    sé e tornano nell'elenco normale della sede, sia nel calendario sia in
+    Copertura (vedi _raggruppa_per_sottosezione e calcola_copertura).
+
+    Senza questo passaggio il comparto sparirebbe solo dall'elenco qui: i
+    dipendenti resterebbero raggruppati sotto un'intestazione che non
+    corrisponde più a niente, con un minimo di copertura ricaduto a 0 in
+    silenzio — cioè un gruppo che sembra monitorato e non lo è più.
+
+    Vale anche per i disattivati: lasciar loro la sottosezione farebbe
+    ricomparire il gruppo fantasma il giorno in cui vengono riattivati."""
     comparto = ottieni_o_404(db, SottosezioneCopertura, comparto_id)
     chiave = chiave_sottosezione(comparto.nome)
     dipendenti_collegati = [
         d for d in db.query(Dipendente).filter(
-            Dipendente.sede_riferimento_id == comparto.sede_id,
-            Dipendente.attivo == True,  # noqa: E712
+            Dipendente.sede_riferimento_id == comparto.sede_id
         ).all()
         if d.sottosezione and chiave_sottosezione(d.sottosezione) == chiave
     ]
     nome_comparto = comparto.nome
+    nome_sede = comparto.sede.nome if comparto.sede else "la sede"
+
+    for dipendente in dipendenti_collegati:
+        dipendente.sottosezione = None
+        registra_modifica(
+            db, utente.id, "dipendenti", dipendente.id, "modifica",
+            f"cognome={dipendente.cognome}, nome={dipendente.nome}, sottosezione=None "
+            f"(comparto {nome_comparto} eliminato)",
+        )
     registra_modifica(
         db, utente.id, "sottosezioni_copertura", comparto.id, "cancellazione",
-        f"sede_id={comparto.sede_id}, nome={nome_comparto}",
+        f"sede_id={comparto.sede_id}, nome={nome_comparto}, "
+        f"dipendenti rimessi nel palazzo={len(dipendenti_collegati)}",
     )
     db.delete(comparto)
     db.commit()
 
     if dipendenti_collegati:
-        nomi = ", ".join(f"{d.cognome} {d.nome}" for d in dipendenti_collegati)
+        quanti = len(dipendenti_collegati)
         imposta_flash(
             request,
-            f"Comparto \"{nome_comparto}\" eliminato. {len(dipendenti_collegati)} dipendenti hanno ancora questa "
-            f"sottosezione ({nomi}): restano un gruppo separato in Copertura ma senza più un minimo configurato, "
-            f"finché non aggiorni il loro campo Sottosezione o non ricrei il comparto.",
-            tipo="avviso",
+            f"Comparto \"{nome_comparto}\" eliminato: {quanti} dipendent{'e' if quanti == 1 else 'i'} "
+            f"{'è tornato' if quanti == 1 else 'sono tornati'} nell'elenco di {nome_sede}.",
+            tipo="ok",
         )
     else:
         imposta_flash(request, f"Comparto \"{nome_comparto}\" eliminato.", tipo="ok")

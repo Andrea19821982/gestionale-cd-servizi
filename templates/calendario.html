@@ -15,7 +15,7 @@
 </form>
 
 <div class="nav-mese">
-    <a href="/calendario?sede_id={{ sede_corrente.id if sede_corrente else '' }}&anno={{ anno_prec }}&mese={{ mese_prec }}">&laquo; mese precedente</a>
+    <a class="btn btn-secondary" href="/calendario?sede_id={{ sede_corrente.id if sede_corrente else '' }}&anno={{ anno_prec }}&mese={{ mese_prec }}">&laquo; Mese precedente</a>
     {% if utente.ruolo in ("amministratore", "gestore_turni") and sede_corrente %}
     <form method="post" action="/calendario/genera" class="form-inline" style="margin: 0;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
@@ -25,7 +25,7 @@
         <button type="submit">Genera dal pattern</button>
     </form>
     {% endif %}
-    <a href="/calendario?sede_id={{ sede_corrente.id if sede_corrente else '' }}&anno={{ anno_succ }}&mese={{ mese_succ }}">mese successivo &raquo;</a>
+    <a class="btn btn-secondary" href="/calendario?sede_id={{ sede_corrente.id if sede_corrente else '' }}&anno={{ anno_succ }}&mese={{ mese_succ }}">Mese successivo &raquo;</a>
 </div>
 
 {% if sede_corrente %}

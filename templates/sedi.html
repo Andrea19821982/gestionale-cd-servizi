@@ -103,7 +103,7 @@
                         </form>
                     </div>
                 </details>
-                <form method="post" action="/sedi/comparti/{{ c.id }}/elimina" style="display:inline;" onsubmit="return confirm('Eliminare il comparto \'{{ c.nome }}\'? I dipendenti che hanno ancora questa sottosezione non vengono toccati, ma restano senza un minimo di copertura configurato finché non aggiorni il loro campo Sottosezione o non ricrei il comparto.')">
+                <form method="post" action="/sedi/comparti/{{ c.id }}/elimina" style="display:inline;" onsubmit="return confirm('Eliminare il comparto \'{{ c.nome }}\'? I suoi dipendenti tornano nell\'elenco normale di {{ c.sede.nome }}: non vengono cancellati, perdono solo il raggruppamento e il minimo di copertura a parte.')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
                     <button type="submit">Elimina</button>
                 </form>

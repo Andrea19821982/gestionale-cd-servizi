@@ -312,28 +312,59 @@ def test_elimina_comparto_senza_dipendenti_collegati(client, crea_utente, db):
     assert "eliminato" in r.text.lower()
 
 
-def test_elimina_comparto_con_dipendenti_ancora_collegati_avvisa(client, crea_utente, db):
-    """Eliminare il comparto non deve toccare i dipendenti (Dipendente.
-    sottosezione resta un campo libero), ma deve avvisare chi elimina che
-    quei dipendenti restano senza un minimo di copertura configurato."""
+def test_elimina_comparto_rimette_i_dipendenti_nel_palazzo(client, crea_utente, db):
+    """Eliminando il comparto i suoi dipendenti tornano nell'elenco normale
+    della sede: si svuota Dipendente.sottosezione, altrimenti resterebbero
+    raggruppati sotto un'intestazione che non esiste più, con il minimo di
+    copertura ricaduto a 0 in silenzio."""
     _login_admin(client, crea_utente)
     sede = _crea_sede(db, "Sede Comparto Con Dipendenti")
     comparto = SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
     db.add(comparto)
     dip = Dipendente(cognome="Rimasto", nome="Test", sede_riferimento_id=sede.id, attivo=True, sottosezione="Parcheggio")
-    db.add(dip)
+    # Anche un disattivato: lasciargli la sottosezione farebbe ricomparire il
+    # gruppo fantasma il giorno in cui viene riattivato.
+    disattivato = Dipendente(cognome="Disattivato", nome="Test", sede_riferimento_id=sede.id, attivo=False, sottosezione="Parcheggio")
+    # Chi sta in un altro comparto della stessa sede non va toccato.
+    altro = Dipendente(cognome="Altro", nome="Comparto", sede_riferimento_id=sede.id, attivo=True, sottosezione="Archivio")
+    db.add_all([dip, disattivato, altro])
     db.commit()
     db.refresh(comparto)
-    db.refresh(dip)
     comparto_id = comparto.id
 
     r = client.post(f"/sedi/comparti/{comparto_id}/elimina", follow_redirects=True)
     assert r.status_code == 200
     db.expire_all()
     assert db.get(SottosezioneCopertura, comparto_id) is None
-    assert "flash-avviso" in r.text
-    assert "Rimasto Test" in r.text
-    assert dip.sottosezione == "Parcheggio"  # il dipendente non viene toccato
+    assert db.get(Dipendente, dip.id).sottosezione is None
+    assert db.get(Dipendente, disattivato.id).sottosezione is None
+    assert db.get(Dipendente, altro.id).sottosezione == "Archivio"
+    assert "sono tornati" in r.text
+
+
+def test_dopo_aver_eliminato_il_comparto_il_gruppo_sparisce_dal_calendario(client, crea_utente, db):
+    """La verifica lato utente: la riga di intestazione del comparto non
+    deve più comparire nel calendario della sede."""
+    _login_admin(client, crea_utente)
+    sede = _crea_sede(db, "Sede Comparto Calendario")
+    comparto = SottosezioneCopertura(sede_id=sede.id, nome="Parcheggio", copertura_minima_mattina=1, copertura_minima_pomeriggio=1)
+    db.add(comparto)
+    dip = Dipendente(cognome="Parcheggiato", nome="Test", sede_riferimento_id=sede.id, attivo=True, sottosezione="Parcheggio")
+    db.add(dip)
+    db.commit()
+    db.refresh(comparto)
+
+    r = client.get(f"/calendario?sede_id={sede.id}&anno=2026&mese=8")
+    assert "riga-sottosezione" in r.text  # presupposto: prima il gruppo si vede
+
+    client.post(f"/sedi/comparti/{comparto.id}/elimina", follow_redirects=False)
+    client.get("/sedi")  # consuma il messaggio di conferma, che cita il nome del comparto
+
+    r = client.get(f"/calendario?sede_id={sede.id}&anno=2026&mese=8")
+    assert r.status_code == 200
+    assert "riga-sottosezione" not in r.text
+    assert "Parcheggio" not in r.text
+    assert "Parcheggiato Test" in r.text  # il dipendente resta, nell'elenco normale
 
 
 def test_eliminare_comparto_richiede_amministratore(client, crea_utente, db):

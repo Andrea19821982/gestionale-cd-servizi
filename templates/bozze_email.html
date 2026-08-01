@@ -11,10 +11,9 @@
         <p class="badge badge-warn-testo" style="display:inline-block;">⚠️ L'indirizzo email a cui devono scrivere non è ancora configurato: compilalo qui sotto in "Casella email per le richieste dei dipendenti".</p>
         {% endif %}
         <p class="muted">Scaricali e inoltrali manualmente, oppure inviali direttamente da qui ai dipendenti che hanno un indirizzo email impostato in anagrafica.</p>
-        <p>
-            <a href="/bozze-email/procedura-assenze">📄 Scarica modulo assenze (.docx)</a>
-            &nbsp;·&nbsp;
-            <a href="/bozze-email/procedura-sostituzioni">📄 Scarica modulo sostituzioni (.docx)</a>
+        <p class="azioni-riga">
+            <a class="btn btn-secondary" href="/bozze-email/procedura-assenze">📄 Scarica modulo assenze (.docx)</a>
+            <a class="btn btn-secondary" href="/bozze-email/procedura-sostituzioni">📄 Scarica modulo sostituzioni (.docx)</a>
         </p>
 
         {% if not smtp_configurato %}
