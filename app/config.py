@@ -13,6 +13,11 @@ DB_PATH = cartella_dati() / "turni.db"
 BACKUP_ABILITATO = True
 BACKUP_ORA = "03:00"  # un orario tranquillo: pochi turni vengono registrati di notte
 BACKUP_RETENZIONE_GIORNI = 30
+# Quante copie tenere comunque, anche se più vecchie della retenzione: senza
+# questo pavimento un periodo di fermo del server (ferie d'agosto, un PC
+# cambiato) svuoterebbe la cartella da sé, proprio mentre nessuno stava
+# guardando. Vedi _pulisci_backup_vecchi in app/backup.py.
+BACKUP_MINIMI_DA_CONSERVARE = 5
 BACKUP_CARTELLA = cartella_dati() / "backup"
 
 

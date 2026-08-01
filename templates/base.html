@@ -31,6 +31,7 @@
         {% endif %}
         {% if request.session.get("utente_ruolo") == "amministratore" %}
         <a href="/utenti" class="{{ classe_nav_attiva(request, '/utenti') }}">🔑 Utenti</a>
+        <a href="/stato" class="{{ classe_nav_attiva(request, '/stato') }}">🩺 Stato</a>
         {% endif %}
         {% endif %}
         <span class="nav-utente">{{ request.session.get("utente_username", "") }} ({{ request.session.get("utente_ruolo", "") }})</span>

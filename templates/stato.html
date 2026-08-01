@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Stato del programma{% endblock %}
+{% block content %}
+<h1>Stato del programma</h1>
+<p class="muted">Un controllo rapido che sia tutto a posto: la versione installata, la salute dell'archivio dati e le copie di sicurezza. Non c'è niente da compilare, è solo da guardare.</p>
+
+<div class="riepilogo-personale">
+    <div class="riquadro">
+        <strong>Versione</strong>
+        {{ versione }}
+    </div>
+    <div class="riquadro">
+        <strong>Archivio dati</strong>
+        {% if problema_database %}
+        <span class="badge badge-danger-testo">Danneggiato</span>
+        {% else %}
+        <span class="badge badge-ok-testo">Integro</span>
+        {% endif %}
+    </div>
+    <div class="riquadro">
+        <strong>Copie di sicurezza</strong>
+        {{ numero_backup }}
+    </div>
+    <div class="riquadro">
+        <strong>Ultima copia</strong>
+        {% if ultimo_backup %}
+        {{ ultimo_backup.quando.strftime("%d/%m/%Y") }}
+        {% else %}
+        —
+        {% endif %}
+    </div>
+</div>
+
+{% if problema_database %}
+<div class="riquadro blocco-copertura-vuoto">
+    <p><strong>⚠️ L'archivio dati risulta danneggiato.</strong> Le pagine che leggono le parti rovinate daranno errore.</p>
+    <p class="muted">Dettaglio tecnico: {{ problema_database }}</p>
+    <p>Come rimediare: chiudi il programma, poi sostituisci il file <code>turni.db</code> con l'ultima copia buona presa da <code>{{ cartella_backup }}</code> (le copie qui sotto sono in ordine, dalla più recente). Se non te la senti, chiedi a chi gestisce il programma prima di toccare i file.</p>
+</div>
+{% endif %}
+
+{% if not backup %}
+<div class="riquadro blocco-copertura-carente">
+    <p><strong>⚠️ Non esiste ancora nessuna copia di sicurezza.</strong></p>
+    <p class="muted">La copia viene fatta una volta al giorno, dopo le {{ ora_backup }}, ma solo mentre il server è acceso: se il PC server resta spento non viene fatta.</p>
+</div>
+{% elif giorni_dall_ultimo_backup is not none and giorni_dall_ultimo_backup >= giorni_prima_di_segnalare %}
+<div class="riquadro blocco-copertura-carente">
+    <p><strong>⚠️ L'ultima copia di sicurezza risale a {{ giorni_dall_ultimo_backup }} giorni fa.</strong></p>
+    <p class="muted">Di solito vuol dire che il PC server è rimasto spento: la copia si fa una volta al giorno, dopo le {{ ora_backup }}, e solo a server acceso.</p>
+</div>
+{% endif %}
+
+<h2>Archivio dati</h2>
+<table class="tabella">
+    <tbody>
+        <tr><th>Stato</th><td>{{ problema_database or "Integro" }}</td></tr>
+        <tr><th>Dimensione</th><td>{{ dimensione_database }}</td></tr>
+        <tr><th>Dove si trova</th><td><code>{{ percorso_database }}</code></td></tr>
+    </tbody>
+</table>
+<p class="muted">L'archivio sta fuori dalla cartella del programma di proposito: aggiornare o disinstallare il programma non lo tocca.</p>
+
+<h2>Copie di sicurezza</h2>
+<table class="tabella">
+    <tbody>
+        <tr><th>Copia automatica</th><td>{{ "Attiva, ogni giorno dopo le " ~ ora_backup if backup_abilitato else "Disattivata" }}</td></tr>
+        <tr><th>Quante se ne tengono</th><td>Quelle degli ultimi {{ retenzione_giorni }} giorni, e comunque mai meno delle ultime {{ minimi_da_conservare }}</td></tr>
+        <tr><th>Dove si trovano</th><td><code>{{ cartella_backup }}</code></td></tr>
+    </tbody>
+</table>
+
+{% if backup %}
+<table class="tabella">
+    <thead>
+        <tr><th>Copia</th><th>Quando</th><th>Dimensione</th></tr>
+    </thead>
+    <tbody>
+        {% for b in backup %}
+        <tr>
+            <td>{{ b.nome }}</td>
+            <td>{{ b.quando.strftime("%d/%m/%Y %H:%M") }}</td>
+            <td>{{ b.dimensione }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if numero_backup > backup | length %}
+<p class="muted">Mostrate le {{ backup | length }} più recenti su {{ numero_backup }} totali.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

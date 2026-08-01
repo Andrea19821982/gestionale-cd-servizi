@@ -38,6 +38,7 @@ from app.routers import (
     sale,
     sedi,
     sostituzioni,
+    stato,
     statistiche,
     tipi_turno,
     utenti,
@@ -246,3 +247,4 @@ app.include_router(copertura.router)
 app.include_router(report.router)
 app.include_router(bozze_email.router)
 app.include_router(riepilogo_giornaliero.router)
+app.include_router(stato.router)
