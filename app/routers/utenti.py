@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from datetime import date
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -15,10 +17,38 @@ from app.utils import checkbox_a_bool, fk_opzionale_o_400, ottieni_o_404
 router = APIRouter()
 
 
+def _senza_accenti(testo: str) -> str:
+    scomposto = unicodedata.normalize("NFKD", testo)
+    return "".join(c for c in scomposto if not unicodedata.combining(c))
+
+
+def _username_libero(db: Session, dipendente: Dipendente) -> str:
+    """Uno username proponibile per questo dipendente, del tipo
+    "rossi.mario", già verificato che non sia in uso.
+
+    È solo una proposta scritta nel modulo: chi crea l'accesso può
+    cambiarla prima di salvare. Serve a non doverla inventare nove volte di
+    fila restando coerenti."""
+    base = ".".join(
+        parte for parte in (
+            re.sub(r"[^a-z0-9]", "", _senza_accenti(dipendente.cognome).lower()),
+            re.sub(r"[^a-z0-9]", "", _senza_accenti(dipendente.nome).lower()),
+        ) if parte
+    ) or f"dipendente{dipendente.id}"
+
+    candidato = base
+    contatore = 2
+    while db.query(Utente).filter(Utente.username == candidato).first() is not None:
+        candidato = f"{base}{contatore}"
+        contatore += 1
+    return candidato
+
+
 @router.get("/utenti")
 def elenco_utenti(
     request: Request,
     tutte_le_deleghe: bool = False,
+    nuovo_per: int | None = None,
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_ANAGRAFICA)),
 ):
@@ -28,6 +58,16 @@ def elenco_utenti(
         .filter(Dipendente.attivo == True)  # noqa: E712
         .order_by(Dipendente.cognome, Dipendente.nome)
         .all()
+    )
+    # Chi non ha ancora un accesso proprio: senza questo elenco, per dare
+    # l'accesso a un gruppo di persone bisogna ricordarsi a memoria chi si è
+    # già fatto e cercarlo ogni volta nella tendina di tutti i dipendenti.
+    collegati = {u.dipendente_collegato_id for u in utenti if u.dipendente_collegato_id}
+    dipendenti_senza_accesso = [d for d in dipendenti if d.id not in collegati]
+
+    da_precompilare = db.get(Dipendente, nuovo_per) if nuovo_per else None
+    username_suggerito = (
+        _username_libero(db, da_precompilare) if da_precompilare is not None else ""
     )
     query_deleghe = db.query(DelegaApprovazione).options(joinedload(DelegaApprovazione.utente_delegato))
     if not tutte_le_deleghe:
@@ -42,6 +82,9 @@ def elenco_utenti(
         {
             "utenti": utenti,
             "dipendenti": dipendenti,
+            "dipendenti_senza_accesso": dipendenti_senza_accesso,
+            "da_precompilare": da_precompilare,
+            "username_suggerito": username_suggerito,
             "deleghe": deleghe,
             "tutte_le_deleghe": tutte_le_deleghe,
             "ruoli_validi": RUOLI_VALIDI,

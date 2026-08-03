@@ -47,10 +47,32 @@
     </tbody>
 </table>
 
-<h2>Nuovo utente</h2>
+{% if dipendenti_senza_accesso %}
+<h2>Dipendenti senza accesso</h2>
+<p class="muted">Chi non ha ancora un proprio accesso al programma. "Prepara accesso" compila qui sotto username, ruolo e collegamento: resta da scegliere solo la password, che va poi comunicata all'interessato.</p>
+<table class="tabella">
+    <thead>
+        <tr><th>Dipendente</th><th>Sede</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for d in dipendenti_senza_accesso %}
+        <tr>
+            <td><span class="avatar" style="background:{{ colore_avatar(d.cognome + d.nome) }}">{{ iniziali(d.nome, d.cognome) }}</span>{{ d.cognome }} {{ d.nome }}</td>
+            <td>{{ d.sede_riferimento.nome if d.sede_riferimento else "—" }}</td>
+            <td><a class="btn btn-secondary" href="/utenti?nuovo_per={{ d.id }}#nuovo-utente">Prepara accesso</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<h2 id="nuovo-utente">Nuovo utente</h2>
+{% if da_precompilare %}
+<p class="muted">Accesso per <strong>{{ da_precompilare.cognome }} {{ da_precompilare.nome }}</strong>: username proposto e collegamento già impostati, scegli tu la password.</p>
+{% endif %}
 <form method="post" action="/utenti/nuovo" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <label>Username <input type="text" name="username" required></label>
+    <label>Username <input type="text" name="username" value="{{ username_suggerito }}" required></label>
     <label>Password
         <div class="campo-password">
             <input type="password" name="password" placeholder="min. 8 caratteri" minlength="8" required>
@@ -60,7 +82,7 @@
     <label>Ruolo
         <select name="ruolo" required>
         {% for r in ruoli_validi %}
-        <option value="{{ r }}">{{ r }}</option>
+        <option value="{{ r }}" {% if da_precompilare and r == "dipendente" %}selected{% endif %}>{{ r }}</option>
         {% endfor %}
         </select>
     </label>
@@ -68,7 +90,7 @@
         <select name="dipendente_collegato_id">
         <option value="">— nessuno —</option>
         {% for d in dipendenti %}
-        <option value="{{ d.id }}">{{ d.cognome }} {{ d.nome }}</option>
+        <option value="{{ d.id }}" {% if da_precompilare and d.id == da_precompilare.id %}selected{% endif %}>{{ d.cognome }} {{ d.nome }}</option>
         {% endfor %}
         </select>
     </label>
