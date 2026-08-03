@@ -117,6 +117,16 @@ class Dipendente(Base):
     sede_riferimento_id: Mapped[int | None] = mapped_column(
         ForeignKey("sedi.id"), nullable=True
     )
+    # Non più usata: i dipendenti si ordinano sempre per cognome e nome, in
+    # calendario come in anagrafica. Un ordine manuale su settanta persone
+    # significava rinumerare mezzo elenco per inserirne una nuova al posto
+    # giusto, e nessuno lo faceva: il risultato era un ordine casuale, in cui
+    # cercare un cognome voleva dire scorrere tutta la pagina.
+    #
+    # La colonna resta perché SQLite non toglie colonne senza ricostruire la
+    # tabella, e perché non dà fastidio a nessuno. Sede.ordine_visualizzazione
+    # è un'altra cosa e continua a servire: i palazzi sono pochi e l'ordine in
+    # cui compaiono in Copertura ha un senso operativo.
     ordine_visualizzazione: Mapped[int] = mapped_column(default=0, nullable=False)
     attivo: Mapped[bool] = mapped_column(default=True, nullable=False)
     giorni_ferie_annuali: Mapped[int] = mapped_column(default=26, nullable=False)

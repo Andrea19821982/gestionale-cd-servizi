@@ -1,13 +1,25 @@
-{% set ns = namespace(intera=None) %}
-{% set parziali = [] %}
-{% for s in sostituzioni_giorno %}
-    {% if s.ora_inizio is none %}
-        {% set ns.intera = s %}
-    {% else %}
-        {% set _ = parziali.append(s) %}
-    {% endif %}
-{% endfor %}
-{% set colore_sostituto = ns.intera.dipendente_sostituto.sede_riferimento.colore_hex if ns.intera and ns.intera.dipendente_sostituto.sede_riferimento else "#888888" %}
+{# Una cella del calendario.
+
+   È una macro e non un {% include %}: la cella viene disegnata una volta
+   per dipendente per giorno — 2480 volte nella stampa di tutte le sedi — e
+   ogni include ricostruisce da capo il contesto del modello. Solo quello
+   costava 1,1 secondi sui 1,3 della pagina di stampa, contro 117 ms di
+   lettura dei dati. Con la macro gli argomenti arrivano diretti.
+
+   Per lo stesso motivo il token CSRF si riceve già calcolato: chiamare
+   csrf_token(request) dentro la cella voleva dire ricavarlo dalla sessione
+   una volta per cella invece che una per pagina. #}
+{% macro cella(dipendente, assegnazione, sostituzioni_giorno, assenza_parziale, data_iso, weekend, utente, tipi_turno, csrf) %}
+{%- set ns = namespace(intera=None) %}
+{%- set parziali = [] %}
+{%- for s in sostituzioni_giorno %}
+    {%- if s.ora_inizio is none %}
+        {%- set ns.intera = s %}
+    {%- else %}
+        {%- set _ = parziali.append(s) %}
+    {%- endif %}
+{%- endfor %}
+{%- set colore_sostituto = ns.intera.dipendente_sostituto.sede_riferimento.colore_hex if ns.intera and ns.intera.dipendente_sostituto.sede_riferimento else "#888888" %}
 
 <td id="cella-{{ dipendente.id }}-{{ data_iso }}" class="{{ 'weekend' if weekend else '' }}">
     {% if utente.ruolo in ("amministratore", "gestore_turni") %}
@@ -38,7 +50,7 @@
             title="{{ assegnazione.origine if assegnazione else 'nessun turno' }}"
             hx-post="/calendario/cella"
             hx-trigger="change"
-            hx-vals='{"dipendente_id": "{{ dipendente.id }}", "data": "{{ data_iso }}", "csrf_token": "{{ csrf_token(request) }}"}'
+            hx-vals='{"dipendente_id": "{{ dipendente.id }}", "data": "{{ data_iso }}", "csrf_token": "{{ csrf }}"}'
             hx-target="closest td"
             hx-swap="outerHTML"
         >
@@ -104,3 +116,4 @@
     {% endif %}
     {% endif %}
 </td>
+{%- endmacro %}

@@ -70,9 +70,6 @@
             <label>Costo orario €
                 <input type="number" name="costo_orario" value="{{ dipendente.costo_orario if dipendente.costo_orario is not none else '' }}" min="0" step="0.01" placeholder="facoltativo">
             </label>
-            <label>Ordine visualizzazione
-                <input type="number" name="ordine_visualizzazione" value="{{ dipendente.ordine_visualizzazione }}" required>
-            </label>
             <label class="campo-checkbox">
                 <input type="checkbox" name="attivo" {% if dipendente.attivo %}checked{% endif %}> Attivo
             </label>

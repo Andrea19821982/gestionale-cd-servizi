@@ -1,4 +1,4 @@
-<!doctype html>
+{% import "_cella_calendario.html" as celle %}<!doctype html>
 <html lang="it">
 <head>
     <meta charset="utf-8">
@@ -42,13 +42,13 @@
                 <tr>
                     <td class="colonna-dipendente" title="{{ d.cognome }} {{ d.nome }}">{{ d.cognome }} {{ d.nome }}</td>
                     {% for g in giorni %}
-                    {% set assegnazione = blocco.assegnazioni_per_dipendente.get(d.id, {}).get(g.numero) %}
-                    {% set sostituzioni_giorno = blocco.sostituzioni_per_dipendente.get(d.id, {}).get(g.numero, []) %}
-                    {% set assenza_parziale = blocco.assenze_parziali_per_dipendente.get(d.id, {}).get(g.numero) %}
-                    {% set dipendente = d %}
-                    {% set data_iso = "%04d-%02d-%02d" | format(anno, mese, g.numero) %}
-                    {% set weekend = g.weekend %}
-                    {% include "_cella_calendario.html" %}
+                    {{ celle.cella(
+                        d,
+                        blocco.assegnazioni_per_dipendente.get(d.id, {}).get(g.numero),
+                        blocco.sostituzioni_per_dipendente.get(d.id, {}).get(g.numero, []),
+                        blocco.assenze_parziali_per_dipendente.get(d.id, {}).get(g.numero),
+                        "%04d-%02d-%02d" | format(anno, mese, g.numero),
+                        g.weekend, utente, tipi_turno, "") }}
                     {% endfor %}
                 </tr>
                 {% endfor %}

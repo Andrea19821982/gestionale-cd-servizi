@@ -57,9 +57,7 @@ def elenco_dipendenti(
     query = db.query(Dipendente)
     if solo_attivi:
         query = query.filter(Dipendente.attivo == True)  # noqa: E712
-    dipendenti = query.order_by(
-        Dipendente.ordine_visualizzazione, Dipendente.cognome, Dipendente.nome
-    ).all()
+    dipendenti = query.order_by(Dipendente.cognome, Dipendente.nome).all()
     sedi = db.query(Sede).filter(Sede.attivo == True).order_by(Sede.nome).all()  # noqa: E712
     comparti = db.query(SottosezioneCopertura).order_by(SottosezioneCopertura.nome).all()
     return templates.TemplateResponse(
@@ -81,7 +79,6 @@ def crea_dipendente(
     cognome: str = Form(...),
     nome: str = Form(...),
     sede_riferimento_id: str = Form(""),
-    ordine_visualizzazione: int = Form(0),
     giorni_ferie_annuali: int = Form(26),
     tipo_contratto: str = Form(""),
     ore_settimanali_contrattuali: float = Form(40.0),
@@ -96,7 +93,6 @@ def crea_dipendente(
         cognome=cognome.strip(),
         nome=nome.strip(),
         sede_riferimento_id=fk_opzionale_o_400(db, Sede, sede_riferimento_id),
-        ordine_visualizzazione=ordine_visualizzazione,
         giorni_ferie_annuali=giorni_ferie_annuali,
         tipo_contratto=tipo_contratto.strip() or None,
         ore_settimanali_contrattuali=_ore_settimanali_o_400(ore_settimanali_contrattuali),
@@ -155,7 +151,6 @@ def modifica_dipendente(
     cognome: str = Form(...),
     nome: str = Form(...),
     sede_riferimento_id: str = Form(""),
-    ordine_visualizzazione: int = Form(0),
     giorni_ferie_annuali: int = Form(26),
     tipo_contratto: str = Form(""),
     ore_settimanali_contrattuali: float = Form(40.0),
@@ -172,7 +167,6 @@ def modifica_dipendente(
     dipendente.cognome = cognome.strip()
     dipendente.nome = nome.strip()
     dipendente.sede_riferimento_id = fk_opzionale_o_400(db, Sede, sede_riferimento_id)
-    dipendente.ordine_visualizzazione = ordine_visualizzazione
     dipendente.giorni_ferie_annuali = giorni_ferie_annuali
     dipendente.tipo_contratto = tipo_contratto.strip() or None
     dipendente.ore_settimanali_contrattuali = _ore_settimanali_o_400(ore_settimanali_contrattuali)

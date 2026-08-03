@@ -81,6 +81,23 @@ def _sostituzioni_cella(db: Session, dipendente_partente_id: int, data_obj: date
     )
 
 
+def _assenza_parziale_cella(db: Session, dipendente_id: int, data_obj: date) -> Assenza | None:
+    """L'eventuale assenza a orario (esce prima, entra dopo) che riguarda
+    questo giorno: non ha una riga propria nel calendario, il turno resta
+    quello pianificato e lei compare solo come tag sulla cella."""
+    return (
+        db.query(Assenza)
+        .filter(
+            Assenza.dipendente_id == dipendente_id,
+            Assenza.stato != "rifiutata",
+            Assenza.ora_inizio.isnot(None),
+            Assenza.data_inizio <= data_obj,
+            Assenza.data_fine >= data_obj,
+        )
+        .first()
+    )
+
+
 def _giorni_del_mese(anno: int, mese: int) -> list[dict]:
     numero_giorni = monthrange(anno, mese)[1]
     giorni = []
@@ -131,7 +148,7 @@ def _dati_calendario_sede(db: Session, sede: Sede, anno: int, mese: int, numero_
     dipendenti = (
         db.query(Dipendente)
         .filter(Dipendente.sede_riferimento_id == sede.id, Dipendente.attivo == True)  # noqa: E712
-        .order_by(Dipendente.ordine_visualizzazione, Dipendente.cognome, Dipendente.nome)
+        .order_by(Dipendente.cognome, Dipendente.nome)
         .all()
     )
     dipendenti, titoli_sottosezione = _raggruppa_per_sottosezione(dipendenti)
@@ -418,13 +435,17 @@ def salva_cella(
     sostituzioni_giorno = _sostituzioni_cella(db, dipendente_id, data_obj)
     return templates.TemplateResponse(
         request,
-        "_cella_calendario.html",
+        "_cella_calendario_singola.html",
         {
             "dipendente": dipendente,
             "data_iso": data,
             "weekend": data_obj.weekday() >= 5,
             "assegnazione": assegnazione,
             "sostituzioni_giorno": sostituzioni_giorno,
+            # Senza questo, cambiare il turno faceva sparire dalla cella il
+            # tag dell'assenza a orario finché non si ricaricava la pagina:
+            # la cella tornava indietro rispetto a com'era.
+            "assenza_parziale": _assenza_parziale_cella(db, dipendente_id, data_obj),
             "tipi_turno": tipi_turno,
             "utente": utente,
         },

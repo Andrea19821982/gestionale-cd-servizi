@@ -1,0 +1,7 @@
+{# Una sola cella, ridisegnata dopo che è stata modificata dal calendario
+   (vedi la rotta /calendario/cella). Serve perché _cella_calendario.html
+   contiene ormai solo la macro: renderizzarlo come pagina restituirebbe il
+   vuoto. #}
+{% import "_cella_calendario.html" as celle %}
+{{- celle.cella(dipendente, assegnazione, sostituzioni_giorno, assenza_parziale,
+                data_iso, weekend, utente, tipi_turno, csrf_token(request)) -}}
