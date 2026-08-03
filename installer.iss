@@ -142,6 +142,23 @@ Name: "{userstartup}\Gestionale CD Servizi - Server"; Filename: "{app}\Server\Ca
   non ha una finestra a cui mandare la richiesta di chiusura.
 
   Se non c'è niente in esecuzione l'eseguibile esce subito: nessun costo. }
+
+{ --ferma esiste solo dalla 1.1.0 in poi. Le versioni precedenti quel
+  parametro non lo riconoscono: lo ignorano e AVVIANO il server, e
+  l'installer resterebbe ad aspettare per sempre un programma appena
+  partito. Va quindi controllata la versione del file già installato prima
+  di chiamarlo — è successo davvero durante il primo aggiornamento, e sul
+  PC di chi installa sarebbe stato un blocco senza spiegazione. }
+function SupportaArrestoDaRigaDiComando(const Percorso: String): Boolean;
+var
+  VersioneAlta, VersioneBassa: Cardinal;
+begin
+  Result := False;
+  if GetVersionNumbers(Percorso, VersioneAlta, VersioneBassa) then
+    { VersioneAlta = maggiore*65536 + minore: 1.1.0 -> 65537 }
+    Result := VersioneAlta >= 65537;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   EseguibileServer: String;
@@ -149,7 +166,7 @@ var
 begin
   Result := '';
   EseguibileServer := ExpandConstant('{app}\Server\CalendarioTurni-Server.exe');
-  if FileExists(EseguibileServer) then
+  if FileExists(EseguibileServer) and SupportaArrestoDaRigaDiComando(EseguibileServer) then
   begin
     Exec(EseguibileServer, '--ferma', '', SW_HIDE, ewWaitUntilTerminated, Esito);
     { Esito <> 0 vuol dire che il server non ha mollato la porta entro il
