@@ -444,7 +444,11 @@ button, .btn {
     padding: 0.48rem 1rem;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
-    background: var(--accent);
+    /* Sfumatura di pochi punti percentuali, non un effetto: dà al pulsante
+       il rilievo di un tasto vero invece del rettangolo colorato piatto.
+       Sotto, il bordo appena più scuro dell'accento chiude la forma. */
+    background: linear-gradient(180deg, #2a69e9 0%, var(--accent) 100%);
+    border-color: #1f56c9;
     color: white;
     text-decoration: none;
     text-align: center;
@@ -458,7 +462,10 @@ button, .btn {
     transition: background 0.12s ease, transform 0.05s ease, box-shadow 0.12s ease;
 }
 
-button:hover, .btn:hover { background: var(--accent-hover); }
+button:hover, .btn:hover {
+    background: linear-gradient(180deg, #2560d8 0%, var(--accent-hover) 100%);
+    border-color: #17408f;
+}
 button:active, .btn:active { transform: translateY(1px); }
 button:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -475,10 +482,18 @@ button:disabled {
     border-color: var(--border-strong);
 }
 
-.btn-secondary:hover { background: #f4f6f9; color: var(--text); }
+.btn-secondary:hover { background: #f4f6f9; color: var(--text); border-color: var(--border-strong); }
 
-.btn-danger { background: var(--danger); }
-.btn-danger:hover { background: #c22b39; }
+/* Le varianti rosse azzerano anche il bordo, che altrimenti resterebbe
+   quello blu del pulsante principale qui sopra.
+
+   Il rosso è #c81e1e e non --danger: su --danger il testo bianco dava
+   3.76:1, sotto la soglia di leggibilità di 4.5:1 richiesta a questo corpo.
+   È lo stesso rosso già usato dai badge di pericolo (5.74:1), che era
+   stato scurito per la stessa ragione; la variabile --danger non si tocca
+   perché la usano anche bordi e sfondi, dove il problema non si pone. */
+.btn-danger { background: #c81e1e; border-color: #a51818; }
+.btn-danger:hover { background: #a51818; border-color: #8a1414; }
 
 /* Il <summary> di un <details> è un list-item: senza togliere il marcatore
    resterebbe il triangolino nero dentro al pulsante. */
@@ -521,9 +536,13 @@ details[open] > summary.btn {
 /* Pulsanti "pericolosi" riconosciuti per testo, senza dover toccare ogni
    template: un colpo d'occhio in più per azioni che cancellano/rifiutano. */
 form[onsubmit*="confirm"] button[type="submit"] {
-    background: var(--danger);
+    background: #c81e1e;
+    border-color: #a51818;
 }
-form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
+form[onsubmit*="confirm"] button[type="submit"]:hover {
+    background: #a51818;
+    border-color: #8a1414;
+}
 
 .filtro { margin-bottom: 1.25rem; }
 
