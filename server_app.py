@@ -120,27 +120,21 @@ def _scrivi_indirizzo_su_file(ip: str) -> None:
         pass  # non blocca l'avvio del server per un problema di scrittura file
 
 
-def _consolida_database() -> None:
-    """Riassorbe il file -wal dentro turni.db alla chiusura pulita.
-
-    Dopo uno spegnimento regolare il database resta così un unico file
-    autosufficiente: non c'è nessun -wal in giro che un giorno possa essere
-    scambiato per quello di un altro database (è già successo, vedi il
-    commento su _DATI_SERVER_DA_MIGRARE in app/paths.py), e chi copia
-    turni.db per metterlo al sicuro se lo porta via completo."""
-    try:
-        from sqlalchemy import text
-
-        from app.database import engine
-
-        with engine.connect() as conn:
-            conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
-        engine.dispose()
-    except Exception:
-        # Alla chiusura non c'è più niente da salvare che valga un errore in
-        # faccia all'utente: il database resta comunque valido, solo con il
-        # suo -wal ancora accanto.
-        pass
+# NON aggiungere qui un PRAGMA wal_checkpoint alla chiusura.
+#
+# C'era, per lasciare turni.db come unico file autosufficiente. È stato
+# tolto: subito dopo il primo spegnimento che lo eseguiva, il database si è
+# ritrovato accorciato di esattamente una pagina (65 -> 64) e riportato allo
+# stato di due settimane prima, con integrity_check che continuava a dire
+# "ok" perché il file restava internamente coerente.
+#
+# Non è dimostrato che la causa fosse quella, ma il momento è il peggiore
+# possibile per scrivere sul database: il processo sta per uscire e i thread
+# di sfondo (backup, allarme copertura, riepilogo, lettura posta) sono
+# daemon, quindi vengono interrotti dove capita, anche a metà di una
+# scrittura. Lasciare il -wal accanto al database è il comportamento
+# normale di SQLite e non costa niente: viene riassorbito da solo alla
+# prossima apertura.
 
 
 def _ferma_server_in_esecuzione() -> int:
@@ -229,10 +223,10 @@ def main():
     icona.run(setup=mostra_avviso_iniziale)
 
     # Da qui in poi l'icona è stata fermata: si aspetta che uvicorn abbia
-    # davvero chiuso, poi si riassorbe il -wal. L'attesa ha un limite
-    # perché una richiesta HTTP appesa non deve impedire la chiusura.
+    # davvero finito di servire le richieste in corso, così il processo non
+    # muore con una scrittura a metà. L'attesa ha un limite perché una
+    # richiesta appesa non deve impedire la chiusura.
     server_thread.join(timeout=15)
-    _consolida_database()
 
 
 if __name__ == "__main__":

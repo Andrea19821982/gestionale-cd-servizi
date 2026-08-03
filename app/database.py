@@ -20,6 +20,17 @@ def _abilita_foreign_keys(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON")
     cursor.execute("PRAGMA journal_mode = WAL")
+    # Quanto può crescere il -wal prima che SQLite lo riversi da solo dentro
+    # turni.db. Il valore predefinito è 1000 pagine, cioè circa 4 MB: su un
+    # archivio come questo, che di pagine ne ha meno di cento, vuol dire
+    # MAI. È esattamente com'è andata: il file principale è rimasto fermo a
+    # settimane prima e tutto il lavoro recente viveva solo nel -wal, che è
+    # un file separato. Bastava perderlo, o ritrovarselo accanto non
+    # combaciante, perché i dati "tornassero indietro" o si rompessero.
+    #
+    # Con 32 pagine (~128 KB) il riversamento avviene di continuo: turni.db
+    # resta praticamente sempre aggiornato e il -wal non è mai portante.
+    cursor.execute("PRAGMA wal_autocheckpoint = 32")
     cursor.close()
 
 
@@ -119,11 +130,46 @@ def verifica_integrita() -> str | None:
     return None if esito == "ok" else esito
 
 
+def consolida_wal() -> bool:
+    """Riversa dentro turni.db tutto ciò che sta ancora nel -wal, così il
+    file principale è completo da solo. True se è riuscito del tutto.
+
+    Va chiamato SOLO all'avvio, prima che partano i thread di sfondo e
+    prima di servire richieste: è l'unico momento in cui nessun altro sta
+    scrivendo. Farlo alla chiusura, come si era provato, significa scrivere
+    sul database mentre il processo sta per uscire e i thread daemon
+    vengono interrotti dove capita — ed è finita male.
+
+    Perché serve: il -wal è un file separato da turni.db. Se il file
+    principale resta indietro, tutto il lavoro recente vive solo lì dentro,
+    e basta perderlo (o ritrovarselo accanto non combaciante) perché i dati
+    tornino indietro di settimane senza che nessun controllo se ne accorga,
+    visto che il file principale resta perfettamente coerente. Qui si toglie
+    al -wal quel ruolo portante."""
+    try:
+        with engine.connect() as conn:
+            # (bloccate, pagine_nel_wal, pagine_riversate): la prima è 0 se
+            # il riversamento è riuscito senza trovare altri in mezzo.
+            bloccate, _, _ = conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)")).fetchone()
+        return bloccate == 0
+    except Exception:
+        logger.exception("Riversamento del -wal in %s non riuscito", DB_PATH)
+        return False
+
+
 def init_db():
     from app import models  # noqa: F401  (registra i modelli su Base)
 
     Base.metadata.create_all(bind=engine)
     _migra_schema()
+
+    if not consolida_wal():
+        logger.warning(
+            "Il -wal accanto a %s non è stato riversato del tutto: qualcun altro sta usando "
+            "il database in questo momento (un secondo server acceso?). Non è un danno, ma "
+            "conviene accertarsi che ci sia un solo server in esecuzione.",
+            DB_PATH,
+        )
 
     problema = verifica_integrita()
     if problema is not None:
