@@ -27,7 +27,7 @@
 #define NomeApp "Gestionale CD-Servizi"
 ; Versione: tenerla allineata a versione_client.txt e versione_server.txt,
 ; che sono le informazioni incorporate nei due eseguibili.
-#define Versione "1.0.9"
+#define Versione "1.1.0"
 #define Produttore "CD Servizi"
 
 [Setup]
@@ -131,6 +131,32 @@ Name: "{autodesktop}\Gestionale CD Servizi - Server"; Filename: "{app}\Server\Ca
 
 Name: "{userstartup}\Gestionale CD Servizi - Server"; Filename: "{app}\Server\CalendarioTurni-Server.exe"; \
     Tasks: avvioautomatico; Components: server
+
+[Code]
+{ Prima di sostituire i file, si chiede al server eventualmente acceso di
+  chiudersi da solo (vedi app/arresto.py e la modalità --ferma in
+  server_app.py). Senza questo passaggio toccava all'utente terminarlo dal
+  Task Manager: una chiusura forzata lascia il file -wal non riassorbito
+  accanto al database, proprio nel momento più delicato. CloseApplications
+  di Inno non basta da solo, perché il server vive come icona nella barra e
+  non ha una finestra a cui mandare la richiesta di chiusura.
+
+  Se non c'è niente in esecuzione l'eseguibile esce subito: nessun costo. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  EseguibileServer: String;
+  Esito: Integer;
+begin
+  Result := '';
+  EseguibileServer := ExpandConstant('{app}\Server\CalendarioTurni-Server.exe');
+  if FileExists(EseguibileServer) then
+  begin
+    Exec(EseguibileServer, '--ferma', '', SW_HIDE, ewWaitUntilTerminated, Esito);
+    { Esito <> 0 vuol dire che il server non ha mollato la porta entro il
+      tempo massimo: non si blocca l'installazione, ci pensa
+      CloseApplications a proporre la chiusura come prima. }
+  end;
+end;
 
 [Run]
 Filename: "{app}\Server\CalendarioTurni-Server.exe"; Description: "Avvia ora il server"; \

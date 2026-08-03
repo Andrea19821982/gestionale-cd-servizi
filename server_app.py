@@ -14,6 +14,7 @@ import time
 import webbrowser
 from pathlib import Path
 
+from app import arresto
 from app.paths import cartella_dati, cartella_risorse
 
 # Impacchettato con console=False (niente finestra di console): sys.stdout
@@ -119,7 +120,50 @@ def _scrivi_indirizzo_su_file(ip: str) -> None:
         pass  # non blocca l'avvio del server per un problema di scrittura file
 
 
+def _consolida_database() -> None:
+    """Riassorbe il file -wal dentro turni.db alla chiusura pulita.
+
+    Dopo uno spegnimento regolare il database resta così un unico file
+    autosufficiente: non c'è nessun -wal in giro che un giorno possa essere
+    scambiato per quello di un altro database (è già successo, vedi il
+    commento su _DATI_SERVER_DA_MIGRARE in app/paths.py), e chi copia
+    turni.db per metterlo al sicuro se lo porta via completo."""
+    try:
+        from sqlalchemy import text
+
+        from app.database import engine
+
+        with engine.connect() as conn:
+            conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+        engine.dispose()
+    except Exception:
+        # Alla chiusura non c'è più niente da salvare che valga un errore in
+        # faccia all'utente: il database resta comunque valido, solo con il
+        # suo -wal ancora accanto.
+        pass
+
+
+def _ferma_server_in_esecuzione() -> int:
+    """Modalità --ferma, usata dall'installer prima di sostituire i file:
+    chiede al server acceso di chiudersi da solo e aspetta che abbia
+    davvero mollato la porta. Codice di uscita 0 = non c'è più niente in
+    esecuzione (che è l'unica cosa che interessa a chi installa)."""
+    if not _server_gia_in_ascolto():
+        return 0
+    if not arresto.chiedi_arresto():
+        return 1
+    scadenza = time.monotonic() + 25
+    while time.monotonic() < scadenza:
+        if not _server_gia_in_ascolto():
+            return 0
+        time.sleep(0.3)
+    return 1
+
+
 def main():
+    if "--ferma" in sys.argv:
+        sys.exit(_ferma_server_in_esecuzione())
+
     if _server_gia_in_ascolto():
         # Il server è già acceso su questo PC (avviato in precedenza e
         # lasciato attivo, come da istruzioni di installa_server.ps1):
@@ -142,9 +186,10 @@ def main():
     def apri_nel_browser(icon=None, item=None):
         webbrowser.open(f"http://localhost:{PORTA}")
 
-    def ferma_ed_esci(icon, item):
+    def ferma_ed_esci(icon=None, item=None):
         server_thread.ferma()
-        icon.stop()
+        if icona is not None:
+            icona.stop()
 
     menu = pystray.Menu(
         pystray.MenuItem(f"Server attivo — {ip}:{PORTA}", None, enabled=False),
@@ -152,6 +197,18 @@ def main():
         pystray.MenuItem("Ferma il server ed esci", ferma_ed_esci),
     )
     icona = pystray.Icon("CalendarioTurni", _carica_icona(), "Gestionale CD Servizi — Server", menu)
+
+    # Stessa chiusura pulita del menu qui sopra, ma chiesta dall'esterno:
+    # è così che l'installer spegne il server prima di sostituire i file,
+    # senza che nessuno debba terminarlo dal Task Manager (vedi
+    # app/arresto.py e la sezione [Code] di installer.iss).
+    segnale_arresto = arresto.crea_segnale()
+    if segnale_arresto is not None:
+        def _attendi_richiesta_di_arresto():
+            if arresto.attendi_segnale(segnale_arresto):
+                ferma_ed_esci()
+
+        threading.Thread(target=_attendi_richiesta_di_arresto, daemon=True).start()
 
     def mostra_avviso_iniziale(icon: pystray.Icon) -> None:
         # Su alcuni backend l'icona deve già essere visibile prima di poter
@@ -170,6 +227,12 @@ def main():
     print("=" * 60)
 
     icona.run(setup=mostra_avviso_iniziale)
+
+    # Da qui in poi l'icona è stata fermata: si aspetta che uvicorn abbia
+    # davvero chiuso, poi si riassorbe il -wal. L'attesa ha un limite
+    # perché una richiesta HTTP appesa non deve impedire la chiusura.
+    server_thread.join(timeout=15)
+    _consolida_database()
 
 
 if __name__ == "__main__":
