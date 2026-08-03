@@ -14,6 +14,19 @@
     </label>
     <button type="submit">Aggiorna</button>
 </form>
+{% if tipi_non_riconosciuti %}
+<div class="riquadro blocco-copertura-carente">
+    <p><strong>⚠️ Alcune assenze approvate del {{ anno }} non rientrano in nessuna categoria nota, quindi non vengono scalate dalle ferie residue.</strong></p>
+    <p class="muted">Il tipo di assenza si scrive a mano, e il conteggio delle ferie riconosce solo le diciture che contengono <em>ferie</em>, <em>malattia</em> o <em>permesso</em>. Queste risultano scritte diversamente:</p>
+    <ul>
+        {% for tipo, quante in tipi_non_riconosciuti %}
+        <li><strong>{{ tipo }}</strong> — {{ quante }} richiest{{ "a" if quante == 1 else "e" }}</li>
+        {% endfor %}
+    </ul>
+    <p class="muted">Se dovevano contare come ferie, correggi la dicitura in <a href="/assenze">Assenze e permessi</a>: i giorni residui qui sotto tornano subito giusti. Se invece è corretto che non tocchino il monte ferie (per esempio un congedo non retribuito), puoi ignorare questo avviso.</p>
+</div>
+{% endif %}
+
 <p class="muted">Ferie residue, sostituzioni fatte e ferie/permessi concessi o rifiutati calcolati sull'anno solare {{ anno }}. Ore lavorate calcolate su {{ mese_nome }} {{ anno }}. Per un part-time (ore settimanali contrattuali sotto le 40) ferie annuali e ore contrattuali sono proporzionate automaticamente. Per lo storico completo di un dipendente, apri la sua scheda dalla colonna Dipendente.</p>
 
 <div class="scroll-statistiche">

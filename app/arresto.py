@@ -41,14 +41,18 @@ if _SU_WINDOWS:
     _kernel32.WaitForSingleObject.restype = wintypes.DWORD
 
 
-def crea_segnale():
+def crea_segnale(nome: str = NOME_EVENTO):
     """Preparato dal server all'avvio. Restituisce un riferimento opaco da
     passare ad attendi_segnale, o None se il meccanismo non è disponibile
     (fuori da Windows, o se l'evento non si riesce a creare: in quel caso
-    resta valida la chiusura dall'icona nella barra)."""
+    resta valida la chiusura dall'icona nella barra).
+
+    Il nome si può cambiare solo per i test: usare quello vero li
+    renderebbe dipendenti da cosa sta girando sul PC, e — peggio —
+    un test finirebbe per spegnere il server davvero in esecuzione."""
     if not _SU_WINDOWS:
         return None
-    handle = _kernel32.CreateEventW(None, True, False, NOME_EVENTO)
+    handle = _kernel32.CreateEventW(None, True, False, nome)
     return handle or None
 
 
@@ -60,14 +64,14 @@ def attendi_segnale(handle) -> bool:
     return _kernel32.WaitForSingleObject(handle, _INFINITE) == _WAIT_OBJECT_0
 
 
-def chiedi_arresto() -> bool:
+def chiedi_arresto(nome: str = NOME_EVENTO) -> bool:
     """Chiede al server in esecuzione di fermarsi. True se un server c'era
     ed è stato avvisato; False se non ne risulta nessuno in ascolto (che
     per chi installa è comunque una buona notizia: non c'è niente da
     chiudere)."""
     if not _SU_WINDOWS:
         return False
-    handle = _kernel32.OpenEventW(_EVENT_MODIFY_STATE, False, NOME_EVENTO)
+    handle = _kernel32.OpenEventW(_EVENT_MODIFY_STATE, False, nome)
     if not handle:
         return False
     try:

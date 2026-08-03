@@ -35,8 +35,25 @@
     --cat-6: #4338ca;
     --radius: 10px;
     --radius-sm: 6px;
-    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 1px rgba(16, 24, 40, 0.04);
-    --shadow-md: 0 6px 16px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.04);
+    /* Ombre a due livelli invece che a uno: un alone ampio e quasi
+       impercettibile per staccare l'elemento dal fondo, più una linea
+       stretta e scura subito sotto il bordo che ne definisce lo spessore.
+       È la differenza fra un riquadro "appoggiato" e uno che sembra
+       davvero un oggetto. */
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 2px 4px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 4px 8px rgba(15, 23, 42, 0.05), 0 18px 40px rgba(15, 23, 42, 0.12);
+    /* Alone di messa a fuoco, usato dove serve indicare "sei qui". */
+    --anello-focus: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+/* Cifre a larghezza fissa in tutta l'applicazione. Su una tabella di turni,
+   ore e importi le colonne di numeri restano incolonnate invece di
+   ballare di riga in riga: è il dettaglio che distingue un programma
+   gestionale da una pagina qualsiasi, e si nota anche senza saperlo. */
+table, .kpi-numero, .cella-turno-orario, input[type="number"], .avatar, code {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
 }
 
 * { box-sizing: border-box; }
@@ -58,7 +75,11 @@ a { color: var(--accent); }
 /* --- Barra di navigazione --- */
 
 .topnav {
-    background: var(--brand-navy);
+    /* Sfumatura appena percettibile invece del colore piatto, più una
+       linea chiarissima sul bordo inferiore: la barra acquista spessore e
+       si stacca dal contenuto senza bisogno di un'ombra marcata. */
+    background: linear-gradient(180deg, #232936 0%, var(--brand-navy) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     box-shadow: var(--shadow-md);
     padding: 0 1.25rem;
     display: flex;
@@ -106,6 +127,7 @@ a { color: var(--accent); }
 .topnav a.nav-link-attivo {
     color: #fff;
     background: var(--accent);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .nav-utente {
@@ -187,11 +209,15 @@ h3 {
 .tabella th {
     background: #f7f8fb;
     color: var(--text-secondary);
-    font-size: 0.76rem;
+    font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    /* Spaziatura più aperta e corpo più piccolo: l'intestazione diventa
+       un'etichetta di servizio, chiaramente distinta dai dati invece di
+       competerci. */
+    letter-spacing: 0.06em;
     white-space: nowrap;
+    border-bottom: 1px solid var(--border-strong);
 }
 
 .tabella tbody tr:last-child td { border-bottom: none; }
@@ -356,7 +382,7 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    box-shadow: var(--anello-focus);
 }
 
 .form-inline input[type="checkbox"] {
@@ -594,14 +620,23 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
-    padding: 1rem 1.25rem;
+    padding: 1.1rem 1.25rem;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+/* Si solleva appena al passaggio del mouse: costa niente e fa capire che
+   la pagina è viva, senza animazioni che distraggano chi ci lavora tutto
+   il giorno. */
+.kpi-tile:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
 }
 
 .kpi-tile .kpi-numero {
-    font-size: 1.9rem;
+    font-size: 2.1rem;
     font-weight: 800;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
     color: var(--text);
 }
 
@@ -831,10 +866,33 @@ form[onsubmit*="confirm"] button[type="submit"]:hover { background: #c22b39; }
     align-items: center;
     justify-content: center;
     padding: 3rem 3rem;
-    background: linear-gradient(160deg, var(--brand-navy) 0%, #12141f 100%);
+    /* Reticolo appena accennato sopra la sfumatura: dà profondità e un
+       carattere tecnico senza diventare decorazione. Le due sfumature
+       radiali smorzano il reticolo verso i bordi, così non sembra una
+       carta millimetrata appiccicata sopra. */
+    background:
+        radial-gradient(circle at 30% 20%, rgba(92, 143, 201, 0.16) 0%, transparent 55%),
+        linear-gradient(160deg, var(--brand-navy) 0%, #12141f 100%);
+    position: relative;
+    overflow: hidden;
 }
 
-.login-brand-content { max-width: 380px; }
+.login-panel-brand::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse at 40% 40%, #000 0%, transparent 75%);
+    mask-image: radial-gradient(ellipse at 40% 40%, #000 0%, transparent 75%);
+    pointer-events: none;
+}
+
+
+/* position:relative per stare sopra il reticolo disegnato in ::before. */
+.login-brand-content { max-width: 380px; position: relative; }
 
 .login-brand-bars {
     display: flex;

@@ -45,6 +45,49 @@ def _ore_contrattuali_nel_mese(dipendente: Dipendente) -> float:
     return round(dipendente.ore_settimanali_contrattuali * 4.348, 1)
 
 
+# Diciture che il programma sa riconoscere in Assenza.tipo_assenza, che è
+# un campo di testo libero: nel form ci sono solo dei suggerimenti (vedi
+# templates/assenze.html), non un elenco chiuso.
+#
+# Chi scrive "Congedo annuale" invece di "Ferie" crea un'assenza che non
+# viene scalata dal monte ferie, perché il conteggio qui sopra cerca la
+# parola "ferie" nel testo. Il dipendente risulta così con più ferie
+# residue di quante ne abbia davvero, e non c'è nessun errore da nessuna
+# parte: è un numero sbagliato che sembra giusto, e si scopre quando si
+# chiudono le buste paga.
+#
+# Indovinare l'intenzione di chi ha scritto non si può. Farlo notare sì:
+# vedi tipi_assenza_non_riconosciuti, mostrato in cima a /statistiche.
+DICITURE_RICONOSCIUTE = ("ferie", "malattia", "permesso")
+
+
+def tipi_assenza_non_riconosciuti(db: Session, anno: int) -> list[tuple[str, int]]:
+    """Le diciture usate nelle assenze approvate dell'anno che non
+    contengono nessuna delle parole riconosciute, con quante richieste per
+    ciascuna. Ordinate dalla più frequente, perché è quella che vale la
+    pena sistemare per prima."""
+    inizio_anno = date(anno, 1, 1)
+    fine_anno = date(anno, 12, 31)
+    approvate = (
+        db.query(Assenza.tipo_assenza)
+        .filter(
+            Assenza.stato == "approvata",
+            Assenza.data_inizio <= fine_anno,
+            Assenza.data_fine >= inizio_anno,
+        )
+        .all()
+    )
+    conteggi: dict[str, int] = defaultdict(int)
+    for (tipo,) in approvate:
+        testo = (tipo or "").strip()
+        if not testo:
+            continue
+        if any(parola in testo.casefold() for parola in DICITURE_RICONOSCIUTE):
+            continue
+        conteggi[testo] += 1
+    return sorted(conteggi.items(), key=lambda voce: (-voce[1], voce[0]))
+
+
 def _giorni_ferie_usati_nell_anno(db: Session, dipendente_id: int, anno: int) -> int:
     inizio_anno = date(anno, 1, 1)
     fine_anno = date(anno, 12, 31)
@@ -285,6 +328,7 @@ def statistiche(
             "mese": mese,
             "mese_nome": NOMI_MESE[mese],
             "nomi_mese": NOMI_MESE,
+            "tipi_non_riconosciuti": tipi_assenza_non_riconosciuti(db, anno),
             "utente": utente,
         },
     )
