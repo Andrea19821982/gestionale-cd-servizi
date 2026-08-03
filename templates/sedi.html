@@ -29,6 +29,22 @@
                             <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="{{ s.copertura_minima_pomeriggio }}" min="0" required style="width:5em;"></label>
                             <label>Ordine visualizzazione <input type="number" name="ordine_visualizzazione" value="{{ s.ordine_visualizzazione }}" required style="width:4em;"></label>
                             <label><input type="checkbox" name="attivo" {% if s.attivo %}checked{% endif %}> attiva</label>
+                            <fieldset class="elenco-membri">
+                                <legend>Chi lavora in questa sede</legend>
+                                {% for d in dipendenti %}
+                                <label>
+                                    <input type="checkbox" name="dipendente_ids" value="{{ d.id }}"
+                                           {% if d.sede_riferimento_id == s.id %}checked{% endif %}>
+                                    {{ d.cognome }} {{ d.nome }}
+                                    {% if d.sede_riferimento_id != s.id %}
+                                    <span class="muted">({{ d.sede_riferimento.nome if d.sede_riferimento else "senza sede" }})</span>
+                                    {% endif %}
+                                </label>
+                                {% else %}
+                                <p class="muted">Nessun dipendente attivo in anagrafica.</p>
+                                {% endfor %}
+                            </fieldset>
+                            <p class="muted">Togliendo la spunta il dipendente resta senza sede, e va riassegnato da un'altra sede o dalla sua scheda.</p>
                             <button type="submit">Salva</button>
                         </form>
                     </div>
@@ -43,6 +59,7 @@
 
 {% if utente.ruolo == "amministratore" %}
 <h2>Nuova sede</h2>
+<p class="muted">Spunta subito chi ci lavora: senza, andrebbero aperti uno per uno in Dipendenti dopo aver creato la sede. Chi viene spostato da un altro palazzo perde l'eventuale comparto, perché i comparti appartengono alla sede da cui arriva.</p>
 <form method="post" action="/sedi/nuova" class="form-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <label>Nome sede <input type="text" name="nome" required></label>
@@ -50,6 +67,18 @@
     <label>Minimo mattina <input type="number" name="copertura_minima_mattina" value="0" min="0" required style="width:5em;"></label>
     <label>Minimo pomeriggio <input type="number" name="copertura_minima_pomeriggio" value="0" min="0" required style="width:5em;"></label>
     <label>Ordine visualizzazione <input type="number" name="ordine_visualizzazione" value="0" required style="width:4em;"></label>
+    <fieldset class="elenco-membri">
+        <legend>Chi lavora in questa sede</legend>
+        {% for d in dipendenti %}
+        <label>
+            <input type="checkbox" name="dipendente_ids" value="{{ d.id }}">
+            {{ d.cognome }} {{ d.nome }}
+            <span class="muted">({{ d.sede_riferimento.nome if d.sede_riferimento else "senza sede" }})</span>
+        </label>
+        {% else %}
+        <p class="muted">Nessun dipendente attivo in anagrafica.</p>
+        {% endfor %}
+    </fieldset>
     <button type="submit">Aggiungi</button>
 </form>
 {% endif %}

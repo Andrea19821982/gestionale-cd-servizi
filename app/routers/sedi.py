@@ -73,6 +73,37 @@ def elenco_sedi(
     )
 
 
+def _applica_dipendenti_alla_sede(
+    db: Session, sede: Sede, dipendente_ids: list[int], utente_id: int
+) -> int:
+    """Allinea chi lavora in questa sede a quanto spuntato nel form: assegna
+    i selezionati e toglie i deselezionati, che restano senza sede finché
+    non si riassegnano (dalla loro scheda o da un'altra sede).
+
+    Chi viene spostato perde la sottosezione. I comparti appartengono a una
+    sede precisa: portarsi dietro il nome di un comparto di un altro
+    palazzo creerebbe un gruppo che non corrisponde più a niente, con il
+    minimo di copertura ricaduto a 0 in silenzio (vedi calcola_copertura).
+
+    Restituisce quanti dipendenti sono stati spostati."""
+    selezionati = set(dipendente_ids)
+    modificati = 0
+    for dipendente in db.query(Dipendente).filter(Dipendente.attivo == True).all():  # noqa: E712
+        gia_qui = dipendente.sede_riferimento_id == sede.id
+        deve_stare_qui = dipendente.id in selezionati
+        if gia_qui == deve_stare_qui:
+            continue
+        dipendente.sede_riferimento_id = sede.id if deve_stare_qui else None
+        dipendente.sottosezione = None
+        registra_modifica(
+            db, utente_id, "dipendenti", dipendente.id, "modifica",
+            f"cognome={dipendente.cognome}, nome={dipendente.nome}, "
+            f"sede_riferimento_id={dipendente.sede_riferimento_id}",
+        )
+        modificati += 1
+    return modificati
+
+
 @router.post("/sedi/nuova")
 def crea_sede(
     request: Request,
@@ -81,6 +112,7 @@ def crea_sede(
     copertura_minima_mattina: str = Form("0"),
     copertura_minima_pomeriggio: str = Form("0"),
     ordine_visualizzazione: str = Form("0"),
+    dipendente_ids: list[int] = Form([]),
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_ANAGRAFICA)),
     _csrf: None = Depends(richiedi_csrf_valido),
@@ -96,7 +128,15 @@ def crea_sede(
     db.add(sede)
     db.flush()
     registra_modifica(db, utente.id, "sedi", sede.id, "creazione", f"nome={sede.nome}")
+    assegnati = _applica_dipendenti_alla_sede(db, sede, dipendente_ids, utente.id)
     db.commit()
+    imposta_flash(
+        request,
+        f"Sede \"{sede.nome}\" creata"
+        + (f" con {assegnati} dipendent{'e' if assegnati == 1 else 'i'}." if assegnati else
+           ". Nessun dipendente assegnato: puoi farlo da qui con Modifica."),
+        tipo="ok",
+    )
     return RedirectResponse("/sedi", status_code=303)
 
 
@@ -110,6 +150,7 @@ def modifica_sede(
     copertura_minima_pomeriggio: str = Form("0"),
     ordine_visualizzazione: str = Form("0"),
     attivo: str = Form(None),
+    dipendente_ids: list[int] = Form([]),
     db: Session = Depends(get_db),
     utente: Utente = Depends(richiedi_ruolo(*RUOLI_SCRITTURA_ANAGRAFICA)),
     _csrf: None = Depends(richiedi_csrf_valido),
@@ -128,7 +169,14 @@ def modifica_sede(
         f"copertura_minima_pomeriggio={sede.copertura_minima_pomeriggio}, "
         f"ordine_visualizzazione={sede.ordine_visualizzazione}, attivo={sede.attivo}",
     )
+    spostati = _applica_dipendenti_alla_sede(db, sede, dipendente_ids, utente.id)
     db.commit()
+    imposta_flash(
+        request,
+        f"Sede \"{sede.nome}\" aggiornata"
+        + (f": {spostati} dipendent{'e spostato' if spostati == 1 else 'i spostati'}." if spostati else "."),
+        tipo="ok",
+    )
     return RedirectResponse("/sedi", status_code=303)
 
 
